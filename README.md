@@ -14,6 +14,6 @@ The project is currently in the **documentation and planning phase**. Developmen
 
 ## Documentation
 All project documentation is available in the `docs/` folder as PDF files : 
-docs/FBN7YM_TECHNICAL_SPECS.pdf
+[Technical Specs](docs/FBN7YM_TECHNICAL_SPECS.pdf)
 
 
