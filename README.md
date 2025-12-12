@@ -13,9 +13,5 @@ The project is currently in the **documentation and planning phase**. Developmen
 - Role-based access (Student, Alumni, Admin)
 
 ## Documentation
-All project documentation is available in the `docs/` folder as PDF files:
-
-- [Functional Specifications](docs/Functional_Specs.pdf)
-- [Technical Specifications](docs/Technical_Specs.pdf)
-
+All project documentation is available in the `docs/` folder as PDF files
 
