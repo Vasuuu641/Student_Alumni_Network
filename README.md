@@ -13,5 +13,7 @@ The project is currently in the **documentation and planning phase**. Developmen
 - Role-based access (Student, Alumni, Admin)
 
 ## Documentation
-All project documentation is available in the `docs/` folder as PDF files
+All project documentation is available in the `docs/` folder as PDF files : 
+docs/FBN7YM_TECHNICAL_SPECS.pdf
+
 
