@@ -1,12 +1,10 @@
-import { User } from "./user.entity";
+import {User} from "./user.entity";
 
-export class Alumni {
+export class Student {
     constructor(
         public readonly id: string,
         public user: User,
-        public yearOfGraduation: number,
-        public major: string,
-        public company: string,
+        public faculty: string,
         public jobTitle: string,
         public bio: string,
         public interests: string[],

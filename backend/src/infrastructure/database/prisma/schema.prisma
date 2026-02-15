@@ -13,22 +13,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          Role
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  student   Student?
-  alumni    Alumni?
+  student       Student?
+  alumni        Alumni?
+  professor     Professor?
+  admin         Admin?
+}
+
+model Admin {
+  id                String @id @default(uuid())
+  userId            String @unique
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Student {
-  id        String @id @default(uuid())
-  userId    String @unique
-  major     String?
-  interests String?
+  id                  String @id @default(uuid())
+  userId              String @unique
+  major               String
+  yearOfGraduation    Int
+  interests           String[]
+  faculty             String 
+  bio                 String?
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -36,9 +50,23 @@ model Student {
 model Alumni {
   id        String @id @default(uuid())
   userId    String @unique
+  yearOfGraduation  Int
+  major     String
   company   String?
   jobTitle  String?
   bio       String?
+  interests String[]
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Professor {
+  id        String @id @default(uuid())
+  userId    String @unique
+  faculty   String 
+  jobTitle  String
+  bio       String?
+  interests String[]
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -46,4 +74,6 @@ model Alumni {
 enum Role {
   STUDENT
   ALUMNI
+  PROFESSOR
+  ADMIN
 }
