@@ -14,8 +14,8 @@ The project is currently in the **implementation phase**.
 
 ## 📚 Documentation
 Detailed project documentation is available in the `docs/` folder:
-- 📄 [Technical Specifications](docs/FBN7YM_TECHNICAL_SPECS.pdf)
-- 📋 [Functional Specifications](docs/FBNY7YM_Functional_Specs.pdf)
+- 📄 [Technical Specifications](docs/FBN7YM_Updated_Technical_Specs.pdf)
+- 📋 [Functional Specifications](docs/FBNY7YM_Updated_Functional.pdf)
 
 ---
 
