@@ -2,52 +2,66 @@
 
 An AI-driven platform connecting students and alumni to foster mentorship, academic support, and cross-faculty collaboration. This repository currently contains all planning and documentation for the project, including functional specifications, technical design, and UI/UX mockups.
 
-## Project Status
+## 🚀 Project Status
 The project is currently in the **implementation phase**. 
 
-## Features (Planned)
-- AI-based smart profile matching between students and alumni
-- Academic support workflows
-- Secure messaging between students and alumni
-- Cross-faculty collaboration tools
-- Role-based access (Student, Alumni, Admin)
+## ✨ Features (Planned)
+- **AI-Smart Matching:** Intelligent profile matching between students and alumni.
+- **Academic Support:** Workflows for resource sharing and study assistance.
+- **Secure Communication:** Real-time messaging and chat rooms.
+- **Cross-Faculty Tools:** Collaboration features for interdisciplinary projects.
+- **Role-Based Access:** Managed access for Students, Alumni, and Admins.
 
-## Documentation
-All project documentation is available in the `docs/` folder as PDF files : 
-[Technical Specs](docs/FBN7YM_TECHNICAL_SPECS.pdf)
-[Functional Specs](docs/FBNY7YM_Functional_Specs.pdf)
+## 📚 Documentation
+Detailed project documentation is available in the `docs/` folder:
+- 📄 [Technical Specifications](docs/FBN7YM_TECHNICAL_SPECS.pdf)
+- 📋 [Functional Specifications](docs/FBNY7YM_Functional_Specs.pdf)
 
-## Project folder structure
-This project has been designed to follow a clean architecture model. It has around 5 layers - the domain, application, interfaces, presentation and infrastructure layer for a clean seperation of concerns. 
+---
 
+## 🏗️ Architecture & Folder Structure
+
+This project implements **Clean Architecture** (Hexagonal Architecture) to ensure a strict separation of concerns. This design keeps core business logic independent of frameworks, databases, and UI.
+
+
+
+```text
 backend/src/
-├── 🏛️ domain/                # Enterprise Logic (Framework-agnostic)
-│   ├── entities/            # Core business objects (User, Note, Thread)
-│   ├── value-objects/       # Data validation logic (Email, Role)
-│   └── repositories/        # Interfaces defining how we talk to data
+├── 🏛️ domain/            # Core Business Logic (Framework-agnostic)
+│   ├── entities/        # Enterprise-wide business objects (User, Note, etc.)
+│   ├── value-objects/   # Domain-specific data types (Email, Role, Location)
+│   └── repositories/    # Interface definitions (Contracts for data access)
 │
-├── ⚙️ application/           # Use Cases (Orchestrates Domain logic)
-│   ├── users/               # e.g., create-user.usecase.ts
-│   ├── notes/               # e.g., link-note.usecase.ts (AI-assisted)
-│   ├── alumni/              # e.g., match-mentor.usecase.ts
-│   └── ...                  # (Threads, Study-groups, Chat, Feed)
+├── ⚙️ application/       # Use Cases (Orchestrates Domain logic)
+│   ├── users/           # User management & profile logic
+│   ├── notes/           # AI-assisted note linking & sharing
+│   ├── alumni/          # Mentorship matching & advice (AI-powered)
+│   └── ...              # Threads, Study-groups, Chat, Feed
 │
-├── 🔌 infrastructure/        # Implementations & External Services
-│   ├── database/            # Prisma service and schema
-│   ├── repositories/        # Prisma-specific repository implementations
-│   ├── ai/                  # Cohere AI integration logic
-│   └── websocket/           # Real-time Gateways (Chat & Notifications)
+├── 🔌 infrastructure/    # External Implementations & Tools
+│   ├── database/        # Prisma Service & Schema definition
+│   ├── repositories/    # Concrete Prisma repository implementations
+│   ├── ai/              # Cohere AI Service integration
+│   └── websocket/       # Socket.io Gateways for Chat & Notifications
 │
-├── 🎮 presentation/          # NestJS Controllers & Entry Points
-│   ├── [feature]/           # Modules, Controllers, and DTOs
-│   └── ...                  # Handles HTTP requests and mapping
+├── 🎮 presentation/      # NestJS Delivery Layer (API)
+│   ├── [feature]/       # Modules, Controllers, and DTOs
+│   └── ...              # Maps HTTP requests to Application Use Cases
 │
-├── 🔐 auth/                  # Authentication & JWT Strategy
-├── 🏁 app.module.ts          # Root module
-└── 🚀 main.ts                # Application entry point
+├── 🔐 auth/              # Authentication & JWT Strategy logic
+├── 🏁 app.module.ts      # Root application module
+└── 🚀 main.ts            # Application entry point
 
-Note that this is not the full project but only highlights what the backend folder structure looks like to show the way the clean architecture system design has been implemented. 
+```
 
+## 🛰️ Unidirectional Dependency Flow
 
+To maintain a **decoupled codebase**, dependencies only point inwards:
 
+    Presentation (Controllers) receives the request and triggers a Use Case.
 
+    Application (Use Cases) executes logic using Domain entities.
+
+    Infrastructure (Prisma/Cohere) handles technical implementation of the interfaces defined in the Domain.
+
+    Note: The structure above highlights the backend organization specifically to demonstrate the system design implementation.
