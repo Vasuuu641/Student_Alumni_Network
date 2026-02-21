@@ -77,3 +77,11 @@ enum Role {
   PROFESSOR
   ADMIN
 }
+
+model AuthorizedUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      Role
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
