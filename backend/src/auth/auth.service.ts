@@ -4,7 +4,7 @@ Calls LoginUseCase
 Calls TokenService
 Returns JWT*/
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { RegisterUserUseCase } from '../application/auth/register-user.usecase';
 import { LoginUserUseCase } from '../application/auth/login-user.usecase';
 import type { TokenService } from '../domain/services/token-service';
@@ -16,6 +16,7 @@ export class AuthService {
   constructor(
     private registerUserUseCase: RegisterUserUseCase,
     private loginUserUseCase: LoginUserUseCase,
+    @Inject('TokenService')
     private tokenService: TokenService
   ) {}
 

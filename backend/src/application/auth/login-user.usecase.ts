@@ -1,5 +1,6 @@
-import { UserRepository } from "../../domain/repositories/user.repository";
-import { PasswordHasher } from "../../domain/services/password-hasher";
+import { Inject, Injectable } from '@nestjs/common';
+import type { UserRepository } from "../../domain/repositories/user.repository";
+import type { PasswordHasher } from "../../domain/services/password-hasher";
 import { Email } from "../../domain/value-objects/email.vo";
 
 export class InvalidCredentialsError extends Error {
@@ -14,9 +15,12 @@ export interface AuthenticatedUser {
   role: string;
 }
 
+@Injectable()
 export class LoginUserUseCase {
   constructor(
+    @Inject('UserRepository')
     private readonly userRepository: UserRepository,
+    @Inject('PasswordHasher')
     private readonly passwordHasher: PasswordHasher
   ) {}
 

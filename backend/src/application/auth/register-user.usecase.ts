@@ -1,9 +1,10 @@
 // application/auth/register-user.usecase.ts
 
+import { Inject, Injectable } from '@nestjs/common';
 import { User } from '../../domain/entities/user.entity';
-import { UserRepository } from '../../domain/repositories/user.repository';
-import { AuthorizedUserRepository } from '../../domain/repositories/authorized-user.repository';
-import { PasswordHasher } from '../../domain/services/password-hasher';
+import type { UserRepository } from '../../domain/repositories/user.repository';
+import type { AuthorizedUserRepository } from '../../domain/repositories/authorized-user.repository';
+import type { PasswordHasher } from '../../domain/services/password-hasher';
 import { Email } from '../../domain/value-objects/email.vo';
 
 export interface RegisterUserRequest {
@@ -13,10 +14,14 @@ export interface RegisterUserRequest {
   lastName: string;
 }
 
+@Injectable()
 export class RegisterUserUseCase {
   constructor(
+    @Inject('UserRepository')
     private readonly userRepository: UserRepository,
+    @Inject('AuthorizedUserRepository')
     private readonly authorizedUserRepository: AuthorizedUserRepository,
+    @Inject('PasswordHasher')
     private readonly passwordHasher: PasswordHasher
   ) {}
 

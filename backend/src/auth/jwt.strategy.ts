@@ -3,12 +3,12 @@ Extract token
 Verify signature
 Attach payload to request*/
 
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import type { TokenService } from '../domain/services/token-service';
 
 @Injectable()
 export class JwtStrategy implements CanActivate {
-  constructor(private tokenService: TokenService) {}
+  constructor(@Inject('TokenService') private tokenService: TokenService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

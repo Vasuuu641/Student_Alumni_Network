@@ -1,11 +1,7 @@
 import jwt, { Secret } from 'jsonwebtoken';
+import type { TokenService } from '../../domain/services/token-service';
 
-export interface IJwtService {
-    generateToken(payload: string | object | Buffer, expiresIn?: string | number): string;
-    verifyToken(token: string): object | string;
-}
-
-export class JwtService implements IJwtService {
+export class JwtTokenService implements TokenService {
     private secretKey: Secret;
 
     constructor(secretKey: string) {
@@ -17,7 +13,7 @@ export class JwtService implements IJwtService {
         return jwt.sign(payload, this.secretKey, options);
     }
 
-    verifyToken(token: string): object | string {
+    async verifyToken(token: string): Promise<object | string> {
         try {
             return jwt.verify(token, this.secretKey);
         } catch (error) {
