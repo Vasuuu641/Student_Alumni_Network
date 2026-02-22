@@ -1,17 +1,28 @@
-import { Role } from "generated/prisma/enums";
+import {Email} from "../value-objects/email.vo";
 
-// domain/entities/user.entity.ts
+export enum Role {
+  STUDENT = 'STUDENT',
+  ALUMNI = 'ALUMNI',
+  PROFESSOR = 'PROFESSOR',
+  ADMIN = 'ADMIN',
+}
+
 export class User {
   constructor(
     public readonly id: string,
-    public email: string,
-    public password: string,
+    public readonly email: Email,
+    public readonly password: string,
+    public readonly role: Role,
     public firstName: string,
-    public lastName: string,
-    public role: Role
+    public lastName: string
   ) {}
 
   fullName(): string {
     return `${this.firstName} ${this.lastName}`;
+  }
+
+  changeName(firstName: string, lastName: string): void {
+    this.firstName = firstName;
+    this.lastName = lastName;
   }
 }

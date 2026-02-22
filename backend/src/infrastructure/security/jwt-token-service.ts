@@ -1,7 +1,7 @@
 import jwt, { Secret } from 'jsonwebtoken';
 
 export interface IJwtService {
-    generateToken(payload: string | object | Buffer, expiresIn: string | number | undefined): string;
+    generateToken(payload: string | object | Buffer, expiresIn?: string | number): string;
     verifyToken(token: string): object | string;
 }
 
@@ -12,7 +12,7 @@ export class JwtService implements IJwtService {
         this.secretKey = secretKey as Secret;
     }
 
-    generateToken(payload: string | object | Buffer, expiresIn: string | number | undefined): string {
+    generateToken(payload: string | object | Buffer, expiresIn?: string | number): string {
         const options = expiresIn !== undefined ? { expiresIn: expiresIn as any } : undefined;
         return jwt.sign(payload, this.secretKey, options);
     }

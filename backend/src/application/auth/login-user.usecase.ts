@@ -1,25 +1,46 @@
-//find the user by email and compare password then return the user if found, otherwise return null
-import { User } from "../../domain/entities/user.entity";
 import { UserRepository } from "../../domain/repositories/user.repository";
 import { PasswordHasher } from "../../domain/services/password-hasher";
+import { Email } from "../../domain/value-objects/email.vo";
+
+export class InvalidCredentialsError extends Error {
+  constructor() {
+    super("Invalid credentials");
+  }
+}
+
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  role: string;
+}
 
 export class LoginUserUseCase {
   constructor(
-    private userRepository: UserRepository,
-    private passwordHasher: PasswordHasher
+    private readonly userRepository: UserRepository,
+    private readonly passwordHasher: PasswordHasher
   ) {}
 
-  async execute(email: string, password: string): Promise<User | null> {
-    const user = await this.userRepository.findByEmail(email);
+  async execute(email: string, password: string): Promise<AuthenticatedUser> {
+    const emailVO = new Email(email);
+
+    const user = await this.userRepository.findByEmail(emailVO);
     if (!user) {
-      return null;
+      throw new InvalidCredentialsError();
     }
 
-    const isPasswordValid = await this.passwordHasher.compare(password, user.password);
+    const isPasswordValid = await this.passwordHasher.compare(
+      password,
+      user.password
+    );
+
     if (!isPasswordValid) {
-      return null;
+      throw new InvalidCredentialsError();
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.email.getValue(),
+      role: user.role,
+    };
   }
 }
