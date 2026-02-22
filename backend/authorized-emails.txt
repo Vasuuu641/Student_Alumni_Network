@@ -1,0 +1,7 @@
+# One entry per line. Format: email[:ROLE]
+# ROLE is optional and defaults to STUDENT
+ADM1YN@tr.pte.hu:ADMIN
+FBN7YM@tr.pte.hu:STUDENT
+GZH4N7@tr.pte.hu:STUDENT
+PMO2NY@tr.pte.hu:PROFESSOR
+GNYMON@tr.pte.hu:ALUMNI
