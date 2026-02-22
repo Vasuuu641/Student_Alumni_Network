@@ -10,13 +10,28 @@ export interface CreateAuthorizedUserRequest {
 
 @Injectable()
 export class CreateAuthorizedUserUseCase {
+	// Neptun code format: 6 alphanumeric characters @tr.pte.hu
+	private readonly neptunEmailRegex = /^[A-Za-z0-9]{6}@tr\.pte\.hu$/i;
+
 	constructor(
 		@Inject('AuthorizedUserRepository')
 		private readonly authorizedUserRepository: AuthorizedUserRepository
 	) {}
 
+	private isValidNeptunEmail(emailAddress: string): boolean {
+		return this.neptunEmailRegex.test(emailAddress);
+	}
+
 	async execute(request: CreateAuthorizedUserRequest): Promise<AuthorizedUser> {
 		const email = new Email(request.email);
+
+		// Validate email follows Neptun format (XXXXXX@tr.pte.hu)
+		if (!this.isValidNeptunEmail(request.email)) {
+			throw new Error(
+				'Invalid email format. Must follow Neptun format: [6 alphanumeric characters]@tr.pte.hu (e.g., FBN7YM@tr.pte.hu)'
+			);
+		}
+
 		const existing = await this.authorizedUserRepository.findByEmail(email);
 		if (existing) {
 			throw new Error('Authorized email already exists');

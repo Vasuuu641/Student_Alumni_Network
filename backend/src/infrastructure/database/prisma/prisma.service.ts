@@ -12,6 +12,13 @@ export class PrismaService
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
+    
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+
+    console.log('Connecting to database with URL:', connectionString.substring(0, 50) + '...');
+    
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     
@@ -21,6 +28,7 @@ export class PrismaService
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
+    console.log('✓ Database connection established');
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -1,10 +1,12 @@
-import { PrismaClient } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../database/prisma/prisma.service';
 import { AuthorizedUser } from '../../domain/entities/authorized-user.entity';
 import { AuthorizedUserRepository } from '../../domain/repositories/authorized-user.repository';
 import { Email } from '../../domain/value-objects/email.vo';
 
+@Injectable()
 export class PrismaAuthorizedUserRepository implements AuthorizedUserRepository {
-    constructor(private prisma: PrismaClient) {}
+    constructor(private prisma: PrismaService) {}
 
     private mapToEntity(data: any): AuthorizedUser {
         return new AuthorizedUser(
@@ -19,7 +21,13 @@ export class PrismaAuthorizedUserRepository implements AuthorizedUserRepository 
 
     async create(data: Partial<AuthorizedUser>): Promise<AuthorizedUser> {
         const result = await this.prisma.authorizedUser.create({
-            data: data as any,
+            data: {
+                email: data.email instanceof Email ? data.email.getValue() : (data.email as unknown as string),
+                role: data.role as any,
+                isUsed: data.isUsed ?? false,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+            },
         });
         return this.mapToEntity(result);
     }

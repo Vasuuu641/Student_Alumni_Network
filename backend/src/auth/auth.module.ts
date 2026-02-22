@@ -17,6 +17,8 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [AuthController],
   providers: [
+    PrismaUserRepository,
+    PrismaAuthorizedUserRepository,
     AuthService,
     RolesGuard,
     JwtStrategy,
