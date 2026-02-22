@@ -46,6 +46,7 @@ coverage/
 # =========================
 *.sqlite
 *.db
+backend/src/generated/
 
 # =========================
 # Docker
