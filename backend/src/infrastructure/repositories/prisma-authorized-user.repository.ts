@@ -1,4 +1,4 @@
-import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { AuthorizedUser } from '../../domain/entities/authorized-user.entity';
 import { AuthorizedUserRepository } from '../../domain/repositories/authorized-user.repository';
 import { Email } from '../../domain/value-objects/email.vo';

@@ -30,5 +30,6 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
       useFactory: () => new JwtTokenService(process.env.JWT_SECRET ?? 'dev-secret'),
     },
   ],
+  exports: ['TokenService', JwtStrategy, RolesGuard],
 })
 export class AuthModule {}  
