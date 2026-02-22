@@ -1,14 +1,12 @@
-import { User } from "./user.entity";
 
 export class Alumni {
     constructor(
-        public readonly id: string,
-        public user: User,
-        public yearOfGraduation: number,
+        public readonly userId: string,
+        public yearOfGraduation: number | null,
         public major: string,
-        public company: string,
-        public jobTitle: string,
-        public bio: string,
+        public company: string | null,
+        public jobTitle: string | null,
+        public bio: string | null,
         public interests: string[],
     ) {}    
 }

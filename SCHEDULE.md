@@ -236,5 +236,15 @@ Production-ready thesis system.
 3. Infrastructure depends on domain only.
 4. Authentication provider must be replaceable.
 5. No redesign after Week 4.
+6. No frontend feature without backend support.
+7. Every screen must include loading and error states.
 
----
+# POC Requirements
+- users can create notes, share, edit - connected to cohere (call LLM locally)
+- Doesn't need to be completely secure
+- chat feature - how LLM will be used for mentor clustering
+
+# MVP Requirements
+- MVP is something that can be sold so by this point most features of the app should work well and users should be able to understand the app easily.
+
+- The whole UI/UX doesn't need to be perfect but something that can work in a proper environment

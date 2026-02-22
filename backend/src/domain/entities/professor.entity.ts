@@ -1,12 +1,10 @@
-import {User} from "./user.entity";
 
-export class Student {
+export class Professor {
     constructor(
-        public readonly id: string,
-        public user: User,
+        public readonly userId: string,
         public faculty: string,
         public jobTitle: string,
-        public bio: string,
+        public bio: string | null,
         public interests: string[],
     ) {}    
 }
