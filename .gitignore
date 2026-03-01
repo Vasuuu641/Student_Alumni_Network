@@ -53,3 +53,8 @@ backend/src/generated/
 # Docker
 # =========================
 docker-data/
+
+# =========================
+# authorized-emails.txt
+# =========================
+backend/authorized-emails.txt
