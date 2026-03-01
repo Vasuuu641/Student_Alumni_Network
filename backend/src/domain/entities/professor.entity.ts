@@ -6,5 +6,6 @@ export class Professor {
         public jobTitle: string,
         public bio: string | null,
         public interests: string[],
+        public profilePictureUrl: string | null = null,
     ) {}    
 }

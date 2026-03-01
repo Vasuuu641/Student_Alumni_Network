@@ -16,12 +16,15 @@ export class PrismaAlumniRepository implements AlumniRepository {
 		const record = await this.prisma.alumni.create({
 			data: {
 				userId: alumni.userId,
-				yearOfGraduation: alumni.yearOfGraduation ?? 0,
+				yearOfGraduation: alumni.yearOfGraduation ?? new Date().getFullYear(),
 				major: alumni.major,
 				company: alumni.company,
 				jobTitle: alumni.jobTitle,
 				bio: alumni.bio,
 				interests: alumni.interests,
+				profilePictureUrl: alumni.profilePictureUrl,
+				isAnonymous: alumni.isAnonymous,
+				anonymousName: alumni.anonymousName,
 			},
 		});
 		return this.toDomain(record);
@@ -31,12 +34,15 @@ export class PrismaAlumniRepository implements AlumniRepository {
 		const record = await this.prisma.alumni.update({
 			where: { userId: alumni.userId },
 			data: {
-				yearOfGraduation: alumni.yearOfGraduation ?? 0,
+				yearOfGraduation: alumni.yearOfGraduation ?? new Date().getFullYear(),
 				major: alumni.major,
 				company: alumni.company,
 				jobTitle: alumni.jobTitle,
 				bio: alumni.bio,
 				interests: alumni.interests,
+				profilePictureUrl: alumni.profilePictureUrl,
+				isAnonymous: alumni.isAnonymous,
+				anonymousName: alumni.anonymousName,
 			},
 		});
 		return this.toDomain(record);
@@ -55,6 +61,9 @@ export class PrismaAlumniRepository implements AlumniRepository {
 			record.jobTitle,
 			record.bio,
 			record.interests,
+			record.profilePictureUrl,
+			record.isAnonymous,
+			record.anonymousName,
 		);
 	}
 }

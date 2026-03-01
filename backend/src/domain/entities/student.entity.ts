@@ -7,5 +7,6 @@ export class Student {
         public interests: string[],
         public faculty: string,
         public bio: string | null,
+        public profilePictureUrl: string | null = null,
     ) {}    
 }
