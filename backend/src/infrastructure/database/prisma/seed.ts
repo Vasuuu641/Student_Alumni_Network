@@ -28,7 +28,7 @@ const parseAuthorizedEmails = (raw: string): SeedEntry[] => {
 		.map((entry) => {
 			const [email, rolePart] = entry.split(':').map((v) => v.trim());
 			const role = (rolePart as Role) ?? Role.STUDENT;
-			return { email, role } as SeedEntry;
+			return { email: email.toLowerCase(), role } as SeedEntry;
 		})
 		.filter((entry) => entry.email.includes('@'));
 };
@@ -46,7 +46,7 @@ const parseAuthorizedEmailsFile = (filePath: string): SeedEntry[] => {
 		.map((line) => {
 			const [email, rolePart] = line.split(':').map((v) => v.trim());
 			const role = (rolePart as Role) ?? Role.STUDENT;
-			return { email, role } as SeedEntry;
+			return { email: email.toLowerCase(), role } as SeedEntry;
 		})
 		.filter((entry) => entry.email.includes('@'));
 };

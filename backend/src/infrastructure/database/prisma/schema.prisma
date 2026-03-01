@@ -25,21 +25,12 @@ model User {
   student       Student?
   alumni        Alumni?
   professor     Professor?
-  admin         Admin?
-}
-
-model Admin {
-  id                String @id @default(uuid())
-  userId            String @unique
-
-  user User @relation(fields: [userId], references: [id])
 }
 
 model Student {
-  id                  String @id @default(uuid())
-  userId              String @unique
+  userId              String @id
   major               String
-  yearOfGraduation    Int
+  yearOfGraduation    Int?
   interests           String[]
   faculty             String 
   bio                 String?
@@ -48,9 +39,8 @@ model Student {
 }
 
 model Alumni {
-  id        String @id @default(uuid())
-  userId    String @unique
-  yearOfGraduation  Int
+  userId    String @id
+  yearOfGraduation  Int?
   major     String
   company   String?
   jobTitle  String?
@@ -61,8 +51,7 @@ model Alumni {
 }
 
 model Professor {
-  id        String @id @default(uuid())
-  userId    String @unique
+  userId    String @id
   faculty   String 
   jobTitle  String
   bio       String?
