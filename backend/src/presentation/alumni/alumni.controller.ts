@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Put,
   UseGuards,
   UseInterceptors,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as multer from 'multer';
+import { GetAlumniProfileUseCase } from '../../application/alumni/get-alumni-profile.usecase';
 import { UpdateAlumniProfileUseCase } from '../../application/alumni/update-alumni-profile.usecase';
 import { Roles } from '../../auth/roles.decorator';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -23,17 +25,46 @@ import { UpdateAlumniProfileRequest } from './dto/update-alumni-profile.dto';
 @Controller('alumni')
 export class AlumniController {
   constructor(
+    private readonly getAlumniProfile: GetAlumniProfileUseCase,
     private readonly updateAlumniProfile: UpdateAlumniProfileUseCase,
   ) {}
+
+  @Get('profile')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles(Role.ALUMNI)
+  async getProfile(@Req() request: any): Promise<AlumniProfileResponse> {
+    try {
+      const userId = request.user.userId;
+      const alumni = await this.getAlumniProfile.execute(userId);
+
+      return {
+        userId: alumni.userId,
+        yearOfGraduation: alumni.yearOfGraduation,
+        major: alumni.major,
+        company: alumni.company,
+        jobTitle: alumni.jobTitle,
+        bio: alumni.bio,
+        interests: alumni.interests,
+        profilePictureUrl: alumni.profilePictureUrl,
+        isAnonymous: alumni.isAnonymous,
+        anonymousName: alumni.anonymousName,
+      };
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 
   @Put('profile')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles(Role.ALUMNI)
   @UseInterceptors(FileInterceptor('profilePicture'))
   async updateProfile(
-    @Req() request: any,
-    @Body() updateDto: UpdateAlumniProfileRequest,
-    @UploadedFile() file?: multer.File,
+  @Req() request: any,
+  @Body() updateDto: UpdateAlumniProfileRequest,
+  @UploadedFile() file?: multer.File,
   ): Promise<AlumniProfileResponse> {
     try {
       const userId = request.user.userId;
@@ -76,4 +107,5 @@ export class AlumniController {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
 }

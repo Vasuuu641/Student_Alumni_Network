@@ -3,7 +3,7 @@ export class Alumni {
     constructor(
         public readonly userId: string,
         public yearOfGraduation: number | null,
-        public major: string,
+        public major: string | null,
         public company: string | null,
         public jobTitle: string | null,
         public bio: string | null,

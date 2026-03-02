@@ -1,7 +1,7 @@
 export class AlumniProfileResponse {
   userId: string;
   yearOfGraduation: number | null;
-  major: string;
+  major: string | null;
   company: string | null;
   jobTitle: string | null;
   bio: string | null;

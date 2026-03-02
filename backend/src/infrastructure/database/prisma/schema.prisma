@@ -30,7 +30,7 @@ model User {
 model Student {
   userId              String @id
   major               String
-  yearOfGraduation    Int?
+  yearOfGraduation    Int?    @map("year_of_graduation")
   interests           String[]
   faculty             String 
   bio                 String?
@@ -41,15 +41,15 @@ model Student {
 
 model Alumni {
   userId            String @id
-  yearOfGraduation  Int?
-  major             String
+  yearOfGraduation  Int?     @map("year_of_graduation")
+  major             String?
   company           String?
-  jobTitle          String?
+  jobTitle          String?  @map("job_title")
   bio               String?
   interests         String[]
   profilePictureUrl String? @map("profile_picture_url")
   isAnonymous       Boolean @default(false)
-  anonymousName     String?
+  anonymousName     String? @map("anonymous_name")
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -57,7 +57,7 @@ model Alumni {
 model Professor {
   userId            String @id
   faculty           String 
-  jobTitle          String
+  jobTitle          String  @map("job_title")
   bio               String?
   interests         String[]
   profilePictureUrl String? @map("profile_picture_url")

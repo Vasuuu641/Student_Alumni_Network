@@ -13,6 +13,12 @@ export interface UpdateAlumniProfileRequest {
   jobTitle?: string;
   bio?: string;
   interests?: string[];
+  profilePicture?: {
+    buffer: Buffer;
+    originalName: string;
+    mimeType: string;
+    size: number;
+  };
   isAnonymous?: boolean;
   anonymousName?: string;
 }
@@ -73,12 +79,12 @@ export class UpdateAlumniProfileUseCase {
     const updatedAlumni = new Alumni(
       alumni.userId,
       request.yearOfGraduation ?? alumni.yearOfGraduation,
-      request.major ?? alumni.major,
+      request.major !== undefined ? request.major : alumni.major,
       request.company ?? alumni.company,
       request.jobTitle ?? alumni.jobTitle,
       request.bio ?? alumni.bio,
       request.interests ?? alumni.interests,
-      profilePictureUrl,
+      profilePictureUrl ?? alumni.profilePictureUrl,
       request.isAnonymous ?? alumni.isAnonymous,
       request.anonymousName ?? alumni.anonymousName,
     );

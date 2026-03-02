@@ -103,7 +103,7 @@ export class RegisterUserUseCase {
         const alumni = new Alumni(
           userId,
           null, // yearOfGraduation - to be set during onboarding
-          '', // major - to be completed during onboarding
+          null, // major - to be completed during onboarding
           null, // company - optional
           null, // jobTitle - optional
           null, // bio - optional
