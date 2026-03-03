@@ -76,7 +76,12 @@ export class RegisterUserUseCase {
     const createdUser = await this.userRepository.create(user);
 
     // 6️⃣ Create role-specific profile
-    await this.createRoleProfile(createdUser.id, authorizedUser.role);
+    try {
+      await this.createRoleProfile(createdUser.id, authorizedUser.role);
+    } catch (profileError) {
+      console.error(`Failed to create ${authorizedUser.role} profile for user ${createdUser.id}:`, profileError);
+      throw profileError;
+    }
 
     // 7️⃣ Update authorized user
     authorizedUser.markAsUsed();
@@ -108,6 +113,9 @@ export class RegisterUserUseCase {
           null, // jobTitle - optional
           null, // bio - optional
           [], // interests
+          null, // profilePictureUrl
+          false, // isAnonymous
+          null, // anonymousName
         );
         await this.alumniRepository.create(alumni);
         break;

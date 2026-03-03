@@ -1,0 +1,13 @@
+# =================================
+# 2️⃣ Upload Profile Picture
+# =================================
+PUT http://localhost:3000/alumni/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzNzAxOWZjZi0xODExLTQ4MWUtOTkyNi00ZjdkOWMyNmJkN2UiLCJyb2xlIjoiQUxVTU5JIiwiaWF0IjoxNzcyNTYwMDk2LCJleHAiOjE3NzI1NjM2OTZ9.xAnefuA0uZSlemR0uKWOF0x5HuthbSEgvSQm9ioo8uU
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="profilePicture"; filename="profile.png"
+Content-Type: image/png
+
+< /home/vasu/Downloads/Profile_pics/profile.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

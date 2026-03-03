@@ -1,5 +1,7 @@
 export class AlumniProfileResponse {
   userId: string;
+  firstName: string;
+  lastName: string;
   yearOfGraduation: number | null;
   major: string | null;
   company: string | null;

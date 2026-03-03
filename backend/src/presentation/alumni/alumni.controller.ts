@@ -35,10 +35,12 @@ export class AlumniController {
   async getProfile(@Req() request: any): Promise<AlumniProfileResponse> {
     try {
       const userId = request.user.userId;
-      const alumni = await this.getAlumniProfile.execute(userId);
+      const { alumni, firstName, lastName } = await this.getAlumniProfile.execute(userId);
 
       return {
         userId: alumni.userId,
+        firstName,
+        lastName,
         yearOfGraduation: alumni.yearOfGraduation,
         major: alumni.major,
         company: alumni.company,
@@ -69,7 +71,7 @@ export class AlumniController {
     try {
       const userId = request.user.userId;
 
-      const alumni = await this.updateAlumniProfile.execute(
+      const { alumni, firstName, lastName } = await this.updateAlumniProfile.execute(
         userId,
         updateDto,
         file
@@ -84,6 +86,8 @@ export class AlumniController {
 
       return {
         userId: alumni.userId,
+        firstName,
+        lastName,
         yearOfGraduation: alumni.yearOfGraduation,
         major: alumni.major,
         company: alumni.company,
@@ -102,6 +106,9 @@ export class AlumniController {
         throw new BadRequestException(error.message);
       }
       if (error.message.includes('exceeds')) {
+        throw new BadRequestException(error.message);
+      }
+      if (error.message.includes('cannot be empty')) {
         throw new BadRequestException(error.message);
       }
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

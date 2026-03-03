@@ -16,7 +16,7 @@ export class PrismaAlumniRepository implements AlumniRepository {
 		const record = await this.prisma.alumni.create({
 			data: {
 				userId: alumni.userId,
-				yearOfGraduation: alumni.yearOfGraduation ?? new Date().getFullYear(),
+				yearOfGraduation: alumni.yearOfGraduation,
 				major: alumni.major,
 				company: alumni.company,
 				jobTitle: alumni.jobTitle,
@@ -34,7 +34,7 @@ export class PrismaAlumniRepository implements AlumniRepository {
 		const record = await this.prisma.alumni.update({
 			where: { userId: alumni.userId },
 			data: {
-				yearOfGraduation: alumni.yearOfGraduation ?? new Date().getFullYear(),
+				yearOfGraduation: alumni.yearOfGraduation,
 				major: alumni.major,
 				company: alumni.company,
 				jobTitle: alumni.jobTitle,

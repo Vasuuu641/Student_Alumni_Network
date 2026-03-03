@@ -58,7 +58,7 @@ export class PrismaAuthorizedUserRepository implements AuthorizedUserRepository 
                 email: user.email.getValue(),
                 role: user.role,
                 isUsed: user.isUsed,
-                // Add other fields as necessary
+                updatedAt: new Date(),
             },
         });
         return this.mapToEntity(result);
