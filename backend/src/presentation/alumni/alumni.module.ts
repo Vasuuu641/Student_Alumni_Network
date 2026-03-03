@@ -5,9 +5,10 @@ import { UpdateAlumniProfileUseCase } from '../../application/alumni/update-alum
 import { PrismaAlumniRepository } from '../../infrastructure/repositories/prisma-alumni.repository';
 import { LocalFileStorageService } from '../../infrastructure/services/local-file-storage.service';
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [AlumniController],
   providers: [
     GetAlumniProfileUseCase,
