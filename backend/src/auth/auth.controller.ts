@@ -1,12 +1,14 @@
 import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { RegisterRequestDto } from './dto/register-request.dto';
+import { LoginRequestDto } from './dto/login-request.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() request: any) {
+  async register(@Body() request: RegisterRequestDto) {
     try {
       return await this.authService.register(request);
     } catch (error: any) {
@@ -27,7 +29,7 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() request: any) {
+  async login(@Body() request: LoginRequestDto) {
     try {
       return await this.authService.login(request);
     } catch (error: any) {

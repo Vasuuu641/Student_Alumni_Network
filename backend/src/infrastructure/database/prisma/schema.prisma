@@ -30,32 +30,37 @@ model User {
 model Student {
   userId              String @id
   major               String
-  yearOfGraduation    Int?
+  yearOfGraduation    Int?    @map("year_of_graduation")
   interests           String[]
   faculty             String 
   bio                 String?
+  profilePictureUrl   String? @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Alumni {
-  userId    String @id
-  yearOfGraduation  Int?
-  major     String
-  company   String?
-  jobTitle  String?
-  bio       String?
-  interests String[]
+  userId            String @id
+  yearOfGraduation  Int?     @map("year_of_graduation")
+  major             String?
+  company           String?
+  jobTitle          String?  @map("job_title")
+  bio               String?
+  interests         String[]
+  profilePictureUrl String? @map("profile_picture_url")
+  isAnonymous       Boolean @default(false)
+  anonymousName     String? @map("anonymous_name")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Professor {
-  userId    String @id
-  faculty   String 
-  jobTitle  String
-  bio       String?
-  interests String[]
+  userId            String @id
+  faculty           String 
+  jobTitle          String  @map("job_title")
+  bio               String?
+  interests         String[]
+  profilePictureUrl String? @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }

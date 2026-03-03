@@ -1,0 +1,14 @@
+PUT http://localhost:3000/alumni/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzNzAxOWZjZi0xODExLTQ4MWUtOTkyNi00ZjdkOWMyNmJkN2UiLCJyb2xlIjoiQUxVTU5JIiwiaWF0IjoxNzcyNTYwMDk2LCJleHAiOjE3NzI1NjM2OTZ9.xAnefuA0uZSlemR0uKWOF0x5HuthbSEgvSQm9ioo8uU
+Content-Type: application/json
+
+{
+  "major": "Computer Science",
+  "company": "Microsoft",
+  "jobTitle": "Backend Engineer",
+  "bio": "Passionate about distributed systems.",
+  "interests": ["AI", "Startups", "Backend"],
+  "isAnonymous": false
+}
+
+
