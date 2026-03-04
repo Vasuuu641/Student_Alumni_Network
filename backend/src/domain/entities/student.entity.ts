@@ -4,6 +4,7 @@ export class Student {
         public readonly userId: string,
         public major: string,
         public yearOfGraduation: number | null,
+        public jobTitle: string | null,
         public interests: string[],
         public faculty: string,
         public bio: string | null,

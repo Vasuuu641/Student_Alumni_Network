@@ -31,9 +31,9 @@ model Student {
   userId              String @id
   major               String
   yearOfGraduation    Int?    @map("year_of_graduation")
-  jobTitle          String?  @map("job_title")
+  jobTitle            String? @map("job_title")
   interests           String[]
-  faculty             String 
+  faculty             String
   bio                 String?
   profilePictureUrl   String? @map("profile_picture_url")
 

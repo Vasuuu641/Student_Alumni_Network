@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma/prisma.service';
 import { StudentRepository } from '../../domain/repositories/student.repository';
 import { Student } from '../../domain/entities/student.entity';
 
+
 @Injectable()
 export class PrismaStudentRepository implements StudentRepository {
 	constructor(private readonly prisma: PrismaService) {}
@@ -18,9 +19,11 @@ export class PrismaStudentRepository implements StudentRepository {
 				userId: student.userId,
 				major: student.major,
 				yearOfGraduation: student.yearOfGraduation ?? 0,
+				jobTitle: student.jobTitle,
 				interests: student.interests,
 				faculty: student.faculty,
 				bio: student.bio,
+				profilePictureUrl: student.profilePictureUrl,
 			},
 		});
 		return this.toDomain(record);
@@ -32,9 +35,11 @@ export class PrismaStudentRepository implements StudentRepository {
 			data: {
 				major: student.major,
 				yearOfGraduation: student.yearOfGraduation ?? 0,
+				jobTitle: student.jobTitle,
 				interests: student.interests,
 				faculty: student.faculty,
 				bio: student.bio,
+				profilePictureUrl: student.profilePictureUrl,
 			},
 		});
 		return this.toDomain(record);
@@ -49,9 +54,11 @@ export class PrismaStudentRepository implements StudentRepository {
 			record.userId,
 			record.major,
 			record.yearOfGraduation ?? 0,
+			record.jobTitle,
 			record.interests,
 			record.faculty,
 			record.bio,
+			record.profilePictureUrl,
 		);
 	}
 }

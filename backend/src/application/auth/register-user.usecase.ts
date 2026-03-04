@@ -97,9 +97,11 @@ export class RegisterUserUseCase {
           userId,
           '', // major - to be completed during onboarding
           null, // yearOfGraduation - to be set during onboarding
+          null, // jobTitle - optional
           [], // interests
           '', // faculty - to be completed during onboarding
           null, // bio - optional
+          null, // profilePictureUrl - optional
         );
         await this.studentRepository.create(student);
         break;
