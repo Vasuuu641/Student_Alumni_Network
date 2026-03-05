@@ -1,0 +1,9 @@
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "gzh4n7@tr.pte.hu",
+    "password": "gzh4n7",
+    "firstName": "Ranjan",
+    "lastName": "Shankar"
+}

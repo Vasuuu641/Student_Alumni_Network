@@ -1,0 +1,9 @@
+PUT http://localhost:3000/alumni/profile
+Content-Type: application/json  
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNGIzZWQzNi0wNzNjLTQxMTMtOWVlYS1hODJlZTAwMmE4MWMiLCJyb2xlIjoiQUxVTU5JIiwiaWF0IjoxNzcyNzE0NTc4LCJleHAiOjE3NzI3MTgxNzh9.dxPNUH9TyfbNn-aRi3giDozoGWso2SRix1TrcBAnxb0
+
+{
+  
+  "yearOfGraduation": "2026"
+  
+}

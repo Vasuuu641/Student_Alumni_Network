@@ -1,8 +1,7 @@
-### Login
 POST http://localhost:3000/auth/login
 Content-Type: application/json
 
 {
-  "email":"sky1on@tr.pte.hu",
-  "password":"pleasework"
+    "email":"gzh4n7@tr.pte.hu",
+    "password":"gzh4n7"
 }

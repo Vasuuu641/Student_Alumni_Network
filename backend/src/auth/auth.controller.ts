@@ -30,13 +30,14 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() request: LoginRequestDto) {
-    try {
-      return await this.authService.login(request);
-    } catch (error: any) {
-      if (error.message.includes('Invalid credentials')) {
-        throw new BadRequestException('Invalid credentials');
-      }
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+  console.log('Login request body:', request);
+  try {
+    return await this.authService.login(request);
+  } catch (error: any) {
+    if (error.message.includes('Invalid credentials')) {
+      throw new BadRequestException('Invalid credentials');
     }
+    throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
+ }
 }

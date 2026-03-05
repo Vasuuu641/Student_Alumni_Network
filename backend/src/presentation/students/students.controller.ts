@@ -60,7 +60,7 @@ import {
   
     @Put('profile')
       @UseGuards(JwtStrategy, RolesGuard)
-      @Roles(Role.ALUMNI)
+      @Roles(Role.STUDENT)
       @UseInterceptors(FileInterceptor('profilePicture'))
       async updateProfile(
       @Req() request: any,

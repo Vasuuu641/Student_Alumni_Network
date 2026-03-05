@@ -1,0 +1,10 @@
+//register admin or any other user
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "adm1n@tr.pte.hu",
+    "password": "admin1",
+    "firstName": "admin",
+    "lastName": "user"
+}

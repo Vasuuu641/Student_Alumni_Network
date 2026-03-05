@@ -1,0 +1,12 @@
+PUT http://localhost:3000/students/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsImlhdCI6MTc3MjcxNzIwMCwiZXhwIjoxNzcyNzIwODAwfQ.wPEtBopMnsXW8VfK93PgP19HrZ_z2wE7NmZrPUtXg8U
+Content-Type: application/json
+
+{
+    "major": "Computer Science and Engineering",
+    "yearOfGraduation": 2027,
+    "jobTitle": "Software Engineer Intern",
+    "faculty": "Faculty of Engineering and Information Technology",
+    "bio": "Aspiring software engineer with a passion for developing innovative programs that expedite the efficiency and effectiveness of organizational success. Currently pursuing a degree in Computer Science and Engineering at the University of Pécs, with an expected graduation year of 2027. Eager to apply my skills and knowledge in a dynamic work environment.",
+    "interests": ["Software Development", "Artificial Intelligence", "Machine Learning", "Data Science"]
+}
