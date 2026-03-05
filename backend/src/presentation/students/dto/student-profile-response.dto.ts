@@ -5,6 +5,7 @@ export class StudentProfileResponse {
     major: string | null;
     yearofGraduation: number | null;
     jobTitle: string | null;
+    company: string | null;
     faculty: string | null;
     bio: string | null;
     interests: string[];

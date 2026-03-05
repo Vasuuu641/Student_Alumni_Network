@@ -98,6 +98,7 @@ export class RegisterUserUseCase {
           '', // major - to be completed during onboarding
           null, // yearOfGraduation - to be set during onboarding
           null, // jobTitle - optional
+          null, // company - optional
           [], // interests
           null, // faculty - optional, to be completed during onboarding
           null, // bio - optional

@@ -23,6 +23,10 @@ export class UpdateStudentProfileRequest {
 
   @IsOptional()
   @IsString()
+  company?: string;
+
+  @IsOptional()
+  @IsString()
   faculty?: string;
 
   @IsOptional()

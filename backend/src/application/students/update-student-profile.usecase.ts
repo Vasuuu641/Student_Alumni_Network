@@ -12,6 +12,7 @@ interface UpdateStudentProfileDTO {
   major?: string;
   yearOfGraduation?: number;
   jobTitle?: string;
+  company?: string;
   interests?: string[];
   faculty?: string;
   bio?: string;
@@ -100,6 +101,7 @@ export class UpdateStudentProfileUseCase {
                     request.major ?? student.major,
                     request.yearOfGraduation ?? student.yearOfGraduation,
                     request.jobTitle ?? student.jobTitle,
+                    request.company ?? student.company,
                     request.interests ?? student.interests,
                     request.faculty ?? student.faculty,
                     request.bio ?? student.bio,
@@ -141,6 +143,7 @@ export class UpdateStudentProfileUseCase {
               request.major ?? student.major,
               request.yearOfGraduation ?? student.yearOfGraduation,
               request.jobTitle ?? student.jobTitle,
+              request.company ?? student.company,
               request.interests ?? student.interests,
               request.faculty ?? student.faculty,
               request.bio ?? student.bio,
