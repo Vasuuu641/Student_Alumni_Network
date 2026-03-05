@@ -20,6 +20,7 @@ export class PrismaProfessorRepository implements ProfessorRepository {
 				jobTitle: professor.jobTitle,
 				bio: professor.bio,
 				interests: professor.interests,
+				profilePictureUrl: professor.profilePictureUrl,
 			},
 		});
 		return this.toDomain(record);
@@ -33,6 +34,7 @@ export class PrismaProfessorRepository implements ProfessorRepository {
 				jobTitle: professor.jobTitle,
 				bio: professor.bio,
 				interests: professor.interests,
+				profilePictureUrl: professor.profilePictureUrl,
 			},
 		});
 		return this.toDomain(record);
@@ -49,6 +51,7 @@ export class PrismaProfessorRepository implements ProfessorRepository {
 			record.jobTitle,
 			record.bio,
 			record.interests,
+			record.profilePictureUrl
 		);
 	}
 }
