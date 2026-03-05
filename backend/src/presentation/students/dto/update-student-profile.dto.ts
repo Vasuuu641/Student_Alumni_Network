@@ -10,16 +10,24 @@ export class UpdateStudentProfileRequest {
   lastName?: string;
 
   @IsOptional()
+  @IsString()
+  major?: string;
+
+  @IsOptional()
   @IsNumber()
-  yearOfStudy?: number | null;
+  yearOfGraduation?: number;
 
   @IsOptional()
   @IsString()
-  major?: string | null;
+  jobTitle?: string;
 
   @IsOptional()
   @IsString()
-  bio?: string | null;
+  faculty?: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
 
   @IsOptional()
   @IsArray()

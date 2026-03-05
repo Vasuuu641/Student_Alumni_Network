@@ -1,9 +1,9 @@
 //update student profile use case
 import { Inject, Injectable } from '@nestjs/common';
-import { UserRepository } from '../../domain/repositories/user.repository';
-import { FileStorageService } from '../../domain/services/file-storage';
+import type { UserRepository } from '../../domain/repositories/user.repository';
+import type { FileStorageService } from '../../domain/services/file-storage';
 import { FileUploadRequest } from '../../domain/services/file-storage';
-import { StudentRepository } from '../../domain/repositories/student.repository';
+import type { StudentRepository } from '../../domain/repositories/student.repository';
 import { Student } from '../../domain/entities/student.entity';
 
 interface UpdateStudentProfileDTO {
