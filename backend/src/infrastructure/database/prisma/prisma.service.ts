@@ -11,6 +11,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   // Expose models directly so existing code (this.prisma.student) still works
   get student() { return this.client.student; }
   get user() { return this.client.user; }
+  get alumni() { return this.client.alumni; }
   // add other models you have here...
 
   constructor() {

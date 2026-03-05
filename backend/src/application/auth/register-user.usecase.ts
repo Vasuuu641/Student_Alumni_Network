@@ -99,7 +99,7 @@ export class RegisterUserUseCase {
           null, // yearOfGraduation - to be set during onboarding
           null, // jobTitle - optional
           [], // interests
-          '', // faculty - to be completed during onboarding
+          null, // faculty - optional, to be completed during onboarding
           null, // bio - optional
           null, // profilePictureUrl - optional
         );

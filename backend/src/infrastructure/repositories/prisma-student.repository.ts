@@ -18,10 +18,10 @@ export class PrismaStudentRepository implements StudentRepository {
 			data: {
 				userId: student.userId,
 				major: student.major,
-				yearOfGraduation: student.yearOfGraduation ?? 0,
+				yearOfGraduation: student.yearOfGraduation,
 				jobTitle: student.jobTitle,
 				interests: student.interests,
-				faculty: student.faculty,
+				faculty: student.faculty ?? '',
 				bio: student.bio,
 				profilePictureUrl: student.profilePictureUrl,
 			},
@@ -33,13 +33,13 @@ export class PrismaStudentRepository implements StudentRepository {
 		const record = await this.prisma.student.update({
 			where: { userId: student.userId },
 			data: {
-				major: student.major,
-				yearOfGraduation: student.yearOfGraduation ?? 0,
-				jobTitle: student.jobTitle,
-				interests: student.interests,
-				faculty: student.faculty,
-				bio: student.bio,
-				profilePictureUrl: student.profilePictureUrl,
+				major: student.major ?? undefined,
+				yearOfGraduation: student.yearOfGraduation ?? undefined,
+				jobTitle: student.jobTitle ?? undefined,
+				interests: student.interests ?? undefined,
+				faculty: student.faculty ?? undefined,
+				bio: student.bio ?? undefined,
+				profilePictureUrl: student.profilePictureUrl ?? undefined,
 			},
 		});
 		return this.toDomain(record);
@@ -53,7 +53,7 @@ export class PrismaStudentRepository implements StudentRepository {
 		return new Student(
 			record.userId,
 			record.major,
-			record.yearOfGraduation ?? 0,
+			record.yearOfGraduation,
 			record.jobTitle,
 			record.interests,
 			record.faculty,

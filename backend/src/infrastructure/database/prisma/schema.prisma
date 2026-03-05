@@ -33,7 +33,7 @@ model Student {
   yearOfGraduation    Int?    @map("year_of_graduation")
   jobTitle            String? @map("job_title")
   interests           String[]
-  faculty             String
+  faculty             String? @map("faculty")
   bio                 String?
   profilePictureUrl   String? @map("profile_picture_url")
 

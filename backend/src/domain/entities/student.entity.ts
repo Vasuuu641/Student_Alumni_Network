@@ -6,7 +6,7 @@ export class Student {
         public yearOfGraduation: number | null,
         public jobTitle: string | null,
         public interests: string[],
-        public faculty: string,
+        public faculty: string | null,
         public bio: string | null,
         public profilePictureUrl: string | null = null,
     ) {}    
