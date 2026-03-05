@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { StudentController } from './students.controller';
+import { StudentsController } from './students.controller';
 import { GetStudentProfileUseCase } from '../../application/students/get-student-profile-usecase';
 import { UpdateStudentProfileUseCase } from '../../application/students/update-student-profile.usecase';
 import { PrismaStudentRepository } from '../../infrastructure/repositories/prisma-student.repository';
@@ -10,7 +10,7 @@ import { AuthModule } from '../../auth/auth.module';
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  controllers: [StudentController],
+  controllers: [StudentsController],
   providers: [
     GetStudentProfileUseCase,
     UpdateStudentProfileUseCase,
