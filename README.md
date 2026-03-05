@@ -57,10 +57,11 @@ backend/src/
 ## 🛰️ Unidirectional Dependency Flow
 
 To maintain a **decoupled codebase**, dependencies only point inwards:
-
-    Presentation (Controllers) receives the request and triggers a Use Case.
+    Domain (Core logic) - this is where the core logic is defined - inner most layer.
 
     Application (Use Cases) executes logic using Domain entities.
+
+    Presentation (Controllers) receives the request and triggers a Use Case.
 
     Infrastructure (Prisma/Cohere) handles technical implementation of the interfaces defined in the Domain.
 
