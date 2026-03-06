@@ -1,8 +1,0 @@
-POST http://localhost:3000/admin/users/authorized
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzI3MDc1NTQsImV4cCI6MTc3MjcxMTE1NH0.boA_KQZ_ecVl8k0QJ-BEJSl21L0bqxNGZrwv-b3uH4U
-
-{
-    "email": "GZH4N7@tr.pte.hu",
-    "role": "STUDENT"
-}

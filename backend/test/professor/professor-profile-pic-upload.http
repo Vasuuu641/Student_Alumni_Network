@@ -1,0 +1,13 @@
+# =================================
+# 2️⃣ Upload Profile Picture
+# =================================
+PUT http://localhost:3000/professors/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkNWEwNmM2OS0wMGJlLTQ4ODItYTFkMi03ZWE2ZTVlOGRlMDIiLCJyb2xlIjoiUFJPRkVTU09SIiwiaWF0IjoxNzcyNzk4MjExLCJleHAiOjE3NzI4MDE4MTF9.KEqKLEMzO5kc9vs1gDYOTVnIAbLLVG8YlEpbGkwn7GM
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="profilePicture"; filename="gal_tamas.jpg"
+Content-Type: image/jpeg
+
+< /home/vasu/Downloads/Profile_pics/gal_tamas.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

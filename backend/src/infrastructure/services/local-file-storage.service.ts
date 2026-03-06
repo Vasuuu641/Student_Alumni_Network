@@ -16,7 +16,7 @@ export class LocalFileStorageService implements FileStorageService {
     userId: string,
     file: FileUploadRequest
   ): Promise<string> {
-    // Validate file type - only JPEG and PNG
+    // Validate file type - only JPEG and PNG and JPG
     if (!this.validMimeTypes.includes(file.mimeType)) {
       throw new Error('Invalid file type. Only JPEG and PNG are allowed.');
     }

@@ -1,0 +1,10 @@
+PUT http://localhost:3000/professors/profile
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkNWEwNmM2OS0wMGJlLTQ4ODItYTFkMi03ZWE2ZTVlOGRlMDIiLCJyb2xlIjoiUFJPRkVTU09SIiwiaWF0IjoxNzcyNzk4MjExLCJleHAiOjE3NzI4MDE4MTF9.KEqKLEMzO5kc9vs1gDYOTVnIAbLLVG8YlEpbGkwn7GM
+{
+    "faculty": "Pécsi Tudományegyetem Természettudományi Kara",
+    "jobTitle": "Master lecturer of Quantum Physics",
+    "bio": "I am a passionate educator and researcher in the field of quantum physics. With over 15 years of experience, I have dedicated my career to advancing our understanding of the fundamental principles governing the quantum world. My research focuses on quantum entanglement, quantum computing, and the development of novel quantum technologies. I am committed to fostering a collaborative and inclusive learning environment for my students, encouraging critical thinking and creativity in their pursuit of knowledge.",
+    "interests": ["Quantum Mechanics", "Quantum Computing", "Quantum Entanglement", "Quantum Technologies"]
+} 
+    

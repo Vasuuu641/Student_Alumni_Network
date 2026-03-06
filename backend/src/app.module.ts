@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './presentation/admin-users/users.module';
 import { AlumniModule } from './presentation/alumni/alumni.module';
 import { StudentsModule } from './presentation/students/students.module';
+import { ProfessorsModule } from './presentation/professors/professors.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { StudentsModule } from './presentation/students/students.module';
     UsersModule,
     AlumniModule,
     StudentsModule,
+    ProfessorsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

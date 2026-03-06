@@ -1,0 +1,8 @@
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzI3OTE3NDksImV4cCI6MTc3Mjc5NTM0OX0.4WuJfEG-39INfJQt0a_xpWtQUYryIY-7Wd6jTw-WEnQ
+
+{
+    "email": "PROFE1@tr.pte.hu",
+    "role": "PROFESSOR"
+}
