@@ -142,7 +142,7 @@ Complete profile system for all roles. **No schema redesign after this week.**
 
 ---
 
-# Week 5 – Notes System
+# Week 5 and 6 – Notes and Threads system
 (Mar 24 – Mar 30)
 
 ## Backend
@@ -165,14 +165,6 @@ Complete profile system for all roles. **No schema redesign after this week.**
 - View notes
 - Basic edit and delete
 
-## Deliverable
-Secure content feature.
-
----
-
-# Week 6 – Threads & Q/A System
-(Mar 31 – Apr 6)
-
 ## Backend
 - Create thread
 - Answer thread
@@ -193,11 +185,36 @@ Secure content feature.
 - Answer submission
 
 ## Deliverable
+Secure content feature.
 Functional academic discussion feature. Same logic applies for alumni career advice threads.
 
 ---
 
-# Week 7 – Study Groups
+# Week 7 – AI Integrations
+(Apr 28 – May 4)
+
+## Backend
+- Integrate Cohere embeddings for:
+  - Note similarity
+  - Thread suggestion
+- Keep AI inside infrastructure layer only
+- No domain pollution
+- Add fallback if AI fails
+
+## Web
+- Suggested threads section
+- Related notes component
+- Personalized feed logic
+
+## Mobile
+- Suggested content blocks
+
+## Deliverable
+AI-powered features using embeddings and semantic search to provide a personalized feed and enable linking between threads and notes.
+
+---
+
+# Week 8 – Study Groups
 (Apr 7 – Apr 13)
 
 ## Backend
@@ -221,7 +238,7 @@ Basic collaboration feature.
 
 ---
 
-# Week 8 – Real-Time Chat (WebSockets)
+# Week 9 – Real-Time Chat (WebSockets)
 (Apr 14 – Apr 20)
 
 ## Backend
@@ -247,7 +264,7 @@ Stable real-time messaging. If WebSockets break, everything feels amateur.
 
 ---
 
-# Week 9 – Alumni Mentorship & Feed Foundation
+# Week 10 – Alumni Mentorship & Feed Foundation
 (Apr 21 – Apr 27)
 
 ## Backend
@@ -270,30 +287,6 @@ Stable real-time messaging. If WebSockets break, everything feels amateur.
 
 ## Deliverable
 Platform begins to feel like a real network.
-
----
-
-# Week 10 – AI Integrations
-(Apr 28 – May 4)
-
-## Backend
-- Integrate Cohere embeddings for:
-  - Note similarity
-  - Thread suggestion
-- Keep AI inside infrastructure layer only
-- No domain pollution
-- Add fallback if AI fails
-
-## Web
-- Suggested threads section
-- Related notes component
-- Personalized feed logic
-
-## Mobile
-- Suggested content blocks
-
-## Deliverable
-AI-powered features using embeddings and semantic search to provide a personalized feed and enable linking between threads and notes.
 
 ---
 
