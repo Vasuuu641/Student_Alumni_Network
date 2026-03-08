@@ -1,0 +1,18 @@
+### Test Refresh Token Endpoint
+### First, login to get tokens
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "fbn7ym@tr.pte.hu",
+  "password": "fbn7ym"
+}
+
+###
+### Use the refreshToken from the login response to get new tokens
+POST http://localhost:3000/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NzI5NjkzODMsImV4cCI6MTc3MzA1NTc4M30.R5QrlCEEKiTprMLnrWWXOKeiiMX1zZYpM2SqsAD_5Vc"
+}
