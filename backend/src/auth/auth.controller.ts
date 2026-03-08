@@ -2,6 +2,7 @@ import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException 
 import { AuthService } from './auth.service';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
+import { RefreshTokenRequestDto } from './dto/refresh-token-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -40,4 +41,16 @@ export class AuthController {
     throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
  }
+
+  @Post('refresh')
+  async refresh(@Body() request: RefreshTokenRequestDto) {
+    try {
+      return await this.authService.refresh(request.refreshToken);
+    } catch (error: any) {
+      if (error.message.includes('Invalid token')) {
+        throw new BadRequestException('Invalid refresh token');
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }

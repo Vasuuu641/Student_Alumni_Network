@@ -37,10 +37,19 @@ export class AuthService {
     if (!user) {
       throw new Error('Invalid credentials');
     }
-    const token = this.tokenService.generateToken(
-      { userId: user.id, role: user.role },
-      process.env.JWT_EXPIRES_IN ?? '1h'
-    );
-    return { token };
+    const tokens = this.issueTokens(user.id, user.role as any);
+    return tokens;
+  }
+
+  async refresh(refreshToken: string) {
+    const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+    const tokens = this.issueTokens(payload.userId, payload.role);
+    return tokens;
+  }
+
+  private issueTokens(userId: string, role: any) {
+    const accessToken = this.tokenService.generateAccessToken({ userId, role });
+    const refreshToken = this.tokenService.generateRefreshToken({ userId, role });
+    return { accessToken, refreshToken };
   }
 }

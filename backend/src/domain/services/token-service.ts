@@ -3,9 +3,12 @@ import { Role } from '../entities/authorized-user.entity';
 export interface AuthPayload {
   userId: string;
   role: Role;
+  tokenType?: 'access' | 'refresh';
 }
 
 export interface TokenService {
-  generateToken(payload: any, expiresIn?: string | number): string;
-  verifyToken(token: string): Promise<any>;
+  generateAccessToken(payload: AuthPayload): string;
+  generateRefreshToken(payload: AuthPayload): string;
+  verifyAccessToken(token: string): Promise<AuthPayload>;
+  verifyRefreshToken(token: string): Promise<AuthPayload>;
 }
