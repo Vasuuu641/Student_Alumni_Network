@@ -21,7 +21,7 @@ export class JwtStrategy implements CanActivate {
       throw new UnauthorizedException('Invalid Authorization header');
     }
     try {
-      const payload = await this.tokenService.verifyToken(token);
+      const payload = await this.tokenService.verifyAccessToken(token);
       request.user = payload; // Attach payload to request
       return true;
     } catch (error) {
