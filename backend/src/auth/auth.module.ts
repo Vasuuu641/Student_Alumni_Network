@@ -38,11 +38,19 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
     { provide: 'PasswordHasher', useClass: BcryptPasswordHasher },
     {
       provide: 'TokenService',
-      useFactory: () =>
-        new JwtTokenService(
-          process.env.JWT_SECRET ?? 'dev-secret',
-          process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET ?? 'dev-refresh-secret'
-        ),
+      useFactory: () => {
+        const jwtSecret = process.env.JWT_SECRET;
+        const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+        
+        if (!jwtSecret) {
+          throw new Error('JWT_SECRET environment variable is required');
+        }
+        if (!jwtRefreshSecret) {
+          throw new Error('JWT_REFRESH_SECRET environment variable is required');
+        }
+        
+        return new JwtTokenService(jwtSecret, jwtRefreshSecret);
+      },
     },
   ],
   exports: ['TokenService', JwtStrategy, RolesGuard],
