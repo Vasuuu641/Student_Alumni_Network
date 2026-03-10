@@ -38,6 +38,18 @@ export class PrismaNoteRepository implements NoteRepository {
     return this.toDomain(record);
   }
 
+  async updateMetadata(noteId: string, metadata: { title?: string; status?: string }): Promise<Note> {
+    const data: any = {};
+    if (metadata.title !== undefined) data.title = metadata.title;
+    if (metadata.status !== undefined) data.status = metadata.status;
+
+    const record = await this.prisma.note.update({
+      where: { id: noteId },
+      data,
+    });
+    return this.toDomain(record);
+  }
+
   async updateStatus(noteId: string, status: NoteStatus): Promise<Note> {
     const record = await this.prisma.note.update({
       where: { id: noteId },
