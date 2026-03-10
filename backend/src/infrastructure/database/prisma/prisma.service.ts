@@ -17,6 +17,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get note() { return this.client.note; }
   get noteCollaborator() { return this.client.noteCollaborator; }
   get noteActivity() { return this.client.noteActivity; }
+  get noteVersion() { return this.client.noteVersion; }
   // add other models you have here...
 
   constructor() {
