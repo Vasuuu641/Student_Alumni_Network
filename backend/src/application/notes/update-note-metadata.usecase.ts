@@ -1,7 +1,7 @@
 //update note metadata (title/status), not collaborative content stream. Seperates document metadata rules
 //from realtime editor updates - cleaner permissions and auditing
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { NoteActivityRepository } from "src/domain/repositories/note-activity.repository";
 
@@ -11,8 +11,8 @@ const MAX_TITLE_LENGTH = 500;
 @Injectable()
 export class UpdateNoteMetadataUseCase {
   constructor(
-    private readonly noteRepository: NoteRepository,
-    private readonly noteActivityRepository: NoteActivityRepository
+    @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
+    @Inject('NoteActivityRepository') private readonly noteActivityRepository: NoteActivityRepository
   ) {}
 
   async execute(noteId: string, actorId: string, title?: string, status?: string): Promise<void> {

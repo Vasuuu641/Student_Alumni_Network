@@ -3,14 +3,14 @@ import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { UserRepository } from "src/domain/repositories/user.repository";
 import type { NoteCollaboratorRepository } from "src/domain/repositories/note-collaborator.repository";
 import { Email } from "src/domain/value-objects/email.vo";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 
 @Injectable()
 export class RemoveCollaboratorUseCase {
   constructor(
-    private noteRepository: NoteRepository,
-    private userRepository: UserRepository,
-    private noteCollaboratorRepository: NoteCollaboratorRepository 
+    @Inject('NoteRepository') private noteRepository: NoteRepository,
+    @Inject('UserRepository') private userRepository: UserRepository,
+    @Inject('NoteCollaboratorRepository') private noteCollaboratorRepository: NoteCollaboratorRepository
   ) {}
 
   async execute(noteId: string, ownerId: string, collaboratorEmail: string) {

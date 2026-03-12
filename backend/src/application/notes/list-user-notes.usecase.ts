@@ -1,11 +1,11 @@
 //return all notes of a user - owned + shared with him
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { Note } from "src/domain/entities/note.entity";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 
 @Injectable()
 export class ListUserNotesUseCase {
-  constructor(private noteRepository: NoteRepository) {}
+  constructor(@Inject('NoteRepository') private noteRepository: NoteRepository) {}
 
   async execute(userId: string): Promise<Note[]> {
     // Fetch notes owned by the user

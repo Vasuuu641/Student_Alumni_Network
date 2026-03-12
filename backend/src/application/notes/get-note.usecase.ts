@@ -1,11 +1,11 @@
 //Getting an already exisiting note by id only if user has access to it
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { Note } from 'src/domain/entities/note.entity';
 
 @Injectable()
 export class GetNoteUseCase {
-  constructor(private readonly noteRepository: NoteRepository) {}
+  constructor(@Inject('NoteRepository') private readonly noteRepository: NoteRepository) {}
   
   //if note is not found, throw exception
   async execute(noteId: string, userId: string): Promise<Note | null> {

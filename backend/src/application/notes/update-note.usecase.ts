@@ -1,5 +1,5 @@
 //Update note content (rich-text/JSON). Distinct from metadata updates - allows collaborative content editing
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { NoteVersionRepository } from "src/domain/repositories/note-version.repository";
 import type { NoteActivityRepository } from "src/domain/repositories/note-activity.repository";
@@ -12,10 +12,10 @@ const MAX_NOTE_CONTENT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 @Injectable()
 export class UpdateNoteUseCase {
   constructor(
-    private readonly noteRepository: NoteRepository,
-    private readonly noteVersionRepository: NoteVersionRepository,
-    private readonly noteActivityRepository: NoteActivityRepository,
-    private readonly noteCollaboratorRepository: NoteCollaboratorRepository
+    @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
+    @Inject('NoteVersionRepository') private readonly noteVersionRepository: NoteVersionRepository,
+    @Inject('NoteActivityRepository') private readonly noteActivityRepository: NoteActivityRepository,
+    @Inject('NoteCollaboratorRepository') private readonly noteCollaboratorRepository: NoteCollaboratorRepository
   ) {}
 
   async execute(

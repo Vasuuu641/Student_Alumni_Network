@@ -1,5 +1,5 @@
 //Creates a note for a user
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { NoteActivityRepository } from "src/domain/repositories/note-activity.repository";
 import { NoteStatus } from "src/domain/entities/note.entity";
@@ -7,8 +7,8 @@ import { NoteStatus } from "src/domain/entities/note.entity";
 @Injectable()
 export class CreateNoteUseCase {
   constructor(
-    private readonly noteRepository: NoteRepository,
-    private readonly noteActivityRepository: NoteActivityRepository
+    @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
+    @Inject('NoteActivityRepository') private readonly noteActivityRepository: NoteActivityRepository
   ) {}
 
   async execute(userId: string, title: string): Promise<string> {

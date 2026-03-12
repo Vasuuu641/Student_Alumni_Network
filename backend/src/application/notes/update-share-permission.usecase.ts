@@ -4,14 +4,14 @@ import type { UserRepository } from "src/domain/repositories/user.repository";
 import type { NoteCollaboratorRepository } from "src/domain/repositories/note-collaborator.repository";
 import { Email } from "src/domain/value-objects/email.vo";
 import { NotePermissionRole } from "src/domain/entities/note.entity";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 
 @Injectable()
 export class UpdateSharePermissionUseCase {
   constructor(
-    private noteRepository: NoteRepository,
-    private userRepository: UserRepository,
-    private noteCollaboratorRepository: NoteCollaboratorRepository 
+    @Inject('NoteRepository') private noteRepository: NoteRepository,
+    @Inject('UserRepository') private userRepository: UserRepository,
+    @Inject('NoteCollaboratorRepository') private noteCollaboratorRepository: NoteCollaboratorRepository
   ) {}
 
   async execute(
