@@ -65,8 +65,8 @@ export class PrismaNoteRepository implements NoteRepository {
   private toDomain(record: any): Note {
     return new Note(
       record.id,
-      record.ownerId,
       record.title,
+      record.ownerId,
       record.status,
       record.createdAt,
       record.updatedAt,

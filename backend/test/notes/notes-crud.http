@@ -1,10 +1,13 @@
 # ─── Notes REST API Tests ─────────────────────────────────────────────────────
 # Set your token below after logging in via notes-login.http
 
-@token = PASTE_ACCESS_TOKEN_HERE
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzMwNDc0MCwiZXhwIjoxNzczMzA4MzQwfQ.G58OL9v1jMkXtmZHkx6KCu24RzHxcCxeTQPzHIWJaVY
 @baseUrl = http://localhost:3000
-@noteId = PASTE_NOTE_ID_HERE
-@collaboratorEmail = PASTE_COLLABORATOR_EMAIL_HERE
+@noteId = hl7ukykf2
+@collaboratorEmail = h1ckbo@tr.pte.hu
+@collaboratorEmail2 = profe1@tr.pte.hu
+@collaboratorEmailEncoded = h1ckbo%40tr.pte.hu
+@collaboratorEmail2Encoded = profe1%40tr.pte.hu
 
 ###
 # ─── CREATE NOTE ──────────────────────────────────────────────────────────────
@@ -25,12 +28,14 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/notes
 Authorization: Bearer {{token}}
 
+
 ###
 # ─── GET SINGLE NOTE ──────────────────────────────────────────────────────────
 # Expected: 200 with { note: { id, title, ownerId, status, ... } }
 
 GET {{baseUrl}}/notes/{{noteId}}
 Authorization: Bearer {{token}}
+
 
 ###
 # ─── UPDATE NOTE METADATA (title) ─────────────────────────────────────────────
@@ -88,15 +93,22 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "collaboratorEmail": "{{collaboratorEmail}}",
+  "collaboratorEmail": "{{collaboratorEmail2}}",
   "role": "viewer"
 }
+
+###
+# ─── LIST COLLABORATORS (owner view) ─────────────────────────────────────────
+# Expected: 200 with { collaborators: [{ userId, email, role }] }
+
+GET {{baseUrl}}/notes/{{noteId}}/share
+Authorization: Bearer {{token}}
 
 ###
 # ─── UPDATE COLLABORATOR ROLE ─────────────────────────────────────────────────
 # Expected: 200 with { success: true }
 
-PATCH {{baseUrl}}/notes/{{noteId}}/share/placeholder-userid
+PATCH {{baseUrl}}/notes/{{noteId}}/share/{{collaboratorEmailEncoded}}
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
@@ -131,5 +143,5 @@ Authorization: Bearer {{token}}
 # ─── REMOVE COLLABORATOR ──────────────────────────────────────────────────────
 # Expected: 200 with { success: true }
 
-DELETE {{baseUrl}}/notes/{{noteId}}/share/placeholder-userid
+DELETE {{baseUrl}}/notes/{{noteId}}/share/{{collaboratorEmailEncoded}}
 Authorization: Bearer {{token}}

@@ -23,10 +23,10 @@ export class PrismaNoteCollaboratorRepository implements NoteCollaboratorReposit
     return this.toDomain(record);
   }
 
-  async updateRole(noteId: string, userId: string, role: string): Promise<NoteCollaborator> {
+  async updateRole(noteId: string, userId: string, role: NotePermissionRole): Promise<NoteCollaborator> {
     const record = await this.prisma.noteCollaborator.update({
       where: { noteId_userId: { noteId, userId } },
-      data: { role: role as NotePermissionRole },
+      data: { role },
     });
     return this.toDomain(record);
   }

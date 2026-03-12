@@ -13,7 +13,7 @@ export class RemoveCollaboratorUseCase {
     @Inject('NoteCollaboratorRepository') private noteCollaboratorRepository: NoteCollaboratorRepository
   ) {}
 
-  async execute(noteId: string, ownerId: string, collaboratorEmail: string) {
+  async execute(noteId: string, ownerId: string, collaboratorIdentifier: string) {
     const note = await this.noteRepository.findById(noteId);
     if (!note) {
       throw new Error("Note not found");
@@ -24,8 +24,9 @@ export class RemoveCollaboratorUseCase {
       throw new Error("Only the note owner can remove collaborators");
     }
 
-    const emailVO = new Email(collaboratorEmail);
-    const collaborator = await this.userRepository.findByEmail(emailVO);
+    const collaborator = collaboratorIdentifier.includes('@')
+      ? await this.userRepository.findByEmail(new Email(collaboratorIdentifier))
+      : await this.userRepository.findById(collaboratorIdentifier);
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }

@@ -26,6 +26,10 @@ import { CreateNoteCheckpointUseCase } from '../../application/notes/create-note
 import { ListNoteVersionsUseCase } from '../../application/notes/list-note-versions.usecase';
 import { RestoreNoteVersionsUseCase } from '../../application/notes/restore-note-versions.usecase';
 import { ListUserNotesUseCase } from '../../application/notes/list-user-notes.usecase';
+import {
+  ListNoteCollaboratorsUseCase,
+  type NoteCollaboratorListItem,
+} from '../../application/notes/list-note-collaborators.usecase';
 
 // DTOs
 import { CreateNoteRequest } from './dto/create-note-request.dto';
@@ -47,6 +51,7 @@ export class NotesController {
     private readonly listNoteVersionsUseCase: ListNoteVersionsUseCase,
     private readonly restoreNoteVersionsUseCase: RestoreNoteVersionsUseCase,
     private readonly listUserNotesUseCase: ListUserNotesUseCase,
+    private readonly listNoteCollaboratorsUseCase: ListNoteCollaboratorsUseCase,
   ) {}
 
   /**
@@ -188,6 +193,32 @@ export class NotesController {
   }
 
   /**
+   * GET /notes/:id/share
+   * List note collaborators for owner management UI
+   * Only accessible to note owner
+   */
+  @Get(':id/share')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async listCollaborators(
+    @Req() request: any,
+    @Param('id') noteId: string,
+  ): Promise<{ collaborators: NoteCollaboratorListItem[] }> {
+    try {
+      const ownerId = request.user.userId;
+      const collaborators = await this.listNoteCollaboratorsUseCase.execute(
+        noteId,
+        ownerId,
+      );
+      return { collaborators };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to list collaborators',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * PATCH /notes/:id/share/:userId
    * Update collaborator's role (viewer -> editor or vice versa)
    * Only accessible to note owner
@@ -197,6 +228,7 @@ export class NotesController {
   async updateSharePermission(
     @Req() request: any,
     @Param('id') noteId: string,
+    @Param('userId') collaboratorIdentifier: string,
     @Body() updateShareRequest: UpdateShareRoleRequestDto,
   ): Promise<{ success: boolean }> {
     try {
@@ -204,7 +236,9 @@ export class NotesController {
       await this.updateSharePermissionUseCase.execute(
         noteId,
         ownerId,
-        updateShareRequest.email,
+        collaboratorIdentifier !== 'placeholder-userid'
+          ? collaboratorIdentifier
+          : updateShareRequest.email,
         updateShareRequest.role,
       );
       return { success: true };
@@ -226,14 +260,14 @@ export class NotesController {
   async removeCollaborator(
     @Req() request: any,
     @Param('id') noteId: string,
-    @Param('userId') collaboratorEmail: string,
+    @Param('userId') collaboratorIdentifier: string,
   ): Promise<{ success: boolean }> {
     try {
       const ownerId = request.user.userId;
       await this.removeCollaboratorUseCase.execute(
         noteId,
         ownerId,
-        collaboratorEmail,
+        collaboratorIdentifier,
       );
       return { success: true };
     } catch (error) {

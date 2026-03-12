@@ -16,8 +16,8 @@ export class UpdateSharePermissionUseCase {
 
   async execute(
     noteId: string,
-    ownerId: string, 
-    collaboratorEmail: string,
+    ownerId: string,
+    collaboratorIdentifier: string,
     role: "viewer" | "editor"
   ) {
     //validate role at runtime
@@ -34,8 +34,9 @@ export class UpdateSharePermissionUseCase {
       throw new Error("Only the note owner and editors can update permissions for this note");
     }
 
-    const emailVO = new Email(collaboratorEmail);
-    const collaborator = await this.userRepository.findByEmail(emailVO);
+    const collaborator = collaboratorIdentifier.includes('@')
+      ? await this.userRepository.findByEmail(new Email(collaboratorIdentifier))
+      : await this.userRepository.findById(collaboratorIdentifier);
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }
@@ -55,7 +56,10 @@ export class UpdateSharePermissionUseCase {
     }
 
     const permissionRole = role === "viewer" ? NotePermissionRole.VIEWER : NotePermissionRole.EDITOR;
-    existingCollaborator.role = permissionRole;
-    await this.noteCollaboratorRepository.add(existingCollaborator);
+    await this.noteCollaboratorRepository.updateRole(
+      noteId,
+      collaborator.id,
+      permissionRole,
+    );
   }
 }

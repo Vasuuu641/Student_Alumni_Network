@@ -13,6 +13,7 @@ import { CreateNoteCheckpointUseCase } from '../../application/notes/create-note
 import { ListNoteVersionsUseCase } from '../../application/notes/list-note-versions.usecase';
 import { RestoreNoteVersionsUseCase } from '../../application/notes/restore-note-versions.usecase';
 import { ListUserNotesUseCase } from '../../application/notes/list-user-notes.usecase';
+import { ListNoteCollaboratorsUseCase } from '../../application/notes/list-note-collaborators.usecase';
 
 // Repositories
 import { PrismaNoteRepository } from '../../infrastructure/repositories/prisma-note.repository';
@@ -47,6 +48,7 @@ import { AuthModule } from '../../auth/auth.module';
     ListNoteVersionsUseCase,
     RestoreNoteVersionsUseCase,
     ListUserNotesUseCase,
+    ListNoteCollaboratorsUseCase,
 
     // Repository Implementations
     PrismaNoteRepository,
@@ -89,6 +91,7 @@ import { AuthModule } from '../../auth/auth.module';
     ListNoteVersionsUseCase,
     RestoreNoteVersionsUseCase,
     ListUserNotesUseCase,
+    ListNoteCollaboratorsUseCase,
   ],
 })
 export class NotesModule {}
