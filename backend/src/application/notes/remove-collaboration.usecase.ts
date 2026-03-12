@@ -1,10 +1,12 @@
 //Provoking user's access to a note after sharing it with them. The owner can remove the user from the note's collaborators, which will revoke their access to the note.
-import { NoteRepository } from "../../domain/repositories/note.repository";
-import { UserRepository } from "../../domain/repositories/user.repository";
-import { NoteCollaboratorRepository } from "../../domain/repositories/note-collaborator.repository"; // Fix: use a repository, not entity
-import { Email } from "../../domain/value-objects/email.vo";
+import type { NoteRepository } from "src/domain/repositories/note.repository";
+import type { UserRepository } from "src/domain/repositories/user.repository";
+import type { NoteCollaboratorRepository } from "src/domain/repositories/note-collaborator.repository";
+import { Email } from "src/domain/value-objects/email.vo";
+import { Injectable } from "@nestjs/common";
 
-export class RemoveCollaborationUseCase {
+@Injectable()
+export class RemoveCollaboratorUseCase {
   constructor(
     private noteRepository: NoteRepository,
     private userRepository: UserRepository,

@@ -1,7 +1,9 @@
 //return all notes of a user - owned + shared with him
-import { NoteRepository } from "../../domain/repositories/note.repository";
-import { Note } from "../../domain/entities/note.entity";
+import type { NoteRepository } from "src/domain/repositories/note.repository";
+import type { Note } from "src/domain/entities/note.entity";
+import { Injectable } from "@nestjs/common";
 
+@Injectable()
 export class ListUserNotesUseCase {
   constructor(private noteRepository: NoteRepository) {}
 

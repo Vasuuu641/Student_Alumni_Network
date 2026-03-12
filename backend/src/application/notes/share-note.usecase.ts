@@ -1,9 +1,11 @@
-import { NoteRepository } from "../../domain/repositories/note.repository";
-import { UserRepository } from "../../domain/repositories/user.repository";
-import { NoteCollaboratorRepository } from "../../domain/repositories/note-collaborator.repository"; // Fix: use a repository, not entity
-import { Email } from "../../domain/value-objects/email.vo";
-import { NotePermissionRole } from "../../domain/entities/note.entity";
+import type { NoteRepository } from "src/domain/repositories/note.repository";
+import type { UserRepository } from "src/domain/repositories/user.repository";
+import type { NoteCollaboratorRepository } from "src/domain/repositories/note-collaborator.repository";
+import { Email } from "src/domain/value-objects/email.vo";
+import { NotePermissionRole } from "src/domain/entities/note.entity";
+import { Injectable } from "@nestjs/common";
 
+@Injectable()
 export class ShareNoteUseCase {
   constructor(
     private noteRepository: NoteRepository,

@@ -1,14 +1,15 @@
 //Restore a selected version of a note by creating a new headstate not deleting the history. 
 //Preserves the audit trail and avoids destructive rollback
 import { Injectable } from '@nestjs/common';
-import { NoteVersion } from '../../domain/entities/note-version.entity';
+import { NoteVersion } from 'src/domain/entities/note-version.entity';
 import type { NoteVersionRepository } from 'src/domain/repositories/note-version.repository';
 
+@Injectable()
 @Injectable()
 export class RestoreNoteVersionsUseCase {
   constructor(private noteVersionRepository: NoteVersionRepository) {}
 
-  async execute(noteId: string, versionNumber: number): Promise<NoteVersion> {
+  async execute(noteId: string, versionNumber: number, actorId: string): Promise<NoteVersion> {
     const versionToRestore = await this.noteVersionRepository.findByNoteIdAndVersionNumber(noteId, versionNumber);
     if (!versionToRestore) {
       throw new Error("Note version not found");
@@ -22,7 +23,7 @@ export class RestoreNoteVersionsUseCase {
       noteId,
       nextVersionNumber,
       versionToRestore.snapshotJson,
-      '', // authorId - provide appropriate value
+      actorId,
       new Date(),
     );
 

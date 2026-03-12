@@ -30,6 +30,16 @@ export class PrismaNoteVersionRepository implements NoteVersionRepository {
     return record ? this.toDomain(record) : null;
   }
 
+  async listVersions(noteId: string, offset: number, limit: number): Promise<NoteVersion[]> {
+    const records = await this.prisma.noteVersion.findMany({
+      where: { noteId },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+    });
+    return records.map(this.toDomain);
+  }
+
   async findByNoteIdAndVersionNumber(noteId: string, versionNumber: number): Promise<NoteVersion | null> {
     const record = await this.prisma.noteVersion.findFirst({
       where: { noteId },

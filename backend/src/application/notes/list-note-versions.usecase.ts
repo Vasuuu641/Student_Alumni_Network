@@ -1,6 +1,6 @@
 //Show version history for audit/restore UI - controlled paginated access to historical states
 import { Injectable } from '@nestjs/common';
-import { NoteVersion } from '../../domain/entities/note-version.entity';
+import type { NoteVersion } from 'src/domain/entities/note-version.entity';
 import type { NoteVersionRepository } from 'src/domain/repositories/note-version.repository';
 
 @Injectable()
