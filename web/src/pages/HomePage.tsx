@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 export function HomePage() {
   return (
     <main className="page">
+      <div className="bg-red-500 text-white p-8 text-4xl">
+        🚀 Woooosh!!
+      </div>
+
       <section className="card">
         <h1>UniBridge Web</h1>
         <p>React setup complete. Next: build homepage UI.</p>
