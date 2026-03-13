@@ -1,7 +1,7 @@
 # ─── Notes REST API Tests ─────────────────────────────────────────────────────
 # Set your token below after logging in via notes-login.http
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzMwNDc0MCwiZXhwIjoxNzczMzA4MzQwfQ.G58OL9v1jMkXtmZHkx6KCu24RzHxcCxeTQPzHIWJaVY
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzM4ODcxMCwiZXhwIjoxNzczMzkyMzEwfQ.U3LRvptcRR3Kx3a9ouDqvF0DobDmrJhw_d3c00R0nck
 @baseUrl = http://localhost:3000
 @noteId = hl7ukykf2
 @collaboratorEmail = h1ckbo@tr.pte.hu

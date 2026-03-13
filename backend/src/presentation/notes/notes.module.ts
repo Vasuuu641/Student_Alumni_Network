@@ -24,6 +24,7 @@ import { PrismaUserRepository } from '../../infrastructure/repositories/prisma-u
 
 // Gateway
 import { NotesGateway } from '../../infrastructure/websocket/notes.gateway';
+import { NotesRealtimePublisherService } from '../../infrastructure/services/notes-realtime-publisher.service';
 
 // Modules
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
@@ -35,6 +36,7 @@ import { AuthModule } from '../../auth/auth.module';
   providers: [
     // Gateway
     NotesGateway,
+    NotesRealtimePublisherService,
 
     // Use Cases
     CreateNoteUseCase,
@@ -77,6 +79,10 @@ import { AuthModule } from '../../auth/auth.module';
     {
       provide: 'UserRepository',
       useClass: PrismaUserRepository,
+    },
+    {
+      provide: 'NotesRealtimePublisher',
+      useClass: NotesRealtimePublisherService,
     },
   ],
   exports: [

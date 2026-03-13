@@ -10,6 +10,7 @@ import {
   Req,
   HttpException,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -30,6 +31,7 @@ import {
   ListNoteCollaboratorsUseCase,
   type NoteCollaboratorListItem,
 } from '../../application/notes/list-note-collaborators.usecase';
+import type { NotesRealtimePublisher } from '../../domain/services/notes-realtime-publisher';
 
 // DTOs
 import { CreateNoteRequest } from './dto/create-note-request.dto';
@@ -52,6 +54,8 @@ export class NotesController {
     private readonly restoreNoteVersionsUseCase: RestoreNoteVersionsUseCase,
     private readonly listUserNotesUseCase: ListUserNotesUseCase,
     private readonly listNoteCollaboratorsUseCase: ListNoteCollaboratorsUseCase,
+    @Inject('NotesRealtimePublisher')
+    private readonly notesRealtimePublisher: NotesRealtimePublisher,
   ) {}
 
   /**
@@ -292,6 +296,17 @@ export class NotesController {
     try {
       const actorId = request.user.userId;
       await this.createNoteCheckpointUseCase.execute(noteId, actorId);
+
+      // Broadcast checkpoint event to all connected collaborators in this note room.
+      // If versions exist, expose the latest version number; otherwise emit 0.
+      const latestVersion = await this.listNoteVersionsUseCase.execute(noteId, 1, 1);
+      const versionNumber = latestVersion.length > 0 ? latestVersion[0].versionNumber : 0;
+      this.notesRealtimePublisher.broadcastCheckpointCreated(
+        noteId,
+        actorId,
+        versionNumber,
+      );
+
       return { success: true };
     } catch (error) {
       throw new HttpException(
