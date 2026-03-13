@@ -225,8 +225,6 @@ Acceptance criteria:
 
 ## Phase 6 — Frontend editor integration (Week 2)
 
-(Use your `web/` app)
-
 ### 6.1 Editor page
 Build full-page editor screen with:
 - note title bar
