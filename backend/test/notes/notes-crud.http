@@ -1,0 +1,147 @@
+# ─── Notes REST API Tests ─────────────────────────────────────────────────────
+# Set your token below after logging in via notes-login.http
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzM4ODcxMCwiZXhwIjoxNzczMzkyMzEwfQ.U3LRvptcRR3Kx3a9ouDqvF0DobDmrJhw_d3c00R0nck
+@baseUrl = http://localhost:3000
+@noteId = hl7ukykf2
+@collaboratorEmail = h1ckbo@tr.pte.hu
+@collaboratorEmail2 = profe1@tr.pte.hu
+@collaboratorEmailEncoded = h1ckbo%40tr.pte.hu
+@collaboratorEmail2Encoded = profe1%40tr.pte.hu
+
+###
+# ─── CREATE NOTE ──────────────────────────────────────────────────────────────
+# Expected: 201 with { noteId: "..." }
+
+POST {{baseUrl}}/notes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "My First Collaborative Note"
+}
+
+###
+# ─── LIST USER NOTES ──────────────────────────────────────────────────────────
+# Expected: 200 with { notes: [...] }
+
+GET {{baseUrl}}/notes
+Authorization: Bearer {{token}}
+
+
+###
+# ─── GET SINGLE NOTE ──────────────────────────────────────────────────────────
+# Expected: 200 with { note: { id, title, ownerId, status, ... } }
+
+GET {{baseUrl}}/notes/{{noteId}}
+Authorization: Bearer {{token}}
+
+
+###
+# ─── UPDATE NOTE METADATA (title) ─────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/notes/{{noteId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Updated Note Title"
+}
+
+###
+# ─── UPDATE NOTE CONTENT (rich-text JSON) ─────────────────────────────────────
+# Expected: 200 with { success: true }
+# content is a TipTap/ProseMirror JSON document
+
+PATCH {{baseUrl}}/notes/{{noteId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "Hello, this is a collaborative note." }
+        ]
+      }
+    ]
+  }
+}
+
+###
+# ─── SHARE NOTE WITH COLLABORATOR ─────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+POST {{baseUrl}}/notes/{{noteId}}/share
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "collaboratorEmail": "{{collaboratorEmail}}",
+  "role": "editor"
+}
+
+###
+# ─── SHARE NOTE AS VIEWER ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/notes/{{noteId}}/share
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "collaboratorEmail": "{{collaboratorEmail2}}",
+  "role": "viewer"
+}
+
+###
+# ─── LIST COLLABORATORS (owner view) ─────────────────────────────────────────
+# Expected: 200 with { collaborators: [{ userId, email, role }] }
+
+GET {{baseUrl}}/notes/{{noteId}}/share
+Authorization: Bearer {{token}}
+
+###
+# ─── UPDATE COLLABORATOR ROLE ─────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/notes/{{noteId}}/share/{{collaboratorEmailEncoded}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "{{collaboratorEmail}}",
+  "role": "viewer"
+}
+
+###
+# ─── CREATE CHECKPOINT (version) ──────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+POST {{baseUrl}}/notes/{{noteId}}/versions
+Authorization: Bearer {{token}}
+
+###
+# ─── LIST VERSIONS ────────────────────────────────────────────────────────────
+# Expected: 200 with { versions: [...] }
+
+GET {{baseUrl}}/notes/{{noteId}}/versions
+Authorization: Bearer {{token}}
+
+###
+# ─── RESTORE VERSION ──────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+# Replace 1 with the versionNumber from the list above
+
+POST {{baseUrl}}/notes/{{noteId}}/restore/1
+Authorization: Bearer {{token}}
+
+###
+# ─── REMOVE COLLABORATOR ──────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+DELETE {{baseUrl}}/notes/{{noteId}}/share/{{collaboratorEmailEncoded}}
+Authorization: Bearer {{token}}

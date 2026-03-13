@@ -6,3 +6,12 @@ Content-Type: application/json
     "email":"fbn7ym@tr.pte.hu",
     "password":"fbn7ym"
 }
+
+###
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+    "email":"h1ckbo@tr.pte.hu",
+    "password":"h1ckbo"
+}

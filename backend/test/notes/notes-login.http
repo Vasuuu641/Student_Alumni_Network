@@ -1,0 +1,10 @@
+# ─── STEP 1: Login to get a token ─────────────────────────────────────────────
+# Copy the accessToken from the response and set it as @token below
+
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "fbn7ym@tr.pte.hu",
+  "password": "fbn7ym"
+}

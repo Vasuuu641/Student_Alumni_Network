@@ -14,6 +14,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get alumni() { return this.client.alumni; }
   get professor() { return this.client.professor; }
   get authorizedUser() { return this.client.authorizedUser; }
+  get note() { return this.client.note; }
+  get noteCollaborator() { return this.client.noteCollaborator; }
+  get noteActivity() { return this.client.noteActivity; }
+  get noteVersion() { return this.client.noteVersion; }
+  get revokedToken() { return this.client.revokedToken; }
   // add other models you have here...
 
   constructor() {

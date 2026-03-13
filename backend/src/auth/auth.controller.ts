@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
@@ -31,7 +31,6 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() request: LoginRequestDto) {
-  console.log('Login request body:', request);
   try {
     return await this.authService.login(request);
   } catch (error: any) {
@@ -47,8 +46,26 @@ export class AuthController {
     try {
       return await this.authService.refresh(request.refreshToken);
     } catch (error: any) {
-      if (error.message.includes('Invalid token')) {
-        throw new BadRequestException('Invalid refresh token');
+      if (
+        error.message?.includes('Invalid token') ||
+        error.message?.includes('revoked') ||
+        error.status === 401
+      ) {
+        throw new BadRequestException('Invalid or revoked refresh token');
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /** Revokes the provided refresh token. Idempotent – safe to call multiple times. */
+  @Post('logout')
+  @HttpCode(204)
+  async logout(@Body() request: RefreshTokenRequestDto) {
+    try {
+      await this.authService.logout(request.refreshToken);
+    } catch (error: any) {
+      if (error.status === 401 || error.message?.includes('Invalid')) {
+        throw new BadRequestException('Invalid or expired refresh token');
       }
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

@@ -14,5 +14,25 @@ POST http://localhost:3000/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NzI5NjkzODMsImV4cCI6MTc3MzA1NTc4M30.R5QrlCEEKiTprMLnrWWXOKeiiMX1zZYpM2SqsAD_5Vc"
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NzMzOTE1NjksImV4cCI6MTc3MzQ3Nzk2OX0.qYQKKEiayGOw4yM6pHoTnlVWWZTp67jl72ZiP79dQ-g"
+}
+
+###
+### Logout – revokes the refresh token so it can never be used again.
+### Body: same { "refreshToken": "..." } shape as /auth/refresh.
+### Response: 204 No Content on success.
+POST http://localhost:3000/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NzMzOTE1OTYsImV4cCI6MTc3MzQ3Nzk5Nn0.4sExc1MBhlEb406O-b1vEKke58XaggUUFl6X28KU-UU"
+}
+
+###
+### Confirm the revoked token is rejected (should return 400)
+POST http://localhost:3000/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NzMzOTE1OTYsImV4cCI6MTc3MzQ3Nzk5Nn0.4sExc1MBhlEb406O-b1vEKke58XaggUUFl6X28KU-UU"
 }

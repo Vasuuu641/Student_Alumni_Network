@@ -1,3 +1,4 @@
+//Purpose : Change the role of an existing collaborator 
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { UserRepository } from "src/domain/repositories/user.repository";
 import type { NoteCollaboratorRepository } from "src/domain/repositories/note-collaborator.repository";
@@ -6,7 +7,7 @@ import { NotePermissionRole } from "src/domain/entities/note.entity";
 import { Injectable, Inject } from "@nestjs/common";
 
 @Injectable()
-export class ShareNoteUseCase {
+export class UpdateSharePermissionUseCase {
   constructor(
     @Inject('NoteRepository') private noteRepository: NoteRepository,
     @Inject('UserRepository') private userRepository: UserRepository,
@@ -15,34 +16,34 @@ export class ShareNoteUseCase {
 
   async execute(
     noteId: string,
-    ownerId: string, // Fix: added to verify ownership
-    collaboratorEmail: string,
+    ownerId: string,
+    collaboratorIdentifier: string,
     role: "viewer" | "editor"
   ) {
-    // Fix: validate role at runtime
+    //validate role at runtime
     if (!["viewer", "editor"].includes(role)) {
-      throw new Error("Invalid role. Must be 'viewer' or 'editor'");
-    }
+      throw new Error("Invalid role. Must be 'viewer' or 'editor'"); }
 
     const note = await this.noteRepository.findById(noteId);
     if (!note) {
       throw new Error("Note not found");
     }
 
-    // Fix: ensure only the owner and editors can share the note
+    //ensure only the owner and editors can update permissions
     if (note.ownerId !== ownerId && role !== "editor") {
-      throw new Error("Only the note owner and editors can share this note");
+      throw new Error("Only the note owner and editors can update permissions for this note");
     }
 
-    const emailVO = new Email(collaboratorEmail);
-    const collaborator = await this.userRepository.findByEmail(emailVO);
+    const collaborator = collaboratorIdentifier.includes('@')
+      ? await this.userRepository.findByEmail(new Email(collaboratorIdentifier))
+      : await this.userRepository.findById(collaboratorIdentifier);
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }
 
-    // Fix: prevent owner from adding themselves as a collaborator
+    // Fix: prevent owner from updating their own permissions
     if (collaborator.id === ownerId) {
-      throw new Error("Owner cannot be added as a collaborator");
+      throw new Error("Owner cannot update their own permissions");
     }
 
     const existingCollaborator = await this.noteCollaboratorRepository.findByNoteAndUser(
@@ -50,20 +51,15 @@ export class ShareNoteUseCase {
       collaborator.id
     );
 
-    const permissionRole = role === "viewer" ? NotePermissionRole.VIEWER : NotePermissionRole.EDITOR;
-
-    if (existingCollaborator) {
-      existingCollaborator.role = permissionRole;
-      await this.noteCollaboratorRepository.add(existingCollaborator);
-    } else {
-      const now = new Date();
-      await this.noteCollaboratorRepository.add({
-        noteId,
-        userId: collaborator.id,
-        role: permissionRole,
-        createdAt: now,
-        updatedAt: now,
-      });
+    if (!existingCollaborator) {
+      throw new Error("Collaborator does not have access to this note");
     }
+
+    const permissionRole = role === "viewer" ? NotePermissionRole.VIEWER : NotePermissionRole.EDITOR;
+    await this.noteCollaboratorRepository.updateRole(
+      noteId,
+      collaborator.id,
+      permissionRole,
+    );
   }
 }
