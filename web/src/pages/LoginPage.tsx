@@ -4,6 +4,7 @@ import { loginUser } from '../api/login.api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import { Mail, Lock} from 'lucide-react';
+import Button from '../components/Button';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export function LoginPage() {
     registeredEmail ? 'Account created successfully. Please sign in.' : '',
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canSubmit = email.trim().length > 0 && password.trim().length >= 6;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +69,7 @@ export function LoginPage() {
                 <input
                   className="input"
                   type="email"
-                  placeholder="you@university.edu"
+                  placeholder="neptun@tr.pte.hu"
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -97,9 +99,13 @@ export function LoginPage() {
               </label>
             </div>
 
-            <button className="submit-button" type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className={!canSubmit ? 'submit-button--soft' : ''}
+            >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
-            </button>
+            </Button>
           </form>
 
           <p className="auth-footer">
