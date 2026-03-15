@@ -29,7 +29,7 @@ export function LoginPage() {
       const response = await loginUser({ email, password });
       localStorage.setItem('unibridge.accessToken', response.accessToken);
       localStorage.setItem('unibridge.refreshToken', response.refreshToken);
-      navigate('/', { replace: true });
+      navigate('/onboarding', { replace: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in.');
     } finally {
