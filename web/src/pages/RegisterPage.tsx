@@ -4,6 +4,8 @@ import { registerUser } from '../api/register.api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import {User, Mail, Lock} from 'lucide-react';
+import Button from '../components/Button';
+
 
 
 export function RegisterPage() {
@@ -14,6 +16,11 @@ export function RegisterPage() {
   const [lastName, setLastName] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canSubmit =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.trim().length >= 6;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,9 +138,13 @@ export function RegisterPage() {
               </div>
             </label>
 
-            <button className="submit-button submit-button--soft" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
-            </button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className={!canSubmit ? 'submit-button--soft' : ''}
+              >
+                {isSubmitting ? 'Creating account...' : 'Create Account'}
+              </Button>
           </form>
 
           <p className="auth-footer">
