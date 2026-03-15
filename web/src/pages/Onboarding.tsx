@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { getOnboardingProfile, updateOnboardingProfile } from '../api/onboarding';
 import { getAccessToken, getRoleFromAccessToken, isTokenExpired, type UserRole } from '../lib/auth';
+import Button from '../components/Button';
 
 type EditableRole = Exclude<UserRole, 'ADMIN'>;
 
@@ -33,13 +34,14 @@ const initialState: OnboardingFormState = {
   anonymousName: '',
 };
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 export function OnboardingPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<OnboardingFormState>(initialState);
   const [profilePicture, setProfilePicture] = useState<File | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -128,11 +130,13 @@ export function OnboardingPage() {
   }, [authToken, editableRole]);
 
   function setField<K extends keyof OnboardingFormState>(key: K, value: OnboardingFormState[K]) {
+    setSuccessMessage('');
     setForm((previous) => ({ ...previous, [key]: value }));
   }
 
   function handlePictureChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    setSuccessMessage('');
     if (!file) {
       setProfilePicture(undefined);
       return;
@@ -156,6 +160,7 @@ export function OnboardingPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
     if (currentStep !== TOTAL_STEPS) {
       return;
@@ -163,7 +168,7 @@ export function OnboardingPage() {
 
     if (editableRole === 'ALUMNI' && form.isAnonymous && !form.anonymousName.trim()) {
       setErrorMessage('Anonymous nickname is required when anonymous mode is enabled.');
-      setCurrentStep(4);
+      setCurrentStep(3);
       return;
     }
 
@@ -238,7 +243,7 @@ export function OnboardingPage() {
         payload,
         profilePicture,
       });
-      navigate('/dashboard', { replace: true });
+      setSuccessMessage('Profile saved. Continue to dashboard when you are ready.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save onboarding information.');
     } finally {
@@ -281,10 +286,8 @@ export function OnboardingPage() {
                 : currentStep === 2
                   ? 'Academic information'
                   : currentStep === 3
-                    ? 'Interests and media'
-                    : currentStep === 4
-                      ? 'Privacy preferences'
-                      : 'Review and finish'}
+                    ? 'Interests, media, and privacy'
+                    : 'Review and finish'}
             </h1>
             <p>{roleTitle} onboarding (all fields are optional)</p>
           </div>
@@ -299,6 +302,7 @@ export function OnboardingPage() {
             }}
           >
             {errorMessage ? <p className="status-banner status-banner--error">{errorMessage}</p> : null}
+            {successMessage ? <p className="status-banner status-banner--success">{successMessage}</p> : null}
 
             {currentStep === 1 ? (
               <>
@@ -495,12 +499,6 @@ export function OnboardingPage() {
                   <input className="onboarding-file-input" type="file" accept="image/*" onChange={handlePictureChange} />
                 </label>
 
-                <p className="helper-text">Next step: set privacy preferences and review everything before saving.</p>
-              </>
-            ) : null}
-
-            {currentStep === 4 ? (
-              <>
                 {role === 'ALUMNI' ? (
                   <section className="onboarding-anonymous-box">
                     <label className="onboarding-checkbox-row">
@@ -527,16 +525,13 @@ export function OnboardingPage() {
                       </label>
                     ) : null}
                   </section>
-                ) : (
-                  <section className="onboarding-anonymous-box">
-                    <p className="helper-text">No additional privacy fields are required for your role.</p>
-                    <p className="helper-text">Continue to review everything before you finish.</p>
-                  </section>
-                )}
+                ) : null}
+
+                <p className="helper-text">Next step: review everything before saving.</p>
               </>
             ) : null}
 
-            {currentStep === 5 ? (
+            {currentStep === 4 ? (
               <section className="onboarding-anonymous-box">
                 <p className="helper-text">Review and save your profile details.</p>
                 <ul className="onboarding-summary-list">
@@ -553,39 +548,46 @@ export function OnboardingPage() {
                 </ul>
 
                 <div className="onboarding-review-edit-actions">
-                  <button type="button" className="hero-button hero-button--secondary" onClick={() => goToStep(1)}>
+                  <Button type="button" variant="secondary" onClick={() => goToStep(1)}>
                     Edit basic info
-                  </button>
-                  <button type="button" className="hero-button hero-button--secondary" onClick={() => goToStep(2)}>
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => goToStep(2)}>
                     Edit academics
-                  </button>
-                  <button type="button" className="hero-button hero-button--secondary" onClick={() => goToStep(3)}>
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => goToStep(3)}>
                     Edit interests
-                  </button>
-                  <button type="button" className="hero-button hero-button--secondary" onClick={() => goToStep(4)}>
-                    Edit privacy
-                  </button>
+                  </Button>
                 </div>
               </section>
             ) : null}
 
             <div className="onboarding-actions">
-              <button
+              <Button
                 type="button"
-                className="hero-button hero-button--secondary"
+                variant="secondary"
                 onClick={currentStep === 1 ? () => navigate('/dashboard') : previousStep}
               >
                 {currentStep === 1 ? 'Skip for now' : 'Back'}
-              </button>
+              </Button>
 
               {currentStep < TOTAL_STEPS ? (
-                <button type="button" className="submit-button" onClick={nextStep}>
+                <Button type="button" variant="submit" onClick={nextStep}>
                   Continue
-                </button>
+                </Button>
               ) : (
-                <button type="submit" className="submit-button" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Finish'}
-                </button>
+                successMessage ? (
+                  <Button
+                    type="button"
+                    variant="submit-wide"
+                    onClick={() => navigate('/dashboard', { replace: true })}
+                  >
+                    Continue to dashboard
+                  </Button>
+                ) : (
+                  <Button type="submit" variant="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Saving...' : 'Finish'}
+                  </Button>
+                )
               )}
             </div>
           </form>

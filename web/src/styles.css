@@ -489,6 +489,11 @@
     box-shadow: none;
   }
 
+  .submit-button--wide {
+    min-width: 12.5rem;
+    padding-inline: 1.35rem;
+  }
+
   .status-banner {
     margin: 0;
     padding: 0.8rem 0.95rem;
@@ -691,6 +696,10 @@
   .onboarding-actions .submit-button,
   .onboarding-actions .hero-button {
     min-width: 9.75rem;
+  }
+
+  .onboarding-actions .submit-button--wide {
+    min-width: 12.5rem;
   }
 
   .onboarding-review-edit-actions {

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import Button from '../components/Button';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -14,9 +15,9 @@ export function DashboardPage() {
       <section className="dashboard-card">
         <h1>Dashboard</h1>
         <p>Your onboarding is complete. Welcome to UniBridge.</p>
-        <button className="submit-button" type="button" onClick={handleLogout}>
+        <Button type="button" variant="submit-wide" onClick={handleLogout}>
           Log out
-        </button>
+        </Button>
       </section>
     </main>
   );
