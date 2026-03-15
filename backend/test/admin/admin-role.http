@@ -17,3 +17,25 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlM
     "email": "h1ckbo@tr.pte.hu",
     "role": "STUDENT"
 }
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM1NjYzNDksImV4cCI6MTc3MzU2OTk0OX0.67msLa-YizOpSWZGmUEDzYqOXXU4T2eFg7CXKEK60hY
+
+{
+    "email": "mdrn51@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM1NjYzNDksImV4cCI6MTc3MzU2OTk0OX0.67msLa-YizOpSWZGmUEDzYqOXXU4T2eFg7CXKEK60hY
+
+{
+    "email": "PMNRY6@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+
