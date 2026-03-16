@@ -111,6 +111,7 @@ model Note {
   title     String
   ownerId   String
   status    NoteStatus @default(ACTIVE)
+  contentJson Json?    
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 

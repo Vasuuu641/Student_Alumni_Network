@@ -1,5 +1,5 @@
-//Restore a selected version of a note by creating a new headstate not deleting the history. 
-//Preserves the audit trail and avoids destructive rollback
+// Restore a selected version of a note by creating a new headstate not deleting the history.
+// Preserves the audit trail and avoids destructive rollback
 import { Injectable, Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { NoteVersion } from 'src/domain/entities/note-version.entity';
@@ -23,33 +23,33 @@ export class RestoreNoteVersionsUseCase {
   ) {}
 
   async execute(noteId: string, versionNumber: number, actorId: string): Promise<NoteVersion> {
-    const note = await this.noteRepository.findById(noteId);
-    if (!note) {
-      throw new Error('Note not found');
-    }
+    const note = await this.noteRepository.findById(noteId)
+    if (!note) throw new Error('Note not found')
 
-    const isOwner = note.ownerId === actorId;
-    let isEditor = false;
+    // OWNER or EDITOR can restore versions
+    const isOwner = note.ownerId === actorId
     if (!isOwner) {
       const collaborator = await this.noteCollaboratorRepository.findByNoteAndUser(
         noteId,
         actorId,
-      );
-      isEditor = collaborator?.role === NotePermissionRole.EDITOR;
+      )
+      const isEditor = collaborator?.role === NotePermissionRole.EDITOR
+      if (!isEditor) {
+        throw new Error('User does not have permission to restore this note version')
+      }
     }
 
-    if (!isOwner && !isEditor) {
-      throw new Error('User does not have permission to restore this note version');
-    }
+    const versionToRestore = await this.noteVersionRepository.findByNoteIdAndVersionNumber(
+      noteId,
+      versionNumber,
+    )
+    if (!versionToRestore) throw new Error('Note version not found')
 
-    const versionToRestore = await this.noteVersionRepository.findByNoteIdAndVersionNumber(noteId, versionNumber);
-    if (!versionToRestore) {
-      throw new Error("Note version not found");
-    }
+    // Create a new version entry carrying the restored snapshot
+    // so the audit trail is preserved — no history is deleted
+    const latestVersion = await this.noteVersionRepository.findLatestByNoteId(noteId)
+    const nextVersionNumber = (latestVersion?.versionNumber ?? 0) + 1
 
-    // Create a new version with the content of the selected version to restore
-    const latestVersion = await this.noteVersionRepository.findLatestByNoteId(noteId);
-    const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 1;
     const newVersion = new NoteVersion(
       randomUUID(),
       noteId,
@@ -57,9 +57,16 @@ export class RestoreNoteVersionsUseCase {
       versionToRestore.snapshotJson,
       actorId,
       new Date(),
-    );
+    )
 
-    const restoredVersion = await this.noteVersionRepository.create(newVersion);
+    const restoredVersion = await this.noteVersionRepository.create(newVersion)
+
+    // Write the restored snapshot content back onto the live note
+    // so GET /notes/:id returns the restored content and autosave
+    // has the correct base to work from going forward
+    note.content = versionToRestore.snapshotJson
+
+    await this.noteRepository.update(note)
 
     await this.noteActivityRepository.create({
       id: randomUUID(),
@@ -71,10 +78,8 @@ export class RestoreNoteVersionsUseCase {
         restoredToVersionNumber: nextVersionNumber,
       },
       createdAt: new Date(),
-    });
+    })
 
-    await this.noteRepository.update(note);
-
-    return restoredVersion;
+    return restoredVersion
   }
 }

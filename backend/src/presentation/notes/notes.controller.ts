@@ -360,8 +360,6 @@ export class NotesController {
 
   /**
    * POST /notes/:id/restore/:versionNumber
-   * Restore note to a previous version
-    * Accessible to note owner and editors
    */
   @Post(':id/restore/:versionNumber')
   @UseGuards(JwtStrategy, RolesGuard)
@@ -376,7 +374,22 @@ export class NotesController {
       if (isNaN(version)) {
         throw new Error('Invalid version number');
       }
+
+      // Restore the version — use case writes snapshot back onto note.content
       await this.restoreNoteVersionsUseCase.execute(noteId, version, userId);
+
+      // Fetch the note now that content has been restored so we can
+      // broadcast the actual restored content to all collaborators
+      const restoredNote = await this.getNoteUseCase.execute(noteId, userId);
+
+      // Broadcast to all collaborators so their editors re-seed
+      // from the restored content without requiring a page refresh
+      this.notesRealtimePublisher.broadcastVersionRestored(
+        noteId,
+        userId,
+        restoredNote.content,
+      );
+
       return { success: true };
     } catch (error) {
       throw new HttpException(
