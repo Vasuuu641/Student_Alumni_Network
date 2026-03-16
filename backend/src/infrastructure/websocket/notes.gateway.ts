@@ -244,12 +244,15 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private async extractAndVerifyToken(socket: Socket): Promise<SocketSession> {
     // Token can be passed as Bearer in auth handshake header OR as query param
     const authHeader = socket.handshake.headers?.authorization as string;
+    const authToken = socket.handshake.auth?.token as string;
     const queryToken = socket.handshake.query?.token as string;
 
     let token: string | undefined;
 
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
+    } else if (authToken) {
+      token = authToken;
     } else if (queryToken) {
       token = queryToken;
     }

@@ -44,6 +44,11 @@ export class ListNoteCollaboratorsUseCase {
     const collaborators = await this.noteCollaboratorRepository.findByNoteId(noteId);
     const collaboratorItems = await Promise.all(
       collaborators.map(async (collaborator) => {
+        // Safety: ignore any stale collaborator rows for the owner.
+        if (collaborator.userId === note.ownerId) {
+          return null;
+        }
+
         const user = await this.userRepository.findById(collaborator.userId);
         if (!user) {
           return null;
