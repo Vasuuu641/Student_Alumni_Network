@@ -33,6 +33,14 @@ export class NotesYProvider {
     this.awareness.setLocalStateField('user', user)
   }
 
+  setUser(user: { name: string; color: string }) {
+    this.user = user
+    this.awareness.setLocalStateField('user', user)
+    if (this.isJoined) {
+      this.emitCurrentAwareness()
+    }
+  }
+
   // ─── Outgoing ──────────────────────────────────────────────────────────────
 
   private onDocUpdate = (update: Uint8Array, origin: unknown) => {

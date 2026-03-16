@@ -66,12 +66,16 @@ export function NotePage() {
     room.currentUser?.displayName || currentUserId?.slice(0, 8) || 'User'
   const currentUserEmail = room.currentUser?.email ?? null
   const effectiveCurrentUserId = room.currentUser?.userId || currentUserId || 'unknown-user'
+  const currentUserCursorName =
+    room.currentUser?.displayName?.trim().split(/\s+/)[0] ||
+    currentUserDisplayName.trim().split(/\s+/)[0] ||
+    'User'
 
   // Fix 8 — stable user object so the provider is never recreated
   // due to an inline object reference changing on every render
   const stableUser = useMemo(
-    () => ({ name: currentUserDisplayName, color: userColor }),
-    [currentUserDisplayName, userColor],
+    () => ({ name: currentUserCursorName, color: userColor }),
+    [currentUserCursorName, userColor],
   )
 
   // ─── Initial note fetch ──────────────────────────────────────────────────
@@ -339,6 +343,7 @@ useEffect(() => {
             // Fix 8 — stable reference, never recreates the provider
             user={stableUser}
             initialContent={note.content}
+            peerCount={room.initialPresence.length}
             // Fix 4/16 — local counter instead of latestVersionNumber
             // so restores always trigger a re-seed in the editor
             contentVersion={contentVersion}

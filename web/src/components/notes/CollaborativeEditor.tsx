@@ -20,6 +20,7 @@ interface Props {
     color: string
   }
   initialContent?: any
+  peerCount?: number
   contentVersion?: number | null
   roomStatus: 'connecting' | 'joined' | 'denied' | 'error'
   canEdit: boolean
@@ -31,6 +32,7 @@ export function CollaborativeEditor({
   noteId,
   user,
   initialContent,
+  peerCount = 0,
   contentVersion,
   roomStatus,
   canEdit,
@@ -175,17 +177,24 @@ export function CollaborativeEditor({
       ],
       editable: false, // setEditable effect handles this
       onUpdate: ({ editor }) => {
+        const snapshot = editor.getJSON()
+
         if (suppressAutosaveNextUpdateRef.current) {
           suppressAutosaveNextUpdateRef.current = false
-          latestContentRef.current = editor.getJSON()
+          latestContentRef.current = snapshot
           return
         }
 
         // Read from ref so this closure is never stale
         if (!canEditRef.current) return
-        if (!autosaveArmedRef.current) return
+        if (!autosaveArmedRef.current) {
+          if (editor.getText().trim().length > 0) {
+            latestContentRef.current = snapshot
+          }
+          return
+        }
 
-        latestContentRef.current = editor.getJSON()
+        latestContentRef.current = snapshot
 
         if (saveTimer.current) clearTimeout(saveTimer.current)
         saveTimer.current = setTimeout(async () => {
@@ -206,6 +215,12 @@ export function CollaborativeEditor({
     provider.setJoined(roomStatus === 'joined')
   }, [provider, roomStatus])
 
+  // Keep awareness user identity (cursor label/color) in sync
+  // after room join resolves the final display name.
+  useEffect(() => {
+    provider.setUser(user)
+  }, [provider, user])
+
   // Request full Y.js state from online peers once joined
   useEffect(() => {
     if (roomStatus !== 'joined') return
@@ -219,17 +234,28 @@ export function CollaborativeEditor({
     if (!editor || !initialContent) return
     if (hasSeededInitialContentRef.current) return
 
-    const hasMeaningfulContent = editor.getText().trim().length > 0
+    const timer = setTimeout(() => {
+      if (hasSeededInitialContentRef.current) return
 
-    if (!hasMeaningfulContent) {
-      editor.commands.setContent(initialContent)
-      latestContentRef.current = initialContent
+      const hasMeaningfulContent = editor.getText().trim().length > 0
+
+      // Only the first member in the room seeds from REST.
+      // When peers are already present, wait for CRDT sync from them
+      // to avoid duplicate insertion of the same content.
+      if (!hasMeaningfulContent && peerCount === 0) {
+        editor.commands.setContent(initialContent)
+        latestContentRef.current = initialContent
+      } else {
+        latestContentRef.current = editor.getJSON()
+      }
+
       lastSavedSerializedRef.current = JSON.stringify(initialContent)
-    }
+      hasSeededInitialContentRef.current = true
+      autosaveArmedRef.current = true
+    }, 500)
 
-    hasSeededInitialContentRef.current = true
-    autosaveArmedRef.current = true
-  }, [editor, initialContent, roomStatus])
+    return () => clearTimeout(timer)
+  }, [editor, initialContent, roomStatus, peerCount])
 
   // Fallback arming path when REST content is null/undefined.
   // We still delay autosave until the room is joined to avoid
