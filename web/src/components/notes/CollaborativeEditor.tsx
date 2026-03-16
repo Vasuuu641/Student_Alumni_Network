@@ -9,7 +9,7 @@ import * as Y from 'yjs'
 import { socket } from '../../lib/socket'
 import { NotesYProvider } from '../../lib/notes-y-provider'
 import { EditorToolbar } from './EditorToolbar'
-import { updateNote } from '../../api/notes.api'
+import { updateNote, updateNoteKeepalive } from '../../api/notes.api'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -39,9 +39,11 @@ export function CollaborativeEditor({
 }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasSeededInitialContentRef = useRef(false)
+  const autosaveArmedRef = useRef(false)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
+    autosaveArmedRef.current = false
   }, [noteId])
 
   const latestContentRef = useRef<any>(initialContent ?? null)
@@ -54,6 +56,15 @@ export function CollaborativeEditor({
   const lastAppliedContentVersionRef = useRef<number | null>(null)
   const suppressAutosaveNextUpdateRef = useRef(false)
 
+  // Refs to keep onUpdate closure always fresh without
+  // needing canEdit or persistContent in useEditor deps.
+  // Without these, onUpdate captures stale values from the
+  // first render and either never saves or saves empty content.
+  const canEditRef = useRef(canEdit)
+  useEffect(() => {
+    canEditRef.current = canEdit
+  }, [canEdit])
+
   const setSaveStatus = useCallback((status: SaveStatus) => {
     onSaveStatusChange?.(status)
   }, [onSaveStatusChange])
@@ -61,6 +72,7 @@ export function CollaborativeEditor({
   const persistContent = useCallback(
     async (content: any) => {
       if (!canEdit) return
+      if (!autosaveArmedRef.current) return
 
       const serialized = JSON.stringify(content ?? null)
       if (serialized === lastSavedSerializedRef.current) return
@@ -92,34 +104,63 @@ export function CollaborativeEditor({
     [noteId, canEdit, setSaveStatus],
   )
 
+  // Always-fresh ref so onUpdate never calls a stale persistContent.
+  // This is the core fix for empty content being saved — the onUpdate
+  // closure was calling the version of persistContent from the first
+  // render which had canEdit=false and noteId from initial mount.
+  const persistContentRef = useRef(persistContent)
+  useEffect(() => {
+    persistContentRef.current = persistContent
+  }, [persistContent])
+
+  const persistContentKeepalive = useCallback((content: any) => {
+    if (!canEditRef.current) return
+    if (!autosaveArmedRef.current) return
+
+    const serialized = JSON.stringify(content ?? null)
+    if (serialized === lastSavedSerializedRef.current) return
+
+    updateNoteKeepalive(noteId, { content })
+    lastSavedSerializedRef.current = serialized
+  }, [noteId])
+
+  const waitForSaveQueueToDrain = useCallback(async () => {
+    while (inFlightSaveRef.current || hasPendingSaveRef.current) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }, [])
+
+  // flushPendingSave no longer depends on persistContent directly —
+  // it calls through the ref so it's a stable reference that never
+  // changes, which stops the visibilitychange effect from re-running
   const flushPendingSave = useCallback(async () => {
     if (saveTimer.current) {
       clearTimeout(saveTimer.current)
       saveTimer.current = null
     }
-    await persistContent(latestContentRef.current)
-  }, [persistContent])
+    await persistContentRef.current(latestContentRef.current)
+    await waitForSaveQueueToDrain()
+  }, [waitForSaveQueueToDrain])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
 
   // Provider bridges Y.Doc <-> socket events
-  // Fix 8 — user is now a stable memoized object from NotePage
-  // so this never recreates unnecessarily
   const provider = useMemo(
     () => new NotesYProvider(noteId, ydoc, socket, user),
     [noteId, ydoc],
   )
 
-  // Fix 10 — only [canEdit] as dependency
-  // Removing persistContent and initialContent prevents the editor
-  // from remounting every time autosave state or fetched content changes,
-  // which was destroying the Y.js <-> editor binding mid-session
+  // Empty deps — editor never remounts.
+  // All state is managed via refs and effects below.
+  // Previously [canEdit] caused the editor to remount when the room
+  // joined (canEdit flipped from false to true), which destroyed the
+  // Y.js fragment binding and broke live collaboration.
   const editor = useEditor(
     {
       extensions: [
         StarterKit.configure({
-          history: false, // Y.js handles undo/redo
+          history: false,
         }),
         Collaboration.configure({
           document: ydoc,
@@ -132,7 +173,7 @@ export function CollaborativeEditor({
           placeholder: 'Start writing…',
         }),
       ],
-      editable: canEdit,
+      editable: false, // setEditable effect handles this
       onUpdate: ({ editor }) => {
         if (suppressAutosaveNextUpdateRef.current) {
           suppressAutosaveNextUpdateRef.current = false
@@ -140,17 +181,20 @@ export function CollaborativeEditor({
           return
         }
 
-        latestContentRef.current = editor.getJSON()
-        if (!canEdit) return
+        // Read from ref so this closure is never stale
+        if (!canEditRef.current) return
+        if (!autosaveArmedRef.current) return
 
-        // Debounce autosave — 2s after last keystroke
+        latestContentRef.current = editor.getJSON()
+
         if (saveTimer.current) clearTimeout(saveTimer.current)
         saveTimer.current = setTimeout(async () => {
-          await persistContent(latestContentRef.current)
-        }, 2000)
+          // Call through ref so we always use the latest persistContent
+          await persistContentRef.current(latestContentRef.current)
+        }, 500)
       },
     },
-    [canEdit], // Fix 10 — only re-run when editability changes
+    [], // empty — never remount
   )
 
   useEffect(() => {
@@ -158,7 +202,6 @@ export function CollaborativeEditor({
   }, [flushPendingSave, onRegisterFlush])
 
   // Inform provider whether we are actively in the room
-  // so it gates outgoing CRDT broadcasts correctly
   useEffect(() => {
     provider.setJoined(roomStatus === 'joined')
   }, [provider, roomStatus])
@@ -169,10 +212,10 @@ export function CollaborativeEditor({
     provider.requestSync()
   }, [roomStatus, provider])
 
-  // Fix 11 — seed from REST content only after room is joined
-  // and only if the Y.js doc is still empty (no peer sync arrived yet)
+  // Seed from REST content only after room is joined and only if
+  // the Y.js doc is still empty — peer sync may have already populated it
   useEffect(() => {
-    if (roomStatus !== 'joined') return   // Fix 11 — guard added
+    if (roomStatus !== 'joined') return
     if (!editor || !initialContent) return
     if (hasSeededInitialContentRef.current) return
 
@@ -185,15 +228,29 @@ export function CollaborativeEditor({
     }
 
     hasSeededInitialContentRef.current = true
-  }, [editor, initialContent, roomStatus]) // Fix 11 — roomStatus added to deps
+    autosaveArmedRef.current = true
+  }, [editor, initialContent, roomStatus])
 
-  // Fix 4/16 — apply restored content when contentVersion bumps
-  // contentVersion is a local counter incremented by NotePage after
-  // a restore, not latestVersionNumber from the backend (which was always null)
+  // Fallback arming path when REST content is null/undefined.
+  // We still delay autosave until the room is joined to avoid
+  // writing the initial empty Y.Doc during reconnect/join races.
+  useEffect(() => {
+    if (roomStatus !== 'joined') return
+    if (initialContent !== undefined && initialContent !== null) return
+
+    const timer = setTimeout(() => {
+      autosaveArmedRef.current = true
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [roomStatus, initialContent])
+
+  // Apply restored content when contentVersion bumps.
+  // contentVersion is a local counter in NotePage, not latestVersionNumber.
   useEffect(() => {
     if (!editor) return
     if (contentVersion === undefined || contentVersion === null) return
-    if (contentVersion === 0) return  // 0 is the initial value, not a restore
+    if (contentVersion === 0) return
     if (lastAppliedContentVersionRef.current === contentVersion) return
 
     suppressAutosaveNextUpdateRef.current = true
@@ -205,31 +262,37 @@ export function CollaborativeEditor({
       initialContent ?? { type: 'doc', content: [{ type: 'paragraph' }] }
     lastSavedSerializedRef.current = JSON.stringify(latestContentRef.current)
     lastAppliedContentVersionRef.current = contentVersion
+    autosaveArmedRef.current = true
   }, [editor, contentVersion, initialContent])
 
   // Keep editable in sync if role changes mid-session
-  // e.g. owner demotes a collaborator while they have the note open
   useEffect(() => {
     if (!editor) return
     editor.setEditable(canEdit)
   }, [editor, canEdit])
 
-  // Flush pending save on tab hide and clean up on unmount
+  // Flush on tab hide and clean up on unmount
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        void flushPendingSave()
+        persistContentKeepalive(latestContentRef.current)
       }
     }
 
+    const onPageHide = () => {
+      persistContentKeepalive(latestContentRef.current)
+    }
+
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', onPageHide)
 
     return () => {
       provider.destroy()
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pagehide', onPageHide)
       void flushPendingSave()
     }
-  }, [provider, flushPendingSave])
+  }, [provider, flushPendingSave, persistContentKeepalive])
 
   // ─── Loading states ───────────────────────────────────────────────────────
 

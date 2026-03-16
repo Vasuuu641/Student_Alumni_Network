@@ -14,8 +14,6 @@ interface RoomState {
     displayName: string
     email: string | null
   } | null
-  // Fix 13 — captured here instead of usePresence so the snapshot
-  // event is never missed due to component mount timing
   initialPresence: PresenceUser[]
 }
 
@@ -39,6 +37,12 @@ export function useNoteRoom(noteId: string) {
       initialPresence: [],
     })
 
+    // Tracks whether this effect instance is still active.
+    // Prevents stale closures from updating state after cleanup
+    // runs, which was causing rapid join/leave cycling when React
+    // re-ran the effect due to strict mode or noteId changes.
+    let active = true
+
     const onJoined = (data: {
       noteId: string
       role: NoteRole
@@ -47,6 +51,7 @@ export function useNoteRoom(noteId: string) {
       displayName?: string
       email?: string | null
     }) => {
+      if (!active) return
       if (data.noteId !== noteId) return
       setState((prev) => ({
         ...prev,
@@ -61,20 +66,17 @@ export function useNoteRoom(noteId: string) {
       }))
     }
 
-    // Fix 13 — snapshot listener lives here alongside notes:joined
-    // so it's registered before the join fires and never missed.
-    // usePresence previously registered this listener after the
-    // component tree rendered, which was too late for editors joining
-    // into an existing session.
     const onPresenceSnapshot = (data: {
       noteId: string
       users: PresenceUser[]
     }) => {
+      if (!active) return
       if (data.noteId !== noteId) return
       setState((prev) => ({ ...prev, initialPresence: data.users }))
     }
 
     const onError = (data: { message: string }) => {
+      if (!active) return
       if (
         data.message.includes('Access denied') ||
         data.message.includes('Unauthorized')
@@ -85,11 +87,8 @@ export function useNoteRoom(noteId: string) {
       }
     }
 
-    const onConnect = () => {
-      socket.emit('notes:join', { noteId })
-    }
-
     const onConnectError = (error: Error & { message?: string }) => {
+      if (!active) return
       const message = error?.message ?? ''
       if (
         message.includes('Unauthorized') ||
@@ -102,6 +101,7 @@ export function useNoteRoom(noteId: string) {
     }
 
     const onDisconnect = () => {
+      if (!active) return
       setState((prev) => ({
         ...prev,
         status: 'connecting',
@@ -111,10 +111,12 @@ export function useNoteRoom(noteId: string) {
     }
 
     const onReconnect = () => {
+      if (!active) return
       socket.emit('notes:join', { noteId })
     }
 
-    socket.on('connect', onConnect)
+    // Register all listeners before connecting or joining
+    // so no events are missed
     socket.on('notes:joined', onJoined)
     socket.on('notes:presence-snapshot', onPresenceSnapshot)
     socket.on('error', onError)
@@ -122,21 +124,31 @@ export function useNoteRoom(noteId: string) {
     socket.on('disconnect', onDisconnect)
     socket.io.on('reconnect', onReconnect)
 
-    if (!socket.connected) {
-      socket.connect()
-    } else {
+    // Replaced persistent socket.on('connect') with socket.once —
+    // the persistent listener was firing on every reconnect AND
+    // combining with the already-connected branch below to emit
+    // notes:join twice, causing the rapid join/leave cycle in the logs
+    if (socket.connected) {
       socket.emit('notes:join', { noteId })
+    } else {
+      socket.once('connect', () => {
+        if (active) socket.emit('notes:join', { noteId })
+      })
+      socket.connect()
     }
 
     return () => {
+      active = false
       socket.emit('notes:leave', { noteId })
-      socket.off('connect', onConnect)
       socket.off('notes:joined', onJoined)
       socket.off('notes:presence-snapshot', onPresenceSnapshot)
       socket.off('error', onError)
       socket.off('connect_error', onConnectError)
       socket.off('disconnect', onDisconnect)
       socket.io.off('reconnect', onReconnect)
+      // Remove the once listener in case it hasn't fired yet,
+      // preventing a ghost join after the component unmounts
+      socket.off('connect')
     }
   }, [noteId])
 

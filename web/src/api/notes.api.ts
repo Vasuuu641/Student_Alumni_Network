@@ -74,6 +74,32 @@ export async function updateNote(
   return data
 }
 
+// PATCH /notes/:id with keepalive transport
+// Used during tab close / page unload where normal async requests
+// are often cancelled by the browser before they reach the server.
+export function updateNoteKeepalive(
+  noteId: string,
+  payload: {
+    content?: any
+    title?: string
+    status?: NoteStatus
+  },
+): void {
+  const token = getAccessToken()
+  if (!token) return
+
+  const url = `${API_BASE_URL.replace(/\/$/, '')}/notes/${noteId}`
+  void fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  })
+}
+
 // POST /notes/:id/share
 export async function shareNote(
   noteId: string,

@@ -119,6 +119,25 @@ export function NotePage() {
     }
   }, [noteId, fetchNote])
 
+// Flush on SPA navigation away — back button, notes list link etc.
+useEffect(() => {
+  return () => {
+    if (flushEditorRef.current) {
+      void flushEditorRef.current()
+    }
+  }
+}, [])
+
+  const leaveNote = useCallback(async () => {
+    try {
+      if (flushEditorRef.current) {
+        await flushEditorRef.current()
+      }
+    } finally {
+      navigate('/notes')
+    }
+  }, [navigate])
+
   // ─── Title editing ───────────────────────────────────────────────────────
 
   function startEditTitle() {
@@ -198,7 +217,7 @@ export function NotePage() {
       <div className="note-fullscreen-state">
         <FileText size={36} strokeWidth={1.3} color="#94a3b8" />
         <p>{fetchError ?? 'Note not found'}</p>
-        <button onClick={() => navigate('/notes')} className="text-link">
+        <button onClick={() => { void leaveNote() }} className="text-link">
           ← Back to notes
         </button>
       </div>
@@ -220,7 +239,7 @@ export function NotePage() {
         <div className="note-header__left">
           <button
             className="note-header__back"
-            onClick={() => navigate('/notes')}
+            onClick={() => { void leaveNote() }}
             title="Back to notes"
           >
             <ArrowLeft size={18} />
