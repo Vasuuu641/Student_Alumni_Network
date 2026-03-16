@@ -8,6 +8,11 @@ interface RoomState {
   status: 'connecting' | 'joined' | 'denied' | 'error'
   role: NoteRole | null
   canEdit: boolean
+  currentUser: {
+    userId: string
+    displayName: string
+    email: string | null
+  } | null
 }
 
 export function useNoteRoom(noteId: string) {
@@ -15,28 +20,36 @@ export function useNoteRoom(noteId: string) {
     status: 'connecting',
     role: null,
     canEdit: false,
+    currentUser: null,
   })
 
   useEffect(() => {
     if (!noteId) return
 
     // Enter connecting state whenever note changes.
-    setState({ status: 'connecting', role: null, canEdit: false })
-
-    // Connect the socket if it isn't already connected
-    if (!socket.connected) socket.connect()
-
-    socket.emit('notes:join', { noteId })
+    setState({ status: 'connecting', role: null, canEdit: false, currentUser: null })
 
     const onJoined = (data: {
       noteId: string
       role: NoteRole
       canEdit: boolean
+      userId?: string
+      displayName?: string
+      email?: string | null
     }) => {
       // Guard against events from other note rooms if the user
       // has multiple tabs open
       if (data.noteId !== noteId) return
-      setState({ status: 'joined', role: data.role, canEdit: data.canEdit })
+      setState({
+        status: 'joined',
+        role: data.role,
+        canEdit: data.canEdit,
+        currentUser: {
+          userId: data.userId ?? '',
+          displayName: data.displayName ?? data.userId ?? '',
+          email: data.email ?? null,
+        },
+      })
     }
 
     const onError = (data: { message: string }) => {
@@ -44,9 +57,9 @@ export function useNoteRoom(noteId: string) {
         data.message.includes('Access denied') ||
         data.message.includes('Unauthorized')
       ) {
-        setState({ status: 'denied', role: null, canEdit: false })
+        setState({ status: 'denied', role: null, canEdit: false, currentUser: null })
       } else {
-        setState({ status: 'error', role: null, canEdit: false })
+        setState({ status: 'error', role: null, canEdit: false, currentUser: null })
       }
     }
 
@@ -61,15 +74,15 @@ export function useNoteRoom(noteId: string) {
         message.includes('Unauthorized') ||
         message.includes('invalid or missing token')
       ) {
-        setState({ status: 'denied', role: null, canEdit: false })
+        setState({ status: 'denied', role: null, canEdit: false, currentUser: null })
       } else {
-        setState({ status: 'error', role: null, canEdit: false })
+        setState({ status: 'error', role: null, canEdit: false, currentUser: null })
       }
     }
 
     const onDisconnect = () => {
       // Keep user informed while reconnecting.
-      setState((prev) => ({ ...prev, status: 'connecting' }))
+      setState((prev) => ({ ...prev, status: 'connecting', currentUser: null }))
     }
 
     // If the socket drops and reconnects mid-session, re-join the room
@@ -84,6 +97,14 @@ export function useNoteRoom(noteId: string) {
     socket.on('connect_error', onConnectError)
     socket.on('disconnect', onDisconnect)
     socket.io.on('reconnect', onReconnect)
+
+    // Connect after listener registration to avoid missing a fast
+    // notes:joined ack event.
+    if (!socket.connected) {
+      socket.connect()
+    } else {
+      socket.emit('notes:join', { noteId })
+    }
 
     return () => {
       socket.emit('notes:leave', { noteId })

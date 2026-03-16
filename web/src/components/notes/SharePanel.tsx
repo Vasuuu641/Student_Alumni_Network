@@ -31,8 +31,9 @@ export function SharePanel({ noteId, isOwner, onClose }: Props) {
       setError(null)
       const { collaborators } = await listCollaborators(noteId)
       setCollaborators(collaborators)
-    } catch {
-      setError('Failed to load collaborators')
+    } catch (err: any) {
+      const message = err?.response?.data?.message
+      setError(Array.isArray(message) ? message.join(', ') : (message ?? 'Failed to load collaborators'))
     } finally {
       setLoading(false)
     }
@@ -173,14 +174,19 @@ interface RowProps {
 }
 
 function CollaboratorRow({ collaborator, isOwner, onRoleChange, onRemove }: RowProps) {
-  const initials = collaborator.email.slice(0, 2).toUpperCase()
+  const baseName = collaborator.displayName?.trim() || collaborator.email
+  const parts = baseName.split(' ').filter(Boolean)
+  const initials = parts.length > 1
+    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    : baseName.slice(0, 2).toUpperCase()
   const isOwnerRow = collaborator.role === 'OWNER'
 
   return (
     <li className="share-panel__row">
       <div className="share-panel__avatar">{initials}</div>
       <div className="share-panel__row-info">
-        <span className="share-panel__row-email">{collaborator.email}</span>
+        <span className="share-panel__row-email">{baseName}</span>
+        <span className="text-[11px] text-gray-400">{collaborator.email}</span>
         <span className={`share-panel__role-badge share-panel__role-badge--${collaborator.role.toLowerCase()}`}>
           {collaborator.role.toLowerCase()}
         </span>

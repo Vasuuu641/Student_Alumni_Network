@@ -5,6 +5,7 @@ import { stringToColor } from '../../lib/utils'
 interface CurrentUser {
   userId: string
   name: string
+  email?: string | null
   color: string
   role: NoteRole
 }
@@ -16,6 +17,7 @@ interface Props {
 
 // Generate initials from a name or userId fallback
 function getInitials(name: string): string {
+  if (!name?.trim()) return '??'
   const parts = name.trim().split(' ')
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -33,11 +35,8 @@ function getRoleBadgeClass(role: NoteRole): string {
 export function PresenceAvatars({ noteId, currentUser }: Props) {
   const { presentUsers } = usePresence(noteId)
 
-  // Merge current user at the front of the list
-  const allUsers = [
-    { userId: currentUser.userId, role: currentUser.role },
-    ...presentUsers,
-  ]
+  // Show only other collaborators online (exclude self)
+  const allUsers = presentUsers.filter((user) => user.userId !== currentUser.userId)
 
   // Cap visible avatars — show +N if there are more
   const MAX_VISIBLE = 4
@@ -49,7 +48,10 @@ export function PresenceAvatars({ noteId, currentUser }: Props) {
       <div className="flex -space-x-2">
         {visible.map((user, index) => {
           const isCurrentUser = user.userId === currentUser.userId
-          const name = isCurrentUser ? currentUser.name : user.userId
+          const name = isCurrentUser
+            ? currentUser.name
+            : (user.displayName ?? user.email ?? user.userId)
+          const email = isCurrentUser ? currentUser.email : user.email
           const color = isCurrentUser ? currentUser.color : stringToColor(user.userId)
 
           return (
@@ -70,8 +72,15 @@ export function PresenceAvatars({ noteId, currentUser }: Props) {
                               pointer-events-none z-50">
                 <div className="bg-gray-900 text-white text-xs rounded px-2 py-1
                                 whitespace-nowrap">
-                  {isCurrentUser ? `${currentUser.name} (you)` : user.userId}
+                  {isCurrentUser
+                    ? `${currentUser.name} (you)`
+                    : (user.displayName ?? user.userId)}
                 </div>
+                {email && (
+                  <div className="text-[10px] rounded px-1.5 py-0.5 mt-0.5 bg-gray-800 text-gray-200">
+                    {email}
+                  </div>
+                )}
                 <div className={`text-xs rounded px-1.5 py-0.5 mt-0.5 ${getRoleBadgeClass(user.role)}`}>
                   {user.role.toLowerCase()}
                 </div>

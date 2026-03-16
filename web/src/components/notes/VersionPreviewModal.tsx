@@ -4,7 +4,8 @@ import { X, Clock, RotateCcw } from 'lucide-react'
 interface NoteVersion {
   versionNumber: number
   createdAt: string
-  createdBy: string
+  createdBy?: string
+  snapshotJson?: unknown
 }
 
 interface Props {
@@ -22,6 +23,8 @@ export function VersionPreviewModal({
   onRestore,
   onClose,
 }: Props) {
+  const previewText = extractSnapshotPreview(version.snapshotJson)
+
   function handleOverlayClick(e: React.MouseEvent) {
     if (e.target === e.currentTarget) onClose()
   }
@@ -47,7 +50,7 @@ export function VersionPreviewModal({
             </div>
             <div className="version-modal__meta-row">
               <dt>By</dt>
-              <dd className="version-modal__by">{version.createdBy.slice(0, 8)}…</dd>
+              <dd className="version-modal__by">{(version.createdBy ?? 'unknown').slice(0, 8)}…</dd>
             </div>
           </dl>
 
@@ -55,6 +58,10 @@ export function VersionPreviewModal({
             This checkpoint was manually saved by a collaborator. Restoring it will
             overwrite the current document content.
           </p>
+
+          <div className="version-modal__preview" aria-label="Version content preview">
+            {previewText || 'No readable preview available for this version.'}
+          </div>
         </div>
 
         <div className="version-modal__footer">
@@ -75,6 +82,46 @@ export function VersionPreviewModal({
       </div>
     </div>
   )
+}
+
+function extractSnapshotPreview(snapshotJson: unknown): string {
+  if (!snapshotJson || typeof snapshotJson !== 'object') {
+    return ''
+  }
+
+  const textChunks: string[] = []
+
+  const walk = (node: any) => {
+    if (!node) return
+
+    if (typeof node === 'string') {
+      textChunks.push(node)
+      return
+    }
+
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item)
+      return
+    }
+
+    if (typeof node === 'object') {
+      if (typeof node.text === 'string') {
+        textChunks.push(node.text)
+      }
+
+      if (node.content) {
+        walk(node.content)
+      }
+    }
+  }
+
+  walk(snapshotJson)
+
+  return textChunks
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 400)
 }
 
 function formatDate(iso: string): string {

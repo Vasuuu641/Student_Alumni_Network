@@ -20,6 +20,7 @@ interface Note {
   title: string
   content: any
   ownerId: string
+  latestVersionNumber?: number | null
 }
 
 function decodeUserId(token: string): string | null {
@@ -44,6 +45,7 @@ export function NotePage() {
   const [showShare, setShowShare] = useState(false)
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const flushEditorRef = useRef<(() => Promise<void>) | null>(null)
 
   // Editable title state
   const [titleDraft, setTitleDraft] = useState('')
@@ -51,10 +53,14 @@ export function NotePage() {
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   const room = useNoteRoom(noteId!)
-  const canRestore = room.role === 'OWNER'
+  const canRestore = room.canEdit
   const canSaveCheckpoint = room.canEdit
   const isOwner = room.role === 'OWNER'
   const userColor = stringToColor(currentUserId ?? '')
+  const currentUserDisplayName =
+    room.currentUser?.displayName || currentUserId?.slice(0, 8) || 'User'
+  const currentUserEmail = room.currentUser?.email ?? null
+  const effectiveCurrentUserId = room.currentUser?.userId || currentUserId || 'unknown-user'
 
   // ─── Initial note fetch ──────────────────────────────────────────────────
 
@@ -115,6 +121,9 @@ export function NotePage() {
     if (!noteId) return
     try {
       setSavingCheckpoint(true)
+      if (flushEditorRef.current) {
+        await flushEditorRef.current()
+      }
       await createCheckpoint(noteId)
     } finally {
       setSavingCheckpoint(false)
@@ -208,12 +217,13 @@ export function NotePage() {
 
           <SaveIndicator status={saveStatus} />
 
-          {room.status === 'joined' && currentUserId && (
+          {room.status === 'joined' && (
             <PresenceAvatars
               noteId={noteId!}
               currentUser={{
-                userId: currentUserId,
-                name: currentUserId.slice(0, 8),
+                userId: effectiveCurrentUserId,
+                name: currentUserDisplayName,
+                email: currentUserEmail,
                 color: userColor,
                 role: room.role!,
               }}
@@ -258,9 +268,15 @@ export function NotePage() {
         <main className="note-body__main">
           <CollaborativeEditor
             noteId={noteId!}
-            user={{ name: currentUserId?.slice(0, 8) ?? 'user', color: userColor }}
+            user={{ name: currentUserDisplayName, color: userColor }}
             initialContent={note.content}
+            contentVersion={note.latestVersionNumber ?? null}
+            roomStatus={room.status}
+            canEdit={room.canEdit}
             onSaveStatusChange={setSaveStatus}
+            onRegisterFlush={(flush) => {
+              flushEditorRef.current = flush
+            }}
           />
         </main>
 

@@ -8,7 +8,6 @@ import Placeholder from '@tiptap/extension-placeholder'
 import * as Y from 'yjs'
 import { socket } from '../../lib/socket'
 import { NotesYProvider } from '../../lib/notes-y-provider'
-import { useNoteRoom } from '../../hooks/useNoteRoom'
 import { EditorToolbar } from './EditorToolbar'
 import { updateNote } from '../../api/notes.api'
 
@@ -21,18 +20,85 @@ interface Props {
     color: string
   }
   initialContent?: any
+  contentVersion?: number | null
+  roomStatus: 'connecting' | 'joined' | 'denied' | 'error'
+  canEdit: boolean
   onSaveStatusChange?: (status: SaveStatus) => void
+  onRegisterFlush?: (flush: () => Promise<void>) => void
 }
 
-export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatusChange }: Props) {
-  const room = useNoteRoom(noteId)
+export function CollaborativeEditor({
+  noteId,
+  user,
+  initialContent,
+  contentVersion,
+  roomStatus,
+  canEdit,
+  onSaveStatusChange,
+  onRegisterFlush,
+}: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const saveStatusRef = useRef<SaveStatus>('idle')
+  const hasSeededInitialContentRef = useRef(false)
+
+  useEffect(() => {
+    hasSeededInitialContentRef.current = false
+  }, [noteId])
+  const latestContentRef = useRef<any>(initialContent ?? null)
+  const lastSavedSerializedRef = useRef<string>(
+    JSON.stringify(initialContent ?? null),
+  )
+  const inFlightSaveRef = useRef(false)
+  const hasPendingSaveRef = useRef(false)
+  const pendingContentRef = useRef<any>(null)
+  const lastAppliedContentVersionRef = useRef<number | null>(null)
+  const suppressAutosaveNextUpdateRef = useRef(false)
 
   const setSaveStatus = useCallback((status: SaveStatus) => {
-    saveStatusRef.current = status
     onSaveStatusChange?.(status)
   }, [onSaveStatusChange])
+
+  const persistContent = useCallback(
+    async (content: any) => {
+      if (!canEdit) return
+
+      const serialized = JSON.stringify(content ?? null)
+      if (serialized === lastSavedSerializedRef.current) return
+      if (inFlightSaveRef.current) {
+        hasPendingSaveRef.current = true
+        pendingContentRef.current = content
+        return
+      }
+
+      inFlightSaveRef.current = true
+      setSaveStatus('saving')
+      try {
+        await updateNote(noteId, { content })
+        lastSavedSerializedRef.current = serialized
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 1200)
+      } catch {
+        setSaveStatus('error')
+      } finally {
+        inFlightSaveRef.current = false
+
+        if (hasPendingSaveRef.current) {
+          hasPendingSaveRef.current = false
+          const pendingContent = pendingContentRef.current
+          pendingContentRef.current = null
+          await persistContent(pendingContent)
+        }
+      }
+    },
+    [noteId, canEdit, setSaveStatus],
+  )
+
+  const flushPendingSave = useCallback(async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+    await persistContent(latestContentRef.current)
+  }, [persistContent])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -61,46 +127,103 @@ export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatus
           placeholder: 'Start writing…',
         }),
       ],
-      editable: room.canEdit,
+      editable: canEdit,
       content: initialContent,
       onUpdate: ({ editor }) => {
-        if (!room.canEdit) return
+        if (suppressAutosaveNextUpdateRef.current) {
+          suppressAutosaveNextUpdateRef.current = false
+          latestContentRef.current = editor.getJSON()
+          return
+        }
+
+        latestContentRef.current = editor.getJSON()
+        if (!canEdit) return
         // Debounce autosave — 2s after last keystroke
         if (saveTimer.current) clearTimeout(saveTimer.current)
-        setSaveStatus('saving')
         saveTimer.current = setTimeout(async () => {
-          try {
-            const json = editor.getJSON()
-            await updateNote(noteId, { content: json })
-            setSaveStatus('saved')
-            // Reset to idle after 2s so the indicator clears
-            setTimeout(() => setSaveStatus('idle'), 2000)
-          } catch {
-            setSaveStatus('error')
-          }
+          await persistContent(latestContentRef.current)
         }, 2000)
       },
     },
-    [room.canEdit],
+    [canEdit, persistContent, initialContent],
   )
+
+  useEffect(() => {
+    onRegisterFlush?.(flushPendingSave)
+  }, [flushPendingSave, onRegisterFlush])
+
+  // Request full state from online peers once we are in the room.
+  useEffect(() => {
+    provider.setJoined(roomStatus === 'joined')
+  }, [provider, roomStatus])
+
+  useEffect(() => {
+    if (roomStatus !== 'joined') return
+    provider.requestSync()
+  }, [roomStatus, provider])
+
+  // Seed from REST content if doc starts empty and no sync update has arrived yet.
+  useEffect(() => {
+    if (!editor || !initialContent) return
+    if (hasSeededInitialContentRef.current) return
+
+    const hasMeaningfulContent = editor.getText().trim().length > 0
+
+    if (!hasMeaningfulContent) {
+      editor.commands.setContent(initialContent)
+      latestContentRef.current = initialContent
+      lastSavedSerializedRef.current = JSON.stringify(initialContent)
+    }
+
+    hasSeededInitialContentRef.current = true
+  }, [editor, initialContent])
+
+  // Apply server snapshot updates (e.g., restore version) for same note.
+  useEffect(() => {
+    if (!editor) return
+    if (contentVersion === undefined || contentVersion === null) return
+    if (lastAppliedContentVersionRef.current === contentVersion) return
+
+    suppressAutosaveNextUpdateRef.current = true
+    editor.commands.setContent(initialContent ?? {
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    })
+
+    latestContentRef.current = initialContent ?? {
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    }
+    lastSavedSerializedRef.current = JSON.stringify(latestContentRef.current)
+    lastAppliedContentVersionRef.current = contentVersion
+  }, [editor, contentVersion, initialContent])
 
   // Keep editable in sync if role changes mid-session
   useEffect(() => {
     if (!editor) return
-    editor.setEditable(room.canEdit)
-  }, [editor, room.canEdit])
+    editor.setEditable(canEdit)
+  }, [editor, canEdit])
 
   // Clean up provider and pending save timer on unmount or noteId change
   useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        void flushPendingSave()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
     return () => {
       provider.destroy()
-      if (saveTimer.current) clearTimeout(saveTimer.current)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      void flushPendingSave()
     }
-  }, [provider])
+  }, [provider, flushPendingSave])
 
   // ─── Loading states ───────────────────────────────────────────────────────
 
-  if (room.status === 'connecting') {
+  if (roomStatus === 'connecting') {
     return (
       <div className="note-canvas note-canvas--state">
         <div className="note-state-msg">Joining note…</div>
@@ -108,7 +231,7 @@ export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatus
     )
   }
 
-  if (room.status === 'denied') {
+  if (roomStatus === 'denied') {
     return (
       <div className="note-canvas note-canvas--state">
         <div className="note-state-msg note-state-msg--error">
@@ -118,7 +241,7 @@ export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatus
     )
   }
 
-  if (room.status === 'error') {
+  if (roomStatus === 'error') {
     return (
       <div className="note-canvas note-canvas--state">
         <div className="note-state-msg note-state-msg--error">
@@ -133,7 +256,7 @@ export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatus
   return (
     <div className="note-canvas">
       {/* Floating toolbar — only for editors/owners */}
-      {room.canEdit && (
+      {canEdit && (
         <div className="note-toolbar">
           <EditorToolbar editor={editor} />
         </div>

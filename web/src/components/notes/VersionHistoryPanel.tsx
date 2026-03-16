@@ -8,7 +8,8 @@ import { Clock, History } from 'lucide-react'
 interface NoteVersion {
   versionNumber: number
   createdAt: string
-  createdBy: string
+  createdBy?: string
+  snapshotJson?: unknown
 }
 
 interface Props {
@@ -107,7 +108,7 @@ export function VersionHistoryPanel({ noteId, canRestore, onRestored }: Props) {
                       {formatDate(version.createdAt)}
                     </span>
                     <span className="version-panel__item-by">
-                      by {version.createdBy.slice(0, 8)}…
+                      by {(version.createdBy ?? 'unknown').slice(0, 8)}…
                     </span>
                   </div>
                   {canRestore && (

@@ -32,6 +32,7 @@ export interface Note {
 export interface NoteCollaborator {
   userId: string
   email: string
+  displayName?: string
   role: NoteRole
 }
 
@@ -39,6 +40,7 @@ export interface NoteVersion {
   versionNumber: number
   createdAt: string
   createdBy: string     // userId of who triggered the checkpoint
+  snapshotJson?: unknown
 }
 
 export async function createNote(title: string): Promise<{ noteId: string }> {
