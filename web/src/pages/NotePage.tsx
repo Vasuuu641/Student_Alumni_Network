@@ -1,5 +1,5 @@
 // src/pages/NotePage.tsx
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getNote, createCheckpoint, updateNote } from '../api/notes.api'
 import { CollaborativeEditor, type SaveStatus } from '../components/notes/CollaborativeEditor'
@@ -10,6 +10,7 @@ import { SharePanel } from '../components/notes/SharePanel'
 import { useNoteRoom } from '../hooks/useNoteRoom'
 import { stringToColor } from '../lib/utils'
 import { getAccessToken } from '../lib/auth'
+import { socket } from '../lib/socket'
 import {
   ArrowLeft, History, Share2, BookmarkPlus,
   CheckCircle2, AlertCircle, Loader2, FileText,
@@ -20,7 +21,6 @@ interface Note {
   title: string
   content: any
   ownerId: string
-  latestVersionNumber?: number | null
 }
 
 function decodeUserId(token: string): string | null {
@@ -47,6 +47,11 @@ export function NotePage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const flushEditorRef = useRef<(() => Promise<void>) | null>(null)
 
+  // Tracks content version so the editor knows when to re-seed
+  // after a version restore — incremented locally rather than
+  // relying on latestVersionNumber from the backend
+  const [contentVersion, setContentVersion] = useState(0)
+
   // Editable title state
   const [titleDraft, setTitleDraft] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
@@ -61,6 +66,13 @@ export function NotePage() {
     room.currentUser?.displayName || currentUserId?.slice(0, 8) || 'User'
   const currentUserEmail = room.currentUser?.email ?? null
   const effectiveCurrentUserId = room.currentUser?.userId || currentUserId || 'unknown-user'
+
+  // Fix 8 — stable user object so the provider is never recreated
+  // due to an inline object reference changing on every render
+  const stableUser = useMemo(
+    () => ({ name: currentUserDisplayName, color: userColor }),
+    [currentUserDisplayName, userColor],
+  )
 
   // ─── Initial note fetch ──────────────────────────────────────────────────
 
@@ -86,6 +98,26 @@ export function NotePage() {
   useEffect(() => {
     if (!token) navigate('/login', { replace: true })
   }, [token, navigate])
+
+  // Fix 16 — listen for version-restored broadcast from the server
+  // so all collaborators re-seed their editor when anyone restores
+  useEffect(() => {
+    if (!noteId) return
+
+    const onVersionRestored = (data: { noteId: string; content: unknown }) => {
+      if (data.noteId !== noteId) return
+      // Re-fetch so note.content is up to date, then bump
+      // contentVersion to trigger the editor re-seed effect
+      fetchNote().then(() => {
+        setContentVersion((v) => v + 1)
+      })
+    }
+
+    socket.on('notes:version-restored', onVersionRestored)
+    return () => {
+      socket.off('notes:version-restored', onVersionRestored)
+    }
+  }, [noteId, fetchNote])
 
   // ─── Title editing ───────────────────────────────────────────────────────
 
@@ -121,6 +153,8 @@ export function NotePage() {
     if (!noteId) return
     try {
       setSavingCheckpoint(true)
+      // Flush any pending autosave before creating the checkpoint
+      // so the snapshot captures the absolute latest content
       if (flushEditorRef.current) {
         await flushEditorRef.current()
       }
@@ -132,10 +166,21 @@ export function NotePage() {
 
   // ─── Restore ─────────────────────────────────────────────────────────────
 
+  // Fix 16 — bump contentVersion after restore so the editor
+  // re-seeds from the restored content for the user who clicked restore.
+  // Other collaborators get the bump via the notes:version-restored socket event.
   const handleRestored = useCallback(() => {
-    fetchNote()
+    fetchNote().then(() => {
+      setContentVersion((v) => v + 1)
+    })
     setShowVersionHistory(false)
   }, [fetchNote])
+
+  // Fix 9 — stable callback reference so persistContent inside
+  // CollaborativeEditor never changes and doesn't trigger useEditor remount
+  const handleSaveStatusChange = useCallback((status: SaveStatus) => {
+    setSaveStatus(status)
+  }, [])
 
   // ─── Loading / error states ───────────────────────────────────────────────
 
@@ -218,8 +263,12 @@ export function NotePage() {
           <SaveIndicator status={saveStatus} />
 
           {room.status === 'joined' && (
+            // Fix 15 — pass initialPresence from room state so editors
+            // see who is online immediately on join without missing
+            // the presence-snapshot event
             <PresenceAvatars
               noteId={noteId!}
+              initialPresence={room.initialPresence}
               currentUser={{
                 userId: effectiveCurrentUserId,
                 name: currentUserDisplayName,
@@ -268,12 +317,17 @@ export function NotePage() {
         <main className="note-body__main">
           <CollaborativeEditor
             noteId={noteId!}
-            user={{ name: currentUserDisplayName, color: userColor }}
+            // Fix 8 — stable reference, never recreates the provider
+            user={stableUser}
             initialContent={note.content}
-            contentVersion={note.latestVersionNumber ?? null}
+            // Fix 4/16 — local counter instead of latestVersionNumber
+            // so restores always trigger a re-seed in the editor
+            contentVersion={contentVersion}
             roomStatus={room.status}
             canEdit={room.canEdit}
-            onSaveStatusChange={setSaveStatus}
+            // Fix 9 — stable callback so persistContent doesn't change
+            // reference and trigger useEditor remount
+            onSaveStatusChange={handleSaveStatusChange}
             onRegisterFlush={(flush) => {
               flushEditorRef.current = flush
             }}
@@ -320,4 +374,3 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
     </div>
   )
 }
-

@@ -1,6 +1,7 @@
 // src/hooks/useNoteRoom.ts
 import { useEffect, useState } from 'react'
 import { socket } from '../lib/socket'
+import type { PresenceUser } from './usePresence'
 
 export type NoteRole = 'OWNER' | 'EDITOR' | 'VIEWER'
 
@@ -13,6 +14,9 @@ interface RoomState {
     displayName: string
     email: string | null
   } | null
+  // Fix 13 — captured here instead of usePresence so the snapshot
+  // event is never missed due to component mount timing
+  initialPresence: PresenceUser[]
 }
 
 export function useNoteRoom(noteId: string) {
@@ -21,13 +25,19 @@ export function useNoteRoom(noteId: string) {
     role: null,
     canEdit: false,
     currentUser: null,
+    initialPresence: [],
   })
 
   useEffect(() => {
     if (!noteId) return
 
-    // Enter connecting state whenever note changes.
-    setState({ status: 'connecting', role: null, canEdit: false, currentUser: null })
+    setState({
+      status: 'connecting',
+      role: null,
+      canEdit: false,
+      currentUser: null,
+      initialPresence: [],
+    })
 
     const onJoined = (data: {
       noteId: string
@@ -37,10 +47,9 @@ export function useNoteRoom(noteId: string) {
       displayName?: string
       email?: string | null
     }) => {
-      // Guard against events from other note rooms if the user
-      // has multiple tabs open
       if (data.noteId !== noteId) return
-      setState({
+      setState((prev) => ({
+        ...prev,
         status: 'joined',
         role: data.role,
         canEdit: data.canEdit,
@@ -49,7 +58,20 @@ export function useNoteRoom(noteId: string) {
           displayName: data.displayName ?? data.userId ?? '',
           email: data.email ?? null,
         },
-      })
+      }))
+    }
+
+    // Fix 13 — snapshot listener lives here alongside notes:joined
+    // so it's registered before the join fires and never missed.
+    // usePresence previously registered this listener after the
+    // component tree rendered, which was too late for editors joining
+    // into an existing session.
+    const onPresenceSnapshot = (data: {
+      noteId: string
+      users: PresenceUser[]
+    }) => {
+      if (data.noteId !== noteId) return
+      setState((prev) => ({ ...prev, initialPresence: data.users }))
     }
 
     const onError = (data: { message: string }) => {
@@ -57,14 +79,13 @@ export function useNoteRoom(noteId: string) {
         data.message.includes('Access denied') ||
         data.message.includes('Unauthorized')
       ) {
-        setState({ status: 'denied', role: null, canEdit: false, currentUser: null })
+        setState({ status: 'denied', role: null, canEdit: false, currentUser: null, initialPresence: [] })
       } else {
-        setState({ status: 'error', role: null, canEdit: false, currentUser: null })
+        setState({ status: 'error', role: null, canEdit: false, currentUser: null, initialPresence: [] })
       }
     }
 
     const onConnect = () => {
-      // Join on first successful connect as well.
       socket.emit('notes:join', { noteId })
     }
 
@@ -74,32 +95,33 @@ export function useNoteRoom(noteId: string) {
         message.includes('Unauthorized') ||
         message.includes('invalid or missing token')
       ) {
-        setState({ status: 'denied', role: null, canEdit: false, currentUser: null })
+        setState({ status: 'denied', role: null, canEdit: false, currentUser: null, initialPresence: [] })
       } else {
-        setState({ status: 'error', role: null, canEdit: false, currentUser: null })
+        setState({ status: 'error', role: null, canEdit: false, currentUser: null, initialPresence: [] })
       }
     }
 
     const onDisconnect = () => {
-      // Keep user informed while reconnecting.
-      setState((prev) => ({ ...prev, status: 'connecting', currentUser: null }))
+      setState((prev) => ({
+        ...prev,
+        status: 'connecting',
+        currentUser: null,
+        initialPresence: [],
+      }))
     }
 
-    // If the socket drops and reconnects mid-session, re-join the room
-    // automatically — the server clears room state on disconnect
     const onReconnect = () => {
       socket.emit('notes:join', { noteId })
     }
 
     socket.on('connect', onConnect)
     socket.on('notes:joined', onJoined)
+    socket.on('notes:presence-snapshot', onPresenceSnapshot)
     socket.on('error', onError)
     socket.on('connect_error', onConnectError)
     socket.on('disconnect', onDisconnect)
     socket.io.on('reconnect', onReconnect)
 
-    // Connect after listener registration to avoid missing a fast
-    // notes:joined ack event.
     if (!socket.connected) {
       socket.connect()
     } else {
@@ -110,6 +132,7 @@ export function useNoteRoom(noteId: string) {
       socket.emit('notes:leave', { noteId })
       socket.off('connect', onConnect)
       socket.off('notes:joined', onJoined)
+      socket.off('notes:presence-snapshot', onPresenceSnapshot)
       socket.off('error', onError)
       socket.off('connect_error', onConnectError)
       socket.off('disconnect', onDisconnect)

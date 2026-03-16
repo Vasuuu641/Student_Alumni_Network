@@ -37,9 +37,6 @@ export class NotesYProvider {
 
   private onDocUpdate = (update: Uint8Array, origin: unknown) => {
     if (!this.isJoined) return
-
-    // Skip updates that originated from the socket itself
-    // to avoid rebroadcasting what we just received
     if (origin === this) return
 
     this.socket.emit('notes:crdt-update', {
@@ -85,9 +82,6 @@ export class NotesYProvider {
     update: number[]
   }) => {
     if (noteId && noteId !== this.noteId) return
-
-    // Apply with `this` as origin so onDocUpdate doesn't
-    // re-broadcast it back to the server
     Y.applyUpdate(this.doc, new Uint8Array(update), this)
   }
 
@@ -157,9 +151,15 @@ export class NotesYProvider {
     this.emitCurrentAwareness()
   }
 
+  // Fix 12 — always include the local client ID so awareness is
+  // broadcast even when the user hasn't moved their cursor yet.
+  // Previously if getStates() was empty nothing was emitted, meaning
+  // newly joined users never received cursor state from existing members.
   private emitCurrentAwareness() {
-    const allClientIds = Array.from(this.awareness.getStates().keys())
-    if (allClientIds.length === 0) return
+    const localClientId = this.doc.clientID
+    const allClientIds = Array.from(
+      new Set([localClientId, ...this.awareness.getStates().keys()])
+    )
 
     const encoded = awarenessProtocol.encodeAwarenessUpdate(
       this.awareness,

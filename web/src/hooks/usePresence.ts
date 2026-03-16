@@ -11,19 +11,25 @@ export interface PresenceUser {
   email?: string | null
 }
 
-export function usePresence(noteId: string) {
-  const [presentUsers, setPresentUsers] = useState<PresenceUser[]>([])
+// Fix 14 — accepts initialUsers from useNoteRoom which captures
+// the presence-snapshot event before the component tree renders.
+// The snapshot listener is removed from here entirely to avoid
+// the race condition where it was registered too late.
+export function usePresence(noteId: string, initialUsers: PresenceUser[] = []) {
+  const [presentUsers, setPresentUsers] = useState<PresenceUser[]>(initialUsers)
+
+  // Fix 14 — sync state when initialUsers arrives after room join resolves.
+  // On first render initialUsers is [] so this is a no-op. Once useNoteRoom
+  // resolves the snapshot it passes the populated array and this effect
+  // updates the list without needing a socket event.
+  useEffect(() => {
+    if (initialUsers.length > 0) {
+      setPresentUsers(initialUsers)
+    }
+  }, [initialUsers])
 
   useEffect(() => {
     if (!noteId) return
-
-    const onPresenceSnapshot = (data: {
-      noteId: string
-      users: PresenceUser[]
-    }) => {
-      if (data.noteId !== noteId) return
-      setPresentUsers(data.users)
-    }
 
     const onPresence = (data: {
       event: 'user-joined' | 'user-left'
@@ -34,8 +40,8 @@ export function usePresence(noteId: string) {
     }) => {
       if (data.event === 'user-joined') {
         setPresentUsers((prev) => {
-          // Avoid duplicates if the same user joins twice
-          // (e.g. multiple tabs)
+          // Update existing entry if the same user rejoins
+          // (e.g. multiple tabs or reconnect)
           const existingIndex = prev.findIndex((u) => u.userId === data.userId)
           if (existingIndex !== -1) {
             return prev.map((user) =>
@@ -49,7 +55,6 @@ export function usePresence(noteId: string) {
                 : user,
             )
           }
-
           return [
             ...prev,
             {
@@ -69,13 +74,13 @@ export function usePresence(noteId: string) {
       }
     }
 
+    // Fix 14 — notes:presence-snapshot removed from here.
+    // It is now handled entirely by useNoteRoom which registers
+    // the listener before the join fires, eliminating the race condition.
     socket.on('notes:presence', onPresence)
-    socket.on('notes:presence-snapshot', onPresenceSnapshot)
 
     return () => {
       socket.off('notes:presence', onPresence)
-      socket.off('notes:presence-snapshot', onPresenceSnapshot)
-      // Clear list when leaving the note
       setPresentUsers([])
     }
   }, [noteId])

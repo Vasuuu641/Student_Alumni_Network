@@ -1,5 +1,5 @@
 // src/components/notes/PresenceAvatars.tsx
-import { usePresence, NoteRole } from '../../hooks/usePresence'
+import { usePresence, NoteRole, PresenceUser } from '../../hooks/usePresence'
 import { stringToColor } from '../../lib/utils'
 
 interface CurrentUser {
@@ -13,6 +13,7 @@ interface CurrentUser {
 interface Props {
   noteId: string
   currentUser: CurrentUser
+  initialPresence?: PresenceUser[] 
 }
 
 // Generate initials from a name or userId fallback
@@ -32,8 +33,8 @@ function getRoleBadgeClass(role: NoteRole): string {
   }
 }
 
-export function PresenceAvatars({ noteId, currentUser }: Props) {
-  const { presentUsers } = usePresence(noteId)
+export function PresenceAvatars({ noteId, currentUser, initialPresence = []}: Props) {
+  const { presentUsers } = usePresence(noteId, initialPresence)
 
   // Show only other collaborators online (exclude self)
   const allUsers = presentUsers.filter((user) => user.userId !== currentUser.userId)
