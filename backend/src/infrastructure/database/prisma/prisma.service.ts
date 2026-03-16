@@ -38,7 +38,25 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
-    console.log('✓ Database connection established');
+
+    // Development diagnostics:
+    // If data appears to "disappear" after restart, these logs confirm
+    // exactly which database instance this process is connected to.
+    try {
+      const dbMeta = await this.client.$queryRawUnsafe<
+        Array<{ db: string; host: string | null; port: number | null }>
+      >(
+        'select current_database() as db, inet_server_addr()::text as host, inet_server_port() as port',
+      );
+      const noteCount = await this.client.note.count();
+      const meta = dbMeta[0] ?? { db: 'unknown', host: null, port: null };
+
+      console.log(
+        `✓ Database connection established (db=${meta.db} host=${meta.host ?? 'local-socket'} port=${meta.port ?? 'n/a'} notes=${noteCount})`,
+      );
+    } catch {
+      console.log('✓ Database connection established');
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -11,6 +11,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -41,6 +42,8 @@ import { UpdateShareRoleRequestDto } from './dto/update-share-role-request.dto';
 
 @Controller('notes')
 export class NotesController {
+  private readonly logger = new Logger(NotesController.name);
+
   constructor(
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly getNoteUseCase: GetNoteUseCase,
@@ -138,9 +141,21 @@ export class NotesController {
   ): Promise<{ success: boolean }> {
     try {
       const userId = request.user.userId;
+      const debugPatch =
+        process.env.DEBUG_NOTES_PATCH === '1' ||
+        process.env.NODE_ENV !== 'production';
+
+      if (debugPatch) {
+        const contentJson = updateNoteRequest.content;
+        const contentBytes =
+          contentJson === undefined ? 0 : JSON.stringify(contentJson).length;
+        this.logger.log(
+          `PATCH /notes/${noteId} user=${userId} hasContent=${contentJson !== undefined} contentBytes=${contentBytes} hasTitle=${updateNoteRequest.title !== undefined} hasStatus=${updateNoteRequest.status !== undefined}`,
+        );
+      }
       
       // Update content if provided
-      if (updateNoteRequest.content) {
+      if (updateNoteRequest.content !== undefined) {
         await this.updateNoteUseCase.execute(
           noteId,
           userId,
@@ -149,7 +164,10 @@ export class NotesController {
       }
 
       // Update metadata if provided
-      if (updateNoteRequest.title || updateNoteRequest.status) {
+      if (
+        updateNoteRequest.title !== undefined ||
+        updateNoteRequest.status !== undefined
+      ) {
         await this.updateNoteMetadataUseCase.execute(
           noteId,
           userId,
@@ -158,8 +176,20 @@ export class NotesController {
         );
       }
 
+      if (debugPatch) {
+        this.logger.log(`PATCH /notes/${noteId} user=${userId} success=true`);
+      }
+
       return { success: true };
     } catch (error) {
+      if (
+        process.env.DEBUG_NOTES_PATCH === '1' ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        this.logger.warn(
+          `PATCH /notes/${noteId} failed: ${error?.message ?? 'unknown error'}`,
+        );
+      }
       throw new HttpException(
         error.message || 'Failed to update note',
         HttpStatus.BAD_REQUEST,
