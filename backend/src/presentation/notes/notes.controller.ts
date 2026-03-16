@@ -299,7 +299,12 @@ export class NotesController {
 
       // Broadcast checkpoint event to all connected collaborators in this note room.
       // If versions exist, expose the latest version number; otherwise emit 0.
-      const latestVersion = await this.listNoteVersionsUseCase.execute(noteId, 1, 1);
+      const latestVersion = await this.listNoteVersionsUseCase.execute(
+        noteId,
+        actorId,
+        1,
+        1,
+      );
       const versionNumber = latestVersion.length > 0 ? latestVersion[0].versionNumber : 0;
       this.notesRealtimePublisher.broadcastCheckpointCreated(
         noteId,
@@ -328,14 +333,23 @@ export class NotesController {
     @Param('id') noteId: string,
   ) {
     try {
+      const actorId = request.user.userId;
       const page = 1;
       const pageSize = 10;
       const versions = await this.listNoteVersionsUseCase.execute(
         noteId,
+        actorId,
         page,
         pageSize,
       );
-      return { versions };
+      return {
+        versions: versions.map((version) => ({
+          versionNumber: version.versionNumber,
+          createdAt: version.createdAt,
+          createdBy: version.authorId,
+          snapshotJson: version.snapshotJson,
+        })),
+      };
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to list versions',
@@ -347,7 +361,7 @@ export class NotesController {
   /**
    * POST /notes/:id/restore/:versionNumber
    * Restore note to a previous version
-   * Only accessible to note owner
+    * Accessible to note owner and editors
    */
   @Post(':id/restore/:versionNumber')
   @UseGuards(JwtStrategy, RolesGuard)

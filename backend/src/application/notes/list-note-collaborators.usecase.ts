@@ -2,10 +2,12 @@ import { Injectable, Inject } from '@nestjs/common';
 import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-collaborator.repository';
 import type { UserRepository } from 'src/domain/repositories/user.repository';
+import { NotePermissionRole } from 'src/domain/entities/note.entity';
 
 export interface NoteCollaboratorListItem {
   userId: string;
   email: string;
+  displayName: string;
   role: 'OWNER' | 'EDITOR' | 'VIEWER';
 }
 
@@ -27,16 +29,31 @@ export class ListNoteCollaboratorsUseCase {
       throw new Error('Note not found');
     }
 
-    // Owner-only for collaborator management UI
+    // Allow owner and collaborators to view the list.
     if (note.ownerId !== requesterId) {
-      throw new Error('Only the note owner can list collaborators');
+      const collaborator = await this.noteCollaboratorRepository.findByNoteAndUser(
+        noteId,
+        requesterId,
+      );
+
+      if (
+        !collaborator ||
+        (collaborator.role !== NotePermissionRole.EDITOR &&
+          collaborator.role !== NotePermissionRole.VIEWER)
+      ) {
+        throw new Error('You do not have access to view collaborators');
+      }
     }
 
     const owner = await this.userRepository.findById(note.ownerId);
+    const ownerDisplayName = owner
+      ? `${owner.firstName} ${owner.lastName}`.trim() || owner.email.getValue()
+      : '';
     const ownerItem: NoteCollaboratorListItem | null = owner
       ? {
           userId: owner.id,
           email: owner.email.getValue(),
+          displayName: ownerDisplayName,
           role: 'OWNER',
         }
       : null;
@@ -54,9 +71,12 @@ export class ListNoteCollaboratorsUseCase {
           return null;
         }
 
+        const displayName = `${user.firstName} ${user.lastName}`.trim() || user.email.getValue();
+
         return {
           userId: user.id,
           email: user.email.getValue(),
+          displayName,
           role: collaborator.role,
         } as NoteCollaboratorListItem;
       }),

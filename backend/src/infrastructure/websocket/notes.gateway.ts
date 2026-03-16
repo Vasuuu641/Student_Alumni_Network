@@ -13,17 +13,23 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
 import { Inject, Logger } from '@nestjs/common';
 import type { TokenService } from 'src/domain/services/token-service';
 import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-collaborator.repository';
+import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { NotePermissionRole } from 'src/domain/entities/note.entity';
 
 // Per-socket session data attached after successful authentication
 interface SocketSession {
   userId: string;
   role: string;
+}
+
+interface PresenceIdentity {
+  email: string | null;
+  displayName: string;
 }
 
 // Room permission resolved per (socket, note)
@@ -38,7 +44,7 @@ interface RoomPermission {
 })
 export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server: Namespace;
 
   private readonly logger = new Logger(NotesGateway.name);
 
@@ -53,6 +59,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
     @Inject('NoteCollaboratorRepository')
     private readonly noteCollaboratorRepository: NoteCollaboratorRepository,
+    @Inject('UserRepository') private readonly userRepository: UserRepository,
   ) {}
 
   // ─── Connection lifecycle ──────────────────────────────────────────────────
@@ -62,6 +69,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const session = await this.extractAndVerifyToken(socket);
       // Attach session to socket data so handlers can read it
       socket.data.session = session;
+      socket.data.identity = await this.resolvePresenceIdentity(session.userId);
       this.socketRooms.set(socket.id, new Set());
       this.logger.log(`Socket connected: ${socket.id} | user: ${session.userId}`);
     } catch {
@@ -115,6 +123,9 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Join the Socket.IO room
     const roomKey = `notes:${noteId}`;
     await socket.join(roomKey);
+    const identity =
+      (socket.data.identity as PresenceIdentity | undefined) ??
+      ({ email: null, displayName: session.userId } as PresenceIdentity);
 
     // Track locally
     this.socketRooms.get(socket.id)?.add(noteId);
@@ -125,13 +136,54 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       noteId,
       role: permission.role,
       canEdit: permission.canEdit,
+      userId: session.userId,
+      email: identity.email,
+      displayName: identity.displayName,
     });
+
+    // Send current online members to the newly joined user.
+    const users = Array.from(this.socketRooms.entries())
+      .filter(([memberSocketId, noteIds]) => memberSocketId !== socket.id && noteIds.has(noteId))
+      .map(([memberSocketId]) => memberSocketId)
+      .map((socketId) => {
+        const memberSocket = this.server.sockets.get(socketId);
+        const memberSession = memberSocket?.data?.session as SocketSession | undefined;
+        const memberIdentity = memberSocket?.data?.identity as PresenceIdentity | undefined;
+        const memberPermission = this.roomPermissions.get(`${socketId}:${noteId}`);
+
+        if (!memberSession || !memberPermission) {
+          return null;
+        }
+
+        return {
+          userId: memberSession.userId,
+          role: memberPermission.role,
+          email: memberIdentity?.email ?? null,
+          displayName: memberIdentity?.displayName ?? memberSession.userId,
+        };
+      })
+      .filter((item): item is {
+        userId: string;
+        role: NotePermissionRole | 'OWNER';
+        email: string | null;
+        displayName: string;
+      } => item !== null);
+
+    socket.emit('notes:presence-snapshot', {
+      noteId,
+      users,
+    });
+
+    // Ask existing members to rebroadcast awareness so newcomer gets cursors.
+    socket.to(roomKey).emit('notes:awareness-rebroadcast-request', { noteId });
 
     // Notify other members of new presence
     socket.to(roomKey).emit('notes:presence', {
       event: 'user-joined',
       userId: session.userId,
       role: permission.role,
+      email: identity.email,
+      displayName: identity.displayName,
     });
 
     this.logger.log(
@@ -184,8 +236,53 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Broadcast cursor/selection state to everyone else in the room
     socket.to(`notes:${noteId}`).emit('notes:awareness', {
+      noteId,
       userId: session.userId,
       awarenessState,
+    });
+  }
+
+  /**
+   * notes:sync-request
+   * A newly joined collaborator asks existing room members to send their
+   * current Yjs state so the newcomer can catch up immediately.
+   */
+  @SubscribeMessage('notes:sync-request')
+  handleSyncRequest(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string },
+  ) {
+    const { noteId } = data;
+
+    if (!this.isInRoom(socket, noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    socket.to(`notes:${noteId}`).emit('notes:sync-request', {
+      noteId,
+      requesterSocketId: socket.id,
+    });
+  }
+
+  /**
+   * notes:sync-response
+   * Existing member sends full Yjs state update directly to requester.
+   */
+  @SubscribeMessage('notes:sync-response')
+  handleSyncResponse(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string; requesterSocketId: string; update: any },
+  ) {
+    const { noteId, requesterSocketId, update } = data;
+
+    if (!this.isInRoom(socket, noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    this.server.to(requesterSocketId).emit('notes:sync-response', {
+      noteId,
+      update,
+      fromSocketId: socket.id,
     });
   }
 
@@ -216,6 +313,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Broadcast CRDT update to all other members in the room
     socket.to(`notes:${noteId}`).emit('notes:crdt-update', {
+      noteId,
       userId: session.userId,
       update,
     });
@@ -298,5 +396,23 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private emitError(socket: Socket, message: string) {
     socket.emit('error', { message });
     this.logger.warn(`Socket ${socket.id} error: ${message}`);
+  }
+
+  private async resolvePresenceIdentity(
+    userId: string,
+  ): Promise<PresenceIdentity> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      return { email: null, displayName: userId };
+    }
+
+    const first = user.firstName?.trim() ?? '';
+    const last = user.lastName?.trim() ?? '';
+    const displayName = `${first} ${last}`.trim() || user.email.getValue();
+
+    return {
+      email: user.email.getValue(),
+      displayName,
+    };
   }
 }

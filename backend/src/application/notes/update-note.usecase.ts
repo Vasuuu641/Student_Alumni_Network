@@ -1,5 +1,6 @@
 //Update note content (rich-text/JSON). Distinct from metadata updates - allows collaborative content editing
 import { Injectable, Inject } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { NoteVersionRepository } from "src/domain/repositories/note-version.repository";
 import type { NoteActivityRepository } from "src/domain/repositories/note-activity.repository";
@@ -75,6 +76,9 @@ export class UpdateNoteUseCase {
     // Save the version
     await this.noteVersionRepository.create(newVersion);
 
+    // Touch note row so updatedAt reflects latest collaborative edit activity.
+    await this.noteRepository.update(note);
+
     // Create activity log entry
     await this.noteActivityRepository.create({
       id: this.generateUniqueId(),
@@ -89,7 +93,6 @@ export class UpdateNoteUseCase {
   }
 
   private generateUniqueId(): string {
-    // Simple unique ID generator
-    return Math.random().toString(36).substr(2, 9);
+    return randomUUID();
   }
 }
