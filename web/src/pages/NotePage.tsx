@@ -1,17 +1,19 @@
 // src/pages/NotePage.tsx
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getNote, createCheckpoint } from '../api/notes.api'
-import { CollaborativeEditor } from '../components/notes/CollaborativeEditor'
+import { getNote, createCheckpoint, updateNote } from '../api/notes.api'
+import { CollaborativeEditor, type SaveStatus } from '../components/notes/CollaborativeEditor'
 import { PresenceAvatars } from '../components/notes/PresenceAvatar'
 import { VersionHistoryPanel } from '../components/notes/VersionHistoryPanel'
 import { ConnectionStatus } from '../components/notes/ConnectionStatus'
+import { SharePanel } from '../components/notes/SharePanel'
 import { useNoteRoom } from '../hooks/useNoteRoom'
 import { stringToColor } from '../lib/utils'
-
-// Replace this with however you access the current user in your app
-// e.g. a useAuth hook, context, or zustand store
 import { getAccessToken } from '../lib/auth'
+import {
+  ArrowLeft, History, Share2, BookmarkPlus,
+  CheckCircle2, AlertCircle, Loader2, FileText,
+} from 'lucide-react'
 
 interface Note {
   id: string
@@ -20,22 +22,39 @@ interface Note {
   ownerId: string
 }
 
+function decodeUserId(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.userId ?? null
+  } catch {
+    return null
+  }
+}
+
 export function NotePage() {
   const { noteId } = useParams<{ noteId: string }>()
   const navigate = useNavigate()
   const token = getAccessToken()
-  const currentUserId = token
-  ? (JSON.parse(atob(token.split('.')[1])).userId as string)
-  : null
-  const currentUserName = currentUserId ?? 'Unknown'
+  const currentUserId = token ? decodeUserId(token) : null
 
   const [note, setNote] = useState<Note | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+
+  // Editable title state
+  const [titleDraft, setTitleDraft] = useState('')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   const room = useNoteRoom(noteId!)
+  const canRestore = room.role === 'OWNER'
+  const canSaveCheckpoint = room.canEdit
+  const isOwner = room.role === 'OWNER'
+  const userColor = stringToColor(currentUserId ?? '')
 
   // ─── Initial note fetch ──────────────────────────────────────────────────
 
@@ -45,6 +64,7 @@ export function NotePage() {
       setFetchError(null)
       const { note } = await getNote(noteId)
       setNote(note)
+      setTitleDraft(note.title)
     } catch {
       setFetchError('Failed to load note')
     } finally {
@@ -56,6 +76,39 @@ export function NotePage() {
     fetchNote()
   }, [fetchNote])
 
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!token) navigate('/login', { replace: true })
+  }, [token, navigate])
+
+  // ─── Title editing ───────────────────────────────────────────────────────
+
+  function startEditTitle() {
+    if (!isOwner) return
+    setEditingTitle(true)
+    setTimeout(() => titleInputRef.current?.select(), 30)
+  }
+
+  async function commitTitle() {
+    setEditingTitle(false)
+    const trimmed = titleDraft.trim() || 'Untitled document'
+    if (trimmed === note?.title) return
+    try {
+      await updateNote(noteId!, { title: trimmed })
+      setNote((prev) => prev ? { ...prev, title: trimmed } : prev)
+    } catch {
+      setTitleDraft(note?.title ?? '')
+    }
+  }
+
+  function handleTitleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur()
+    if (e.key === 'Escape') {
+      setTitleDraft(note?.title ?? '')
+      setEditingTitle(false)
+    }
+  }
+
   // ─── Checkpoint ──────────────────────────────────────────────────────────
 
   const handleSaveCheckpoint = async () => {
@@ -63,8 +116,6 @@ export function NotePage() {
     try {
       setSavingCheckpoint(true)
       await createCheckpoint(noteId)
-    } catch {
-      // Silently fail — the version panel will show the error
     } finally {
       setSavingCheckpoint(false)
     }
@@ -72,41 +123,29 @@ export function NotePage() {
 
   // ─── Restore ─────────────────────────────────────────────────────────────
 
-  // After a restore the Y.js doc in memory is stale —
-  // re-fetch the note to get the restored content
   const handleRestored = useCallback(() => {
     fetchNote()
     setShowVersionHistory(false)
   }, [fetchNote])
 
-  // ─── Derived state ────────────────────────────────────────────────────────
-
-  const canRestore = room.role === 'OWNER'
-  const canSaveCheckpoint = room.canEdit
-
-  // Assign a deterministic color to the current user
-  // based on their userId so it stays consistent
-  const userColor = stringToColor(currentUserId ?? '')
-
   // ─── Loading / error states ───────────────────────────────────────────────
 
   if (loadingNote) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        Loading note...
+      <div className="note-fullscreen-state">
+        <Loader2 size={22} className="note-state-spinner" />
+        <p>Loading note…</p>
       </div>
     )
   }
 
   if (fetchError || !note) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-3">
-        <p className="text-red-500">{fetchError ?? 'Note not found'}</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Go back
+      <div className="note-fullscreen-state">
+        <FileText size={36} strokeWidth={1.3} color="#94a3b8" />
+        <p>{fetchError ?? 'Note not found'}</p>
+        <button onClick={() => navigate('/notes')} className="text-link">
+          ← Back to notes
         </button>
       </div>
     )
@@ -115,88 +154,128 @@ export function NotePage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="note-page">
 
-      {/* Connection banner — only visible when offline/reconnecting */}
+      {/* Connection banner */}
       <ConnectionStatus />
 
-      {/* ─── Header ───────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-6 py-3
-                         border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-3">
+      {/* ─── Header ───────────────────────────────────────────────── */}
+      <header className="note-header">
+
+        {/* Left: back + title */}
+        <div className="note-header__left">
           <button
-            onClick={() => navigate(-1)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="note-header__back"
+            onClick={() => navigate('/notes')}
+            title="Back to notes"
           >
-            ←
+            <ArrowLeft size={18} />
           </button>
-          <h1 className="text-base font-medium text-gray-900 truncate max-w-xs">
-            {note.title}
-          </h1>
+
+          <div className="note-header__doc-icon">
+            <FileText size={16} />
+          </div>
+
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              className="note-header__title-input"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={handleTitleKeyDown}
+              maxLength={120}
+            />
+          ) : (
+            <h1
+              className={`note-header__title${isOwner ? ' note-header__title--editable' : ''}`}
+              onClick={startEditTitle}
+              title={isOwner ? 'Click to rename' : undefined}
+            >
+              {note.title || 'Untitled document'}
+            </h1>
+          )}
+
           {room.role && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100
-                             text-gray-500 capitalize">
+            <span className={`note-header__role note-header__role--${room.role.toLowerCase()}`}>
               {room.role.toLowerCase()}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Live presence avatars */}
-          {room.status === 'joined' && (
+        {/* Right: autosave + actions */}
+        <div className="note-header__right">
+
+          <SaveIndicator status={saveStatus} />
+
+          {room.status === 'joined' && currentUserId && (
             <PresenceAvatars
               noteId={noteId!}
               currentUser={{
-                userId: currentUserId ?? 'Unknown',
-                name: currentUserName,
+                userId: currentUserId,
+                name: currentUserId.slice(0, 8),
                 color: userColor,
                 role: room.role!,
               }}
             />
           )}
 
-          {/* Save checkpoint button — editors and owners only */}
           {canSaveCheckpoint && (
             <button
               onClick={handleSaveCheckpoint}
               disabled={savingCheckpoint}
-              className="text-sm px-3 py-1.5 rounded-md border border-gray-200
-                         text-gray-600 hover:bg-gray-50 disabled:opacity-40
-                         disabled:cursor-not-allowed transition-colors"
+              className="note-header__action-btn"
+              title="Save version checkpoint"
             >
-              {savingCheckpoint ? 'Saving...' : 'Save version'}
+              <BookmarkPlus size={15} />
+              <span>{savingCheckpoint ? 'Saving…' : 'Save version'}</span>
             </button>
           )}
 
-          {/* Version history toggle */}
+          {isOwner && (
+            <button
+              onClick={() => { setShowShare((v) => !v); setShowVersionHistory(false) }}
+              className={`note-header__action-btn${showShare ? ' note-header__action-btn--active' : ''}`}
+            >
+              <Share2 size={15} />
+              <span>Share</span>
+            </button>
+          )}
+
           <button
-            onClick={() => setShowVersionHistory((v) => !v)}
-            className={`text-sm px-3 py-1.5 rounded-md border transition-colors
-              ${showVersionHistory
-                ? 'border-blue-200 bg-blue-50 text-blue-600'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+            onClick={() => { setShowVersionHistory((v) => !v); setShowShare(false) }}
+            className={`note-header__action-btn${showVersionHistory ? ' note-header__action-btn--active' : ''}`}
           >
-            History
+            <History size={15} />
+            <span>History</span>
           </button>
         </div>
       </header>
 
       {/* ─── Body ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="note-body">
 
-        {/* Editor — takes remaining width */}
-        <main className="flex-1 overflow-hidden">
+        <main className="note-body__main">
           <CollaborativeEditor
             noteId={noteId!}
-            user={{ name: currentUserName, color: userColor }}
+            user={{ name: currentUserId?.slice(0, 8) ?? 'user', color: userColor }}
             initialContent={note.content}
+            onSaveStatusChange={setSaveStatus}
           />
         </main>
 
-        {/* Version history sidebar — slides in when toggled */}
-        {showVersionHistory && (
-          <aside className="w-72 border-l border-gray-200 shrink-0 overflow-hidden">
+        {showShare && (
+          <aside className="note-body__sidebar">
+            <SharePanel
+              noteId={noteId!}
+              isOwner={isOwner}
+              onClose={() => setShowShare(false)}
+            />
+          </aside>
+        )}
+
+        {showVersionHistory && !showShare && (
+          <aside className="note-body__sidebar">
             <VersionHistoryPanel
               noteId={noteId!}
               canRestore={canRestore}
@@ -206,6 +285,22 @@ export function NotePage() {
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ─── Save indicator ─────────────────────────────────────────────────────────
+
+function SaveIndicator({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null
+  return (
+    <div className={`note-save-indicator note-save-indicator--${status}`}>
+      {status === 'saving' && <Loader2 size={12} className="note-state-spinner" />}
+      {status === 'saved' && <CheckCircle2 size={12} />}
+      {status === 'error' && <AlertCircle size={12} />}
+      <span>
+        {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Save failed'}
+      </span>
     </div>
   )
 }

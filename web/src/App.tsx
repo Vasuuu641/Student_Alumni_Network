@@ -4,6 +4,8 @@ import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/Onboarding';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { NotesListPage } from './pages/NotesListPage';
+import { NotePage } from './pages/NotePage';
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/notes" element={<NotesListPage />} />
+      <Route path="/notes/:noteId" element={<NotePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

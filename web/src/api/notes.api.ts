@@ -76,11 +76,11 @@ export async function updateNote(
 export async function shareNote(
   noteId: string,
   collaboratorEmail: string,
-  role: 'EDITOR' | 'VIEWER',
+  role: 'editor' | 'viewer',
 ): Promise<{ success: boolean }> {
   const { data } = await api.post<{ success: boolean }>(`/notes/${noteId}/share`, {
     collaboratorEmail,
-    role,
+    role: role.toLowerCase(),
   })
   return data
 }
@@ -97,9 +97,11 @@ export async function listCollaborators(
 export async function updateCollaboratorRole(
   noteId: string,
   userId: string,
-  role: 'EDITOR' | 'VIEWER',
+  role: 'editor' | 'viewer',
 ): Promise<{ success: boolean }> {
-  const { data } = await api.patch<{ success: boolean }>(`/notes/${noteId}/share/${userId}`, { role })
+  const { data } = await api.patch<{ success: boolean }>(`/notes/${noteId}/share/${userId}`, {
+    role: role.toLowerCase(),
+  })
   return data
 }
 

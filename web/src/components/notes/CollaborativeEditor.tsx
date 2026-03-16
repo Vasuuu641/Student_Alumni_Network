@@ -1,5 +1,5 @@
 // src/components/notes/CollaborativeEditor.tsx
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -10,6 +10,9 @@ import { socket } from '../../lib/socket'
 import { NotesYProvider } from '../../lib/notes-y-provider'
 import { useNoteRoom } from '../../hooks/useNoteRoom'
 import { EditorToolbar } from './EditorToolbar'
+import { updateNote } from '../../api/notes.api'
+
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface Props {
   noteId: string
@@ -17,13 +20,19 @@ interface Props {
     name: string
     color: string
   }
-  // Initial Tiptap JSON content from GET /notes/:id
-  // Applied once on mount to seed the Y.js document
   initialContent?: any
+  onSaveStatusChange?: (status: SaveStatus) => void
 }
 
-export function CollaborativeEditor({ noteId, user, initialContent }: Props) {
+export function CollaborativeEditor({ noteId, user, initialContent, onSaveStatusChange }: Props) {
   const room = useNoteRoom(noteId)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveStatusRef = useRef<SaveStatus>('idle')
+
+  const setSaveStatus = useCallback((status: SaveStatus) => {
+    saveStatusRef.current = status
+    onSaveStatusChange?.(status)
+  }, [onSaveStatusChange])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -33,8 +42,6 @@ export function CollaborativeEditor({ noteId, user, initialContent }: Props) {
     () => new NotesYProvider(noteId, ydoc, socket, user),
     [noteId, ydoc],
   )
-
-  // Seed the Y.Doc with the initial content from REST
 
   const editor = useEditor(
     {
@@ -51,53 +58,72 @@ export function CollaborativeEditor({ noteId, user, initialContent }: Props) {
           user: { name: user.name, color: user.color },
         }),
         Placeholder.configure({
-          placeholder: 'Start writing...',
+          placeholder: 'Start writing…',
         }),
       ],
       editable: room.canEdit,
-      // Seed initial content once the editor is ready
-      // Tiptap will apply this into the Y.Doc via the
-      // Collaboration extension on first mount
       content: initialContent,
+      onUpdate: ({ editor }) => {
+        if (!room.canEdit) return
+        // Debounce autosave — 2s after last keystroke
+        if (saveTimer.current) clearTimeout(saveTimer.current)
+        setSaveStatus('saving')
+        saveTimer.current = setTimeout(async () => {
+          try {
+            const json = editor.getJSON()
+            await updateNote(noteId, { content: json })
+            setSaveStatus('saved')
+            // Reset to idle after 2s so the indicator clears
+            setTimeout(() => setSaveStatus('idle'), 2000)
+          } catch {
+            setSaveStatus('error')
+          }
+        }, 2000)
+      },
     },
-    // Re-run useEditor when canEdit changes (role resolved from server)
     [room.canEdit],
   )
 
   // Keep editable in sync if role changes mid-session
-  // e.g. owner demotes a collaborator while they have the note open
   useEffect(() => {
     if (!editor) return
     editor.setEditable(room.canEdit)
   }, [editor, room.canEdit])
 
-  // Clean up provider on unmount or noteId change
+  // Clean up provider and pending save timer on unmount or noteId change
   useEffect(() => {
-    return () => provider.destroy()
+    return () => {
+      provider.destroy()
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
   }, [provider])
 
   // ─── Loading states ───────────────────────────────────────────────────────
 
   if (room.status === 'connecting') {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400">
-        Joining note...
+      <div className="note-canvas note-canvas--state">
+        <div className="note-state-msg">Joining note…</div>
       </div>
     )
   }
 
   if (room.status === 'denied') {
     return (
-      <div className="flex items-center justify-center h-full text-red-400">
-        You don't have access to this note.
+      <div className="note-canvas note-canvas--state">
+        <div className="note-state-msg note-state-msg--error">
+          You don't have access to this note.
+        </div>
       </div>
     )
   }
 
   if (room.status === 'error') {
     return (
-      <div className="flex items-center justify-center h-full text-red-400">
-        Connection error. Please try again.
+      <div className="note-canvas note-canvas--state">
+        <div className="note-state-msg note-state-msg--error">
+          Connection error. Please try again.
+        </div>
       </div>
     )
   }
@@ -105,18 +131,20 @@ export function CollaborativeEditor({ noteId, user, initialContent }: Props) {
   // ─── Editor ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Toolbar only shown to editors and owners */}
+    <div className="note-canvas">
+      {/* Floating toolbar — only for editors/owners */}
       {room.canEdit && (
-        <div className="toolbar-slot border-b border-gray-200 px-4 py-2">
-            <EditorToolbar editor={editor} />
+        <div className="note-toolbar">
+          <EditorToolbar editor={editor} />
         </div>
       )}
 
-      <EditorContent
-        editor={editor}
-        className="flex-1 overflow-y-auto px-8 py-6 prose max-w-none"
-      />
+      {/* Paper canvas */}
+      <div className="note-scroll-area">
+        <div className="note-paper">
+          <EditorContent editor={editor} className="note-editor" />
+        </div>
+      </div>
     </div>
   )
 }

@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { listVersions, restoreVersion } from '../../api/notes.api'
 import { useCheckpointEvents } from '../../hooks/useCheckpointEvents'
+import { VersionPreviewModal } from './VersionPreviewModal'
+import { Clock, History } from 'lucide-react'
 
 interface NoteVersion {
   versionNumber: number
@@ -11,7 +13,6 @@ interface NoteVersion {
 
 interface Props {
   noteId: string
-  // Only owners can restore — pass this down from room state
   canRestore: boolean
   onRestored: () => void
 }
@@ -21,6 +22,7 @@ export function VersionHistoryPanel({ noteId, canRestore, onRestored }: Props) {
   const [loading, setLoading] = useState(true)
   const [restoring, setRestoring] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedVersion, setSelectedVersion] = useState<NoteVersion | null>(null)
 
   // ─── Fetch versions ──────────────────────────────────────────────────────
 
@@ -40,30 +42,21 @@ export function VersionHistoryPanel({ noteId, canRestore, onRestored }: Props) {
     fetchVersions()
   }, [fetchVersions])
 
-  // ─── Auto-refresh when a new checkpoint is broadcast ────────────────────
-
-  const handleCheckpoint = useCallback(() => {
+  // Auto-refresh when a new checkpoint is broadcast
+  useCheckpointEvents(noteId, useCallback(() => {
     fetchVersions()
-  }, [fetchVersions])
-
-  useCheckpointEvents(noteId, handleCheckpoint)
+  }, [fetchVersions]))
 
   // ─── Restore ─────────────────────────────────────────────────────────────
 
-  async function handleRestore(versionNumber: number) {
-    if (!canRestore) return
-    const confirmed = window.confirm(
-      `Restore to version ${versionNumber}? Current content will be overwritten.`,
-    )
-    if (!confirmed) return
-
+  async function handleRestore(version: NoteVersion) {
     try {
-      setRestoring(versionNumber)
-      await restoreVersion(noteId, versionNumber)
+      setRestoring(version.versionNumber)
+      await restoreVersion(noteId, version.versionNumber)
+      setSelectedVersion(null)
       onRestored()
     } catch {
-      setError(`Failed to restore version ${versionNumber}`)
-    } finally {
+      setError(`Failed to restore version ${version.versionNumber}`)
       setRestoring(null)
     }
   }
@@ -71,76 +64,78 @@ export function VersionHistoryPanel({ noteId, canRestore, onRestored }: Props) {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Version history</h3>
-        <p className="text-xs text-gray-400 mt-0.5">
-          Checkpoints saved by collaborators
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {loading && (
-          <div className="flex items-center justify-center h-24 text-sm text-gray-400">
-            Loading versions...
+    <>
+      <div className="version-panel">
+        <div className="version-panel__header">
+          <History size={15} />
+          <div>
+            <h3 className="version-panel__title">Version history</h3>
+            <p className="version-panel__sub">Checkpoints saved by collaborators</p>
           </div>
-        )}
+        </div>
 
-        {error && (
-          <div className="mx-4 mt-4 px-3 py-2 bg-red-50 text-red-600
-                          text-sm rounded-md">
-            {error}
-          </div>
-        )}
+        <div className="version-panel__list">
+          {loading && (
+            <div className="version-panel__state">Loading versions…</div>
+          )}
 
-        {!loading && versions.length === 0 && (
-          <div className="flex items-center justify-center h-24
-                          text-sm text-gray-400">
-            No versions saved yet
-          </div>
-        )}
+          {error && (
+            <div className="version-panel__error">{error}</div>
+          )}
 
-        {!loading && versions.length > 0 && (
-          <ul className="divide-y divide-gray-100">
-            {versions.map((version) => (
-              <li
-                key={version.versionNumber}
-                className="px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-gray-900">
+          {!loading && versions.length === 0 && (
+            <div className="version-panel__state">
+              <Clock size={28} strokeWidth={1.3} color="#94a3b8" />
+              <p>No versions saved yet</p>
+            </div>
+          )}
+
+          {!loading && versions.length > 0 && (
+            <ul className="version-panel__items">
+              {versions.map((version) => (
+                <li
+                  key={version.versionNumber}
+                  className="version-panel__item"
+                  onClick={() => setSelectedVersion(version)}
+                >
+                  <div className="version-panel__item-dot" />
+                  <div className="version-panel__item-body">
+                    <span className="version-panel__item-label">
                       Version {version.versionNumber}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="version-panel__item-date">
                       {formatDate(version.createdAt)}
                     </span>
-                    <span className="text-xs text-gray-400">
-                      by {version.createdBy}
+                    <span className="version-panel__item-by">
+                      by {version.createdBy.slice(0, 8)}…
                     </span>
                   </div>
-
                   {canRestore && (
                     <button
-                      onClick={() => handleRestore(version.versionNumber)}
-                      disabled={restoring === version.versionNumber}
-                      className="shrink-0 text-xs px-2 py-1 rounded
-                                 text-blue-600 hover:bg-blue-50
-                                 disabled:opacity-40 disabled:cursor-not-allowed
-                                 transition-colors"
+                      className="version-panel__restore-btn"
+                      onClick={(e) => { e.stopPropagation(); setSelectedVersion(version) }}
                     >
-                      {restoring === version.versionNumber
-                        ? 'Restoring...'
-                        : 'Restore'}
+                      Restore
                     </button>
                   )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Confirmation modal */}
+      {selectedVersion && (
+        <VersionPreviewModal
+          version={selectedVersion}
+          canRestore={canRestore}
+          restoring={restoring === selectedVersion.versionNumber}
+          onRestore={() => handleRestore(selectedVersion)}
+          onClose={() => setSelectedVersion(null)}
+        />
+      )}
+    </>
   )
 }
 

@@ -20,6 +20,9 @@ export function useNoteRoom(noteId: string) {
   useEffect(() => {
     if (!noteId) return
 
+    // Enter connecting state whenever note changes.
+    setState({ status: 'connecting', role: null, canEdit: false })
+
     // Connect the socket if it isn't already connected
     if (!socket.connected) socket.connect()
 
@@ -47,20 +50,48 @@ export function useNoteRoom(noteId: string) {
       }
     }
 
+    const onConnect = () => {
+      // Join on first successful connect as well.
+      socket.emit('notes:join', { noteId })
+    }
+
+    const onConnectError = (error: Error & { message?: string }) => {
+      const message = error?.message ?? ''
+      if (
+        message.includes('Unauthorized') ||
+        message.includes('invalid or missing token')
+      ) {
+        setState({ status: 'denied', role: null, canEdit: false })
+      } else {
+        setState({ status: 'error', role: null, canEdit: false })
+      }
+    }
+
+    const onDisconnect = () => {
+      // Keep user informed while reconnecting.
+      setState((prev) => ({ ...prev, status: 'connecting' }))
+    }
+
     // If the socket drops and reconnects mid-session, re-join the room
     // automatically — the server clears room state on disconnect
     const onReconnect = () => {
       socket.emit('notes:join', { noteId })
     }
 
+    socket.on('connect', onConnect)
     socket.on('notes:joined', onJoined)
     socket.on('error', onError)
+    socket.on('connect_error', onConnectError)
+    socket.on('disconnect', onDisconnect)
     socket.io.on('reconnect', onReconnect)
 
     return () => {
       socket.emit('notes:leave', { noteId })
+      socket.off('connect', onConnect)
       socket.off('notes:joined', onJoined)
       socket.off('error', onError)
+      socket.off('connect_error', onConnectError)
+      socket.off('disconnect', onDisconnect)
       socket.io.off('reconnect', onReconnect)
     }
   }, [noteId])
