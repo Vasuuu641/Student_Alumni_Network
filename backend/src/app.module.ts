@@ -8,6 +8,7 @@ import { UsersModule } from './presentation/admin-users/users.module';
 import { AlumniModule } from './presentation/alumni/alumni.module';
 import { StudentsModule } from './presentation/students/students.module';
 import { ProfessorsModule } from './presentation/professors/professors.module';
+import { NotesModule } from './presentation/notes/notes.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ProfessorsModule } from './presentation/professors/professors.module';
     AlumniModule,
     StudentsModule,
     ProfessorsModule,
+    NotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

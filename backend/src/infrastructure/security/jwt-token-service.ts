@@ -1,21 +1,54 @@
 import jwt, { Secret } from 'jsonwebtoken';
-import type { TokenService } from '../../domain/services/token-service';
+import type { AuthPayload, TokenService } from '../../domain/services/token-service';
 
 export class JwtTokenService implements TokenService {
-    private secretKey: Secret;
+    private accessSecretKey: Secret;
+    private refreshSecretKey: Secret;
+    private accessExpiresIn: string | number;
+    private refreshExpiresIn: string | number;
 
-    constructor(secretKey: string) {
-        this.secretKey = secretKey as Secret;
+    constructor(accessSecretKey: string, refreshSecretKey: string) {
+        this.accessSecretKey = accessSecretKey as Secret;
+        this.refreshSecretKey = refreshSecretKey as Secret;
+        this.accessExpiresIn = process.env.JWT_EXPIRES_IN ?? '1h';
+        this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN ?? '24h';
     }
 
-    generateToken(payload: string | object | Buffer, expiresIn?: string | number): string {
-        const options = expiresIn !== undefined ? { expiresIn: expiresIn as any } : undefined;
-        return jwt.sign(payload, this.secretKey, options);
+    generateAccessToken(payload: AuthPayload): string {
+        return jwt.sign(
+            { ...payload, tokenType: 'access' },
+            this.accessSecretKey,
+            { expiresIn: this.accessExpiresIn as any }
+        );
     }
 
-    async verifyToken(token: string): Promise<object | string> {
+    generateRefreshToken(payload: AuthPayload): string {
+        return jwt.sign(
+            { ...payload, tokenType: 'refresh' },
+            this.refreshSecretKey,
+            { expiresIn: this.refreshExpiresIn as any }
+        );
+    }
+
+    async verifyAccessToken(token: string): Promise<AuthPayload> {
         try {
-            return jwt.verify(token, this.secretKey);
+            const payload = jwt.verify(token, this.accessSecretKey) as AuthPayload;
+            if (payload?.tokenType && payload.tokenType !== 'access') {
+                throw new Error('Invalid token type');
+            }
+            return payload;
+        } catch (error) {
+            throw new Error('Invalid token');
+        }
+    }
+
+    async verifyRefreshToken(token: string): Promise<AuthPayload> {
+        try {
+            const payload = jwt.verify(token, this.refreshSecretKey) as AuthPayload;
+            if (payload?.tokenType && payload.tokenType !== 'refresh') {
+                throw new Error('Invalid token type');
+            }
+            return payload;
         } catch (error) {
             throw new Error('Invalid token');
         }

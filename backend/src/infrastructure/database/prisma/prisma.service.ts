@@ -14,6 +14,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get alumni() { return this.client.alumni; }
   get professor() { return this.client.professor; }
   get authorizedUser() { return this.client.authorizedUser; }
+  get note() { return this.client.note; }
+  get noteCollaborator() { return this.client.noteCollaborator; }
+  get noteActivity() { return this.client.noteActivity; }
+  get noteVersion() { return this.client.noteVersion; }
+  get revokedToken() { return this.client.revokedToken; }
   // add other models you have here...
 
   constructor() {
@@ -33,7 +38,25 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
-    console.log('✓ Database connection established');
+
+    // Development diagnostics:
+    // If data appears to "disappear" after restart, these logs confirm
+    // exactly which database instance this process is connected to.
+    try {
+      const dbMeta = await this.client.$queryRawUnsafe<
+        Array<{ db: string; host: string | null; port: number | null }>
+      >(
+        'select current_database() as db, inet_server_addr()::text as host, inet_server_port() as port',
+      );
+      const noteCount = await this.client.note.count();
+      const meta = dbMeta[0] ?? { db: 'unknown', host: null, port: null };
+
+      console.log(
+        `✓ Database connection established (db=${meta.db} host=${meta.host ?? 'local-socket'} port=${meta.port ?? 'n/a'} notes=${noteCount})`,
+      );
+    } catch {
+      console.log('✓ Database connection established');
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
