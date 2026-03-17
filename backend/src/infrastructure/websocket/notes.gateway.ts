@@ -13,39 +13,40 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
 import { Inject, Logger } from '@nestjs/common';
 import type { TokenService } from 'src/domain/services/token-service';
 import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-collaborator.repository';
+import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { NotePermissionRole } from 'src/domain/entities/note.entity';
 
-// Per-socket session data attached after successful authentication
 interface SocketSession {
   userId: string;
   role: string;
 }
 
-// Room permission resolved per (socket, note)
+interface PresenceIdentity {
+  email: string | null;
+  displayName: string;
+}
+
 interface RoomPermission {
   role: NotePermissionRole | 'OWNER';
   canEdit: boolean;
 }
 
 @WebSocketGateway({
-  cors: { origin: '*' }, // Tighten in production
+  cors: { origin: '*' },
   namespace: '/notes',
 })
 export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server: Namespace;
 
   private readonly logger = new Logger(NotesGateway.name);
 
-  // Track which rooms each socket has joined: socketId -> Set<noteId>
   private socketRooms = new Map<string, Set<string>>();
-
-  // Track room permissions per socket+note: `${socketId}:${noteId}` -> RoomPermission
   private roomPermissions = new Map<string, RoomPermission>();
 
   constructor(
@@ -53,6 +54,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
     @Inject('NoteCollaboratorRepository')
     private readonly noteCollaboratorRepository: NoteCollaboratorRepository,
+    @Inject('UserRepository') private readonly userRepository: UserRepository,
   ) {}
 
   // ─── Connection lifecycle ──────────────────────────────────────────────────
@@ -60,12 +62,11 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(socket: Socket) {
     try {
       const session = await this.extractAndVerifyToken(socket);
-      // Attach session to socket data so handlers can read it
       socket.data.session = session;
+      socket.data.identity = await this.resolvePresenceIdentity(session.userId);
       this.socketRooms.set(socket.id, new Set());
       this.logger.log(`Socket connected: ${socket.id} | user: ${session.userId}`);
     } catch {
-      // Unauthenticated - disconnect immediately
       this.logger.warn(`Socket rejected (invalid token): ${socket.id}`);
       socket.emit('error', { message: 'Unauthorized: invalid or missing token' });
       socket.disconnect(true);
@@ -76,7 +77,6 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const rooms = this.socketRooms.get(socket.id) ?? new Set();
     for (const noteId of rooms) {
       const roomKey = `notes:${noteId}`;
-      // Notify remaining members that this user left
       socket.to(roomKey).emit('notes:presence', {
         event: 'user-left',
         userId: socket.data.session?.userId,
@@ -89,11 +89,6 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ─── Events ───────────────────────────────────────────────────────────────
 
-  /**
-   * notes:join
-   * Client requests to join a note collaboration room.
-   * Server validates JWT (done at connection) and DB permission before joining.
-   */
   @SubscribeMessage('notes:join')
   async handleJoin(
     @ConnectedSocket() socket: Socket,
@@ -106,43 +101,69 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return this.emitError(socket, 'Unauthorized');
     }
 
-    // Resolve permission from DB
     const permission = await this.resolvePermission(session.userId, noteId);
     if (!permission) {
       return this.emitError(socket, 'Access denied: you do not have access to this note');
     }
 
-    // Join the Socket.IO room
     const roomKey = `notes:${noteId}`;
     await socket.join(roomKey);
+    const identity =
+      (socket.data.identity as PresenceIdentity | undefined) ??
+      ({ email: null, displayName: session.userId } as PresenceIdentity);
 
-    // Track locally
     this.socketRooms.get(socket.id)?.add(noteId);
     this.roomPermissions.set(`${socket.id}:${noteId}`, permission);
 
-    // Acknowledge to joining socket
     socket.emit('notes:joined', {
       noteId,
       role: permission.role,
       canEdit: permission.canEdit,
+      userId: session.userId,
+      email: identity.email,
+      displayName: identity.displayName,
     });
 
-    // Notify other members of new presence
+    const users = Array.from(this.socketRooms.entries())
+      .filter(([memberSocketId, noteIds]) => memberSocketId !== socket.id && noteIds.has(noteId))
+      .map(([memberSocketId]) => memberSocketId)
+      .map((socketId) => {
+        const memberSocket = this.server.sockets.get(socketId);
+        const memberSession = memberSocket?.data?.session as SocketSession | undefined;
+        const memberIdentity = memberSocket?.data?.identity as PresenceIdentity | undefined;
+        const memberPermission = this.roomPermissions.get(`${socketId}:${noteId}`);
+
+        if (!memberSession || !memberPermission) return null;
+
+        return {
+          userId: memberSession.userId,
+          role: memberPermission.role,
+          email: memberIdentity?.email ?? null,
+          displayName: memberIdentity?.displayName ?? memberSession.userId,
+        };
+      })
+      .filter((item): item is {
+        userId: string;
+        role: NotePermissionRole | 'OWNER';
+        email: string | null;
+        displayName: string;
+      } => item !== null);
+
+    socket.emit('notes:presence-snapshot', { noteId, users });
+
+    socket.to(roomKey).emit('notes:awareness-rebroadcast-request', { noteId });
+
     socket.to(roomKey).emit('notes:presence', {
       event: 'user-joined',
       userId: session.userId,
       role: permission.role,
+      email: identity.email,
+      displayName: identity.displayName,
     });
 
-    this.logger.log(
-      `User ${session.userId} joined note ${noteId} as ${permission.role}`,
-    );
+    this.logger.log(`User ${session.userId} joined note ${noteId} as ${permission.role}`);
   }
 
-  /**
-   * notes:leave
-   * Client explicitly leaves a room (e.g., closes tab).
-   */
   @SubscribeMessage('notes:leave')
   async handleLeave(
     @ConnectedSocket() socket: Socket,
@@ -165,11 +186,6 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`User ${session?.userId} left note ${noteId}`);
   }
 
-  /**
-   * notes:awareness
-   * Broadcasts cursor position / selection state to other room members.
-   * Allowed for any role (viewer presence is fine).
-   */
   @SubscribeMessage('notes:awareness')
   handleAwareness(
     @ConnectedSocket() socket: Socket,
@@ -182,20 +198,48 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return this.emitError(socket, 'Join the note room first');
     }
 
-    // Broadcast cursor/selection state to everyone else in the room
     socket.to(`notes:${noteId}`).emit('notes:awareness', {
+      noteId,
       userId: session.userId,
       awarenessState,
     });
   }
 
-  /**
-   * notes:crdt-update
-   * Client sends a Yjs binary CRDT update.
-   * Server validates that the sender has EDITOR or OWNER role, then
-   * broadcasts the update to all other room members.
-   * The server does NOT store the CRDT state - checkpoints via REST handle persistence.
-   */
+  @SubscribeMessage('notes:sync-request')
+  handleSyncRequest(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string },
+  ) {
+    const { noteId } = data;
+
+    if (!this.isInRoom(socket, noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    socket.to(`notes:${noteId}`).emit('notes:sync-request', {
+      noteId,
+      requesterSocketId: socket.id,
+    });
+  }
+
+  @SubscribeMessage('notes:sync-response')
+  handleSyncResponse(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string; requesterSocketId: string; update: any },
+  ) {
+    const { noteId, requesterSocketId, update } = data;
+
+    if (!this.isInRoom(socket, noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    this.server.to(requesterSocketId).emit('notes:sync-response', {
+      noteId,
+      update,
+      fromSocketId: socket.id,
+    });
+  }
+
   @SubscribeMessage('notes:crdt-update')
   handleCrdtUpdate(
     @ConnectedSocket() socket: Socket,
@@ -208,25 +252,20 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return this.emitError(socket, 'Join the note room first');
     }
 
-    // Permission check: VIEWERs cannot emit content edits
     const permission = this.roomPermissions.get(`${socket.id}:${noteId}`);
     if (!permission?.canEdit) {
       return this.emitError(socket, 'Access denied: viewers cannot edit note content');
     }
 
-    // Broadcast CRDT update to all other members in the room
     socket.to(`notes:${noteId}`).emit('notes:crdt-update', {
+      noteId,
       userId: session.userId,
       update,
     });
   }
 
-  /**
-   * notes:checkpoint-created
-   * Server-side broadcast triggered after REST checkpoint creation.
-   * Informs all room members that a new version checkpoint was saved.
-   * Call this from CreateNoteCheckpointUseCase or the controller after a successful save.
-   */
+  // ─── Server-side broadcasts ───────────────────────────────────────────────
+
   broadcastCheckpointCreated(noteId: string, actorId: string, versionNumber: number) {
     this.server.to(`notes:${noteId}`).emit('notes:checkpoint-created', {
       noteId,
@@ -239,24 +278,35 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  // Broadcasts restored content to all collaborators so their editors
+  // re-seed without requiring a page refresh
+  broadcastVersionRestored(noteId: string, actorId: string, content: unknown) {
+    this.server.to(`notes:${noteId}`).emit('notes:version-restored', {
+      noteId,
+      actorId,
+      content,
+    });
+    this.logger.log(`Version restored broadcast: note ${noteId} by ${actorId}`);
+  }
+
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   private async extractAndVerifyToken(socket: Socket): Promise<SocketSession> {
-    // Token can be passed as Bearer in auth handshake header OR as query param
     const authHeader = socket.handshake.headers?.authorization as string;
+    const authToken = socket.handshake.auth?.token as string;
     const queryToken = socket.handshake.query?.token as string;
 
     let token: string | undefined;
 
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
+    } else if (authToken) {
+      token = authToken;
     } else if (queryToken) {
       token = queryToken;
     }
 
-    if (!token) {
-      throw new Error('No token provided');
-    }
+    if (!token) throw new Error('No token provided');
 
     const payload = await this.tokenService.verifyAccessToken(token);
     return {
@@ -272,12 +322,10 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const note = await this.noteRepository.findById(noteId);
     if (!note) return null;
 
-    // Owner has full access
     if (note.ownerId === userId) {
       return { role: NotePermissionRole.OWNER, canEdit: true };
     }
 
-    // Check collaborator table
     const collaborator = await this.noteCollaboratorRepository.findByNoteAndUser(
       noteId,
       userId,
@@ -295,5 +343,19 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private emitError(socket: Socket, message: string) {
     socket.emit('error', { message });
     this.logger.warn(`Socket ${socket.id} error: ${message}`);
+  }
+
+  private async resolvePresenceIdentity(userId: string): Promise<PresenceIdentity> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) return { email: null, displayName: userId };
+
+    const first = user.firstName?.trim() ?? '';
+    const last = user.lastName?.trim() ?? '';
+    const displayName = `${first} ${last}`.trim() || user.email.getValue();
+
+    return {
+      email: user.email.getValue(),
+      displayName,
+    };
   }
 }

@@ -15,9 +15,18 @@ export function DashboardPage() {
       <section className="dashboard-card">
         <h1>Dashboard</h1>
         <p>Your onboarding is complete. Welcome to UniBridge.</p>
-        <Button type="button" variant="submit-wide" onClick={handleLogout}>
-          Log out
-        </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          <Button
+            type="button"
+            variant="submit-wide"
+            onClick={() => navigate('/notes')}
+          >
+            📝 My Notes
+          </Button>
+          <Button type="button" variant="submit-wide" onClick={handleLogout}>
+            Log out
+          </Button>
+        </div>
       </section>
     </main>
   );

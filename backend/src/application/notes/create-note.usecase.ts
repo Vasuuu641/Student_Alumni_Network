@@ -20,6 +20,7 @@ export class CreateNoteUseCase {
       title,
       ownerId: userId,
       status: NoteStatus.ACTIVE,
+      content: null,
       createdAt: now,
       updatedAt: now,
       isOwnedBy: (checkUserId: string) => userId === checkUserId,
