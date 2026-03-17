@@ -10,6 +10,56 @@ import { socket } from '../../lib/socket'
 import { NotesYProvider } from '../../lib/notes-y-provider'
 import { EditorToolbar } from './EditorToolbar'
 import { updateNote, updateNoteKeepalive } from '../../api/notes.api'
+import TextAlign from '@tiptap/extension-text-align'
+import Highlight from '@tiptap/extension-highlight'
+import Link from '@tiptap/extension-link'
+import FontFamily from '@tiptap/extension-font-family'
+import TextStyle from '@tiptap/extension-text-style'
+import { Extension } from '@tiptap/core'
+
+//custom font size extension 
+const FontSize = Extension.create({
+  name: 'fontSize',
+
+  addOptions() {
+    return {
+      types: ['textStyle'],
+    }
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize || null,
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {}
+              }
+              return { style: `font-size: ${attributes.fontSize}` }
+            },
+          },
+        },
+      },
+    ]
+  },
+
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }: any) =>
+          chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize:
+        () =>
+        ({ chain }: any) =>
+          chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
+    } as any
+  },
+})
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -39,13 +89,20 @@ export function CollaborativeEditor({
   onSaveStatusChange,
   onRegisterFlush,
 }: Props) {
+  const PAGE_CHAR_LIMIT = 2200
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasSeededInitialContentRef = useRef(false)
   const autosaveArmedRef = useRef(false)
+  const autoPageBreakInProgressRef = useRef(false)
+  const autoInsertedPageCountRef = useRef(0)
+  const previousTextLengthRef = useRef(0)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
     autosaveArmedRef.current = false
+    autoPageBreakInProgressRef.current = false
+    autoInsertedPageCountRef.current = 0
+    previousTextLengthRef.current = 0
   }, [noteId])
 
   const latestContentRef = useRef<any>(initialContent ?? null)
@@ -144,6 +201,43 @@ export function CollaborativeEditor({
     await waitForSaveQueueToDrain()
   }, [waitForSaveQueueToDrain])
 
+  const maybeInsertAutoPageBreak = useCallback((editorInstance: any) => {
+    if (!canEditRef.current) return
+    if (!autosaveArmedRef.current) return
+    if (peerCount > 0) return
+    if (autoPageBreakInProgressRef.current) return
+
+    const textLength = editorInstance.getText().length
+    const previousLength = previousTextLengthRef.current
+    previousTextLengthRef.current = textLength
+
+    // Skip large jumps from hydration/sync; only react to normal typing growth.
+    if (Math.abs(textLength - previousLength) > 80) return
+    if (textLength < PAGE_CHAR_LIMIT) return
+
+    const requiredBreaks = Math.floor(textLength / PAGE_CHAR_LIMIT)
+    if (requiredBreaks <= autoInsertedPageCountRef.current) return
+
+    const buildBlankPageSpacer = () => [
+      { type: 'horizontalRule' as const },
+      ...Array.from({ length: 20 }, () => ({ type: 'paragraph' as const })),
+    ]
+
+    autoPageBreakInProgressRef.current = true
+    autoInsertedPageCountRef.current = requiredBreaks
+    const endPos = editorInstance.state.doc.content.size
+    editorInstance
+      .chain()
+      .focus('end')
+      .insertContentAt(endPos, buildBlankPageSpacer())
+      .focus('end')
+      .run()
+
+    setTimeout(() => {
+      autoPageBreakInProgressRef.current = false
+    }, 0)
+  }, [peerCount, PAGE_CHAR_LIMIT])
+
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
 
@@ -174,6 +268,19 @@ export function CollaborativeEditor({
         Placeholder.configure({
           placeholder: 'Start writing…',
         }),
+        TextAlign.configure({
+          types: ['paragraph', 'heading'],
+        }),
+        Highlight.configure({
+          multicolor: true,
+        }),
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
+        }),
+        FontFamily,
+        TextStyle,
+        FontSize
       ],
       editable: false, // setEditable effect handles this
       onUpdate: ({ editor }) => {
@@ -195,6 +302,8 @@ export function CollaborativeEditor({
         }
 
         latestContentRef.current = snapshot
+
+        maybeInsertAutoPageBreak(editor)
 
         if (saveTimer.current) clearTimeout(saveTimer.current)
         saveTimer.current = setTimeout(async () => {

@@ -1340,13 +1340,83 @@
     border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
     z-index: 10;
-    overflow-x: auto;
+    overflow: visible;
   }
 
   .note-toolbar__inner {
     display: flex;
     align-items: center;
     gap: 0.1rem;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 0.15rem;
+  }
+
+  .note-toolbar__stack {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .note-menubar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+  }
+
+  .note-menu {
+    position: relative;
+  }
+
+  .note-menu__trigger {
+    border: 0;
+    background: transparent;
+    font-size: 0.82rem;
+    color: #334155;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.35rem;
+    cursor: pointer;
+  }
+
+  .note-menu__trigger:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  .note-menu__dropdown {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    min-width: 10.5rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.45rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    z-index: 40;
+    padding: 0.25rem;
+  }
+
+  .note-menu__item {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: #1e293b;
+    font-size: 0.82rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.35rem;
+    cursor: pointer;
+  }
+
+  .note-menu__item:hover {
+    background: #f8fafc;
+  }
+
+  .note-menu__item:disabled {
+    color: #94a3b8;
+    cursor: default;
   }
 
   .note-toolbar__btn {
@@ -1529,6 +1599,15 @@
   .note-editor ol {
     padding-left: 1.5rem;
     margin: 0.5rem 0 0.75rem;
+    list-style-position: outside;
+  }
+
+  .note-editor ul {
+    list-style-type: disc;
+  }
+
+  .note-editor ol {
+    list-style-type: decimal;
   }
 
   .note-editor li {
@@ -1544,9 +1623,26 @@
   }
 
   .note-editor hr {
+    position: relative;
     border: none;
-    border-top: 1px solid #e2e8f0;
-    margin: 1.5rem 0;
+    border-top: 2px dashed #cbd5e1;
+    margin: 3.2rem 0 3.4rem;
+    height: 0;
+  }
+
+  .note-editor hr::before {
+    content: 'Page break';
+    position: absolute;
+    top: -0.72rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #64748b;
+    background: #ffffff;
+    padding: 0 0.45rem;
   }
 
   /* Placeholder */
