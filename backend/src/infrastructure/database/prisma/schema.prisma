@@ -29,6 +29,10 @@ model User {
   notesShared   NoteCollaborator[]
   noteVersions  NoteVersion[] @relation("NoteVersionAuthor")
   noteActivities NoteActivity[] @relation("NoteActivityActor")
+  threadsAuthored   Thread[]          @relation("ThreadAuthor")
+  repliesAuthored   ThreadReply[]     @relation("ReplyAuthor")
+  threadVotes       ThreadVote[]
+  replyVotes        ThreadReplyVote[]
 }
 
 model Student {
@@ -180,4 +184,101 @@ model RevokedToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Threads feature
+
+enum ThreadPanel {
+  ACADEMIC
+  ALUMNI
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+  PINNED
+}
+
+enum ReplyStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+model Thread {
+  id          String       @id @default(uuid())
+  title       String       @db.VarChar(255)
+  description String?
+  panel       ThreadPanel  @default(ACADEMIC)
+  status      ThreadStatus @default(OPEN)
+  authorId    String
+  replyCount  Int          @default(0)
+  lastReplyAt DateTime?
+  viewCount   Int          @default(0)
+  voteScore   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  author      User         @relation("ThreadAuthor", fields: [authorId], references: [id])
+  replies     ThreadReply[]
+  votes       ThreadVote[]
+
+  @@index([panel, status, createdAt])
+  @@index([authorId])
+  @@index([lastReplyAt])
+  @@index([panel, status, replyCount])
+  @@index([panel, status, voteScore])
+}
+
+model ThreadReply {
+  id            String      @id @default(uuid())
+  threadId      String
+  content       String
+  authorId      String
+  status        ReplyStatus @default(ACTIVE)
+  editedAt      DateTime?
+  voteScore     Int         @default(0)
+  parentReplyId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  thread        Thread        @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author        User          @relation("ReplyAuthor", fields: [authorId], references: [id])
+  parentReply   ThreadReply?  @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
+  childReplies  ThreadReply[] @relation("ReplyHierarchy")
+  votes         ThreadReplyVote[]
+
+  @@index([threadId, createdAt])
+  @@index([threadId, voteScore])
+  @@index([authorId])
+  @@index([parentReplyId])
+}
+
+model ThreadVote {
+  threadId  String
+  userId    String
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+}
+
+model ThreadReplyVote {
+  replyId   String
+  userId    String
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  reply     ThreadReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([replyId, userId])
 }
