@@ -17,6 +17,7 @@ import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/th
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
+import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -42,6 +43,10 @@ import { AuthModule } from '../../auth/auth.module';
     { provide: 'ThreadRepository', useClass: PrismaThreadRepository },
     { provide: 'ThreadReplyRepository', useClass: PrismaThreadReplyRepository },
     { provide: 'ThreadVoteRepository', useClass: PrismaThreadVoteRepository },
+
+    // Gateway + realtime publisher
+    ThreadsGateway,
+    { provide: 'ThreadsRealtimePublisher', useExisting: ThreadsGateway },
   ],
 })
 export class ThreadsModule {}
