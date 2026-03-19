@@ -1,10 +1,11 @@
 # ─── Threads REST API Tests ───────────────────────────────────────────────────
 # Set your token below after logging in
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzkyNTQ4MCwiZXhwIjoxNzczOTI5MDgwfQ.Hd7ShEUr0UtZVl_DhAaFiSY_08XIY2CnlFYKQLvDWxE
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3Mzk0NzIxNiwiZXhwIjoxNzczOTUwODE2fQ.NFoGzxk0naGEujDcKdc1Cxbd9HJ8Ba-p3NkMX94X9Bk
 @baseUrl = http://localhost:3000
-@threadId = azmy18gj9
-@replyId = kf74f8v0v
+@threadId = b0quu7x44
+//uiw3hvp0j
+@replyId = 04hymkjzm
 
 ###
 # ─── CREATE THREAD (ACADEMIC) ────────────────────────────────────────────────
@@ -15,7 +16,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "What are the best resources to prepare for System Theory exams?",
+  "title": "How do I prepare for the CS101 midterm exam?",
   "description": "Looking for tips on what topics to focus on",
   "panel": "ACADEMIC"
 }
@@ -70,7 +71,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "content": "I found some youtube videos on the internet really helpful!"
+  "content": "I found some past paper question banks on leetcode and hackerRank really helpful for System Theory!"
 }
 
 ###
