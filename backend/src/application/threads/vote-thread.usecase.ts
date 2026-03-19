@@ -9,7 +9,7 @@ export class VoteThreadUseCase {
     @Inject('ThreadVoteRepository') private readonly voteRepository: ThreadVoteRepository,
   ) {}
 
-  async execute(threadId: string, userId: string, voteType: VoteType): Promise<void> {
+  async execute(threadId: string, userId: string, voteType: VoteType): Promise<number> {
     const thread = await this.threadRepository.findById(threadId);
 
     if (!thread) {
@@ -36,5 +36,8 @@ export class VoteThreadUseCase {
       const delta = voteType === VoteType.UPVOTE ? 1 : -1;
       await this.voteRepository.updateThreadVoteScore(threadId, delta);
     }
+
+    const updated = await this.threadRepository.findById(threadId);
+    return updated?.voteScore ?? 0;
   }
 }

@@ -11,6 +11,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -32,6 +33,8 @@ import { ListThreadsRequestDto } from './dto/list-thread-requests.dto';
 import { VoteRequestDto } from './dto/vote-request.dto';
 import { UpdateThreadStatusRequestDto } from './dto/update-thread-status-request.dto';
 
+import type { ThreadsRealtimePublisher } from 'src/domain/services/threads-realtime-publisher';
+
 @Controller('threads')
 export class ThreadsController {
   private readonly logger = new Logger(ThreadsController.name);
@@ -46,6 +49,8 @@ export class ThreadsController {
     private readonly voteThreadUseCase: VoteThreadUseCase,
     private readonly voteReplyUseCase: VoteReplyUseCase,
     private readonly updateThreadStatusUseCase: UpdateThreadStatusUseCase,
+    @Inject('ThreadsRealtimePublisher') 
+    private readonly realtimePublisher: ThreadsRealtimePublisher,
   ) {}
 
   /**
@@ -173,7 +178,10 @@ export class ThreadsController {
         body.content,
         body.parentReplyId ?? null,
       );
+
+      this.realtimePublisher.broadcastReplyPosted(threadId, reply);
       return { reply };
+
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to post reply',
@@ -191,11 +199,13 @@ export class ThreadsController {
   async editReply(
     @Req() request: any,
     @Param('replyId') replyId: string,
+    @Param('id') threadId: string,
     @Body() body: EditReplyRequestDto,
   ): Promise<{ success: boolean }> {
     try {
       const { userId } = request.user;
       await this.editReplyUseCase.execute(replyId, userId, body.content);
+      this.realtimePublisher.broadcastReplyEdited(threadId, replyId, body.content);
       return { success: true };
     } catch (error) {
       throw new HttpException(
@@ -213,11 +223,13 @@ export class ThreadsController {
   @UseGuards(JwtStrategy, RolesGuard)
   async deleteReply(
     @Req() request: any,
+    @Param('id') threadId: string,
     @Param('replyId') replyId: string,
   ): Promise<{ success: boolean }> {
     try {
       const { userId, role } = request.user;
       await this.deleteReplyUseCase.execute(replyId, userId, role);
+      this.realtimePublisher.broadcastReplyDeleted(threadId, replyId);
       return { success: true };
     } catch (error) {
       throw new HttpException(
@@ -240,7 +252,8 @@ export class ThreadsController {
   ): Promise<{ success: boolean }> {
     try {
       const { userId } = request.user;
-      await this.voteThreadUseCase.execute(threadId, userId, body.voteType);
+      const updatedScore = await this.voteThreadUseCase.execute(threadId, userId, body.voteType);
+      this.realtimePublisher.broadcastThreadVoted(threadId, updatedScore);
       return { success: true };
     } catch (error) {
       throw new HttpException(
@@ -259,11 +272,13 @@ export class ThreadsController {
   async voteReply(
     @Req() request: any,
     @Param('replyId') replyId: string,
+    @Param('id') threadId: string,
     @Body() body: VoteRequestDto,
   ): Promise<{ success: boolean }> {
     try {
       const { userId } = request.user;
-      await this.voteReplyUseCase.execute(replyId, userId, body.voteType);
+      const updatedScore = await this.voteReplyUseCase.execute(replyId, userId, body.voteType);
+      this.realtimePublisher.broadcastReplyVoted(threadId, replyId, updatedScore);
       return { success: true };
     } catch (error) {
       throw new HttpException(

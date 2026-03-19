@@ -9,7 +9,7 @@ export class VoteReplyUseCase {
     @Inject('ThreadVoteRepository') private readonly voteRepository: ThreadVoteRepository,
   ) {}
 
-  async execute(replyId: string, userId: string, voteType: VoteType): Promise<void> {
+  async execute(replyId: string, userId: string, voteType: VoteType): Promise<number> {
     const reply = await this.replyRepository.findById(replyId);
 
     if (!reply) {
@@ -37,5 +37,8 @@ export class VoteReplyUseCase {
       const delta = voteType === VoteType.UPVOTE ? 1 : -1;
       await this.voteRepository.updateReplyVoteScore(replyId, delta);
     }
+
+    const updated = await this.replyRepository.findById(replyId);
+    return updated?.voteScore ?? 0;
   }
 }
