@@ -13,64 +13,64 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  firstName     String
-  lastName      String
-  role          Role
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  student       Student?
-  alumni        Alumni?
-  professor     Professor?
-  notesOwned    Note[]   @relation("NoteOwner")
-  notesShared   NoteCollaborator[]
-  noteVersions  NoteVersion[] @relation("NoteVersionAuthor")
-  noteActivities NoteActivity[] @relation("NoteActivityActor")
-  threadsAuthored   Thread[]          @relation("ThreadAuthor")
-  repliesAuthored   ThreadReply[]     @relation("ReplyAuthor")
-  threadVotes       ThreadVote[]
-  replyVotes        ThreadReplyVote[]
+  student         Student?
+  alumni          Alumni?
+  professor       Professor?
+  notesOwned      Note[]             @relation("NoteOwner")
+  notesShared     NoteCollaborator[]
+  noteVersions    NoteVersion[]      @relation("NoteVersionAuthor")
+  noteActivities  NoteActivity[]     @relation("NoteActivityActor")
+  threadsAuthored Thread[]           @relation("ThreadAuthor")
+  repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
+  threadVotes     ThreadVote[]
+  replyVotes      ThreadReplyVote[]
 }
 
 model Student {
-  userId              String @id
-  major               String
-  yearOfGraduation    Int?    @map("year_of_graduation")
-  jobTitle            String? @map("job_title")
-  company             String? 
-  interests           String[]
-  faculty             String? @map("faculty")
-  bio                 String?
-  profilePictureUrl   String? @map("profile_picture_url")
+  userId            String   @id
+  major             String
+  yearOfGraduation  Int?     @map("year_of_graduation")
+  jobTitle          String?  @map("job_title")
+  company           String?
+  interests         String[]
+  faculty           String?  @map("faculty")
+  bio               String?
+  profilePictureUrl String?  @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Alumni {
-  userId            String @id
+  userId            String   @id
   yearOfGraduation  Int?     @map("year_of_graduation")
   major             String?
   company           String?
   jobTitle          String?  @map("job_title")
   bio               String?
   interests         String[]
-  profilePictureUrl String? @map("profile_picture_url")
-  isAnonymous       Boolean @default(false)
-  anonymousName     String? @map("anonymous_name")
+  profilePictureUrl String?  @map("profile_picture_url")
+  isAnonymous       Boolean  @default(false)
+  anonymousName     String?  @map("anonymous_name")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Professor {
-  userId            String @id
-  faculty           String 
-  jobTitle          String  @map("job_title")
+  userId            String   @id
+  faculty           String
+  jobTitle          String   @map("job_title")
   bio               String?
   interests         String[]
-  profilePictureUrl String? @map("profile_picture_url")
+  profilePictureUrl String?  @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -111,18 +111,18 @@ enum NoteLinkSource {
 }
 
 model Note {
-  id        String     @id @default(uuid())
-  title     String
-  ownerId   String
-  status    NoteStatus @default(ACTIVE)
-  contentJson Json?    
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(uuid())
+  title       String
+  ownerId     String
+  status      NoteStatus @default(ACTIVE)
+  contentJson Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  owner     User       @relation("NoteOwner", fields: [ownerId], references: [id])
+  owner         User               @relation("NoteOwner", fields: [ownerId], references: [id])
   collaborators NoteCollaborator[]
-  versions   NoteVersion[]
-  activities NoteActivity[]
+  versions      NoteVersion[]
+  activities    NoteActivity[]
 
   @@index([ownerId])
   @@index([updatedAt])
@@ -132,8 +132,8 @@ model NoteCollaborator {
   noteId    String
   userId    String
   role      NotePermissionRole @default(VIEWER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id])
   note Note @relation(fields: [noteId], references: [id])
@@ -150,8 +150,8 @@ model NoteVersion {
   authorId      String
   createdAt     DateTime @default(now())
 
-  note          Note     @relation(fields: [noteId], references: [id])
-  author        User     @relation("NoteVersionAuthor", fields: [authorId], references: [id])
+  note   Note @relation(fields: [noteId], references: [id])
+  author User @relation("NoteVersionAuthor", fields: [authorId], references: [id])
 
   @@unique([noteId, versionNumber])
   @@index([noteId])
@@ -166,8 +166,8 @@ model NoteActivity {
   metadataJson Json?
   createdAt    DateTime @default(now())
 
-  note         Note     @relation(fields: [noteId], references: [id])
-  actor        User     @relation("NoteActivityActor", fields: [actorId], references: [id])
+  note  Note @relation(fields: [noteId], references: [id])
+  actor User @relation("NoteActivityActor", fields: [actorId], references: [id])
 
   @@index([noteId])
   @@index([actorId])
@@ -224,9 +224,10 @@ model Thread {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  author      User         @relation("ThreadAuthor", fields: [authorId], references: [id])
-  replies     ThreadReply[]
-  votes       ThreadVote[]
+  author          User             @relation("ThreadAuthor", fields: [authorId], references: [id])
+  replies         ThreadReply[]
+  votes           ThreadVote[]
+  threadEmbedding ThreadEmbedding?
 
   @@index([panel, status, createdAt])
   @@index([authorId])
@@ -247,11 +248,11 @@ model ThreadReply {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  thread        Thread        @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author        User          @relation("ReplyAuthor", fields: [authorId], references: [id])
-  parentReply   ThreadReply?  @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
-  childReplies  ThreadReply[] @relation("ReplyHierarchy")
-  votes         ThreadReplyVote[]
+  thread       Thread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author       User              @relation("ReplyAuthor", fields: [authorId], references: [id])
+  parentReply  ThreadReply?      @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
+  childReplies ThreadReply[]     @relation("ReplyHierarchy")
+  votes        ThreadReplyVote[]
 
   @@index([threadId, createdAt])
   @@index([threadId, voteScore])
@@ -265,8 +266,8 @@ model ThreadVote {
   voteType  VoteType
   createdAt DateTime @default(now())
 
-  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([threadId, userId])
 }
@@ -277,8 +278,18 @@ model ThreadReplyVote {
   voteType  VoteType
   createdAt DateTime @default(now())
 
-  reply     ThreadReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reply ThreadReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([replyId, userId])
+}
+
+model ThreadEmbedding {
+  id        String   @id @default(uuid())
+  threadId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
 }
