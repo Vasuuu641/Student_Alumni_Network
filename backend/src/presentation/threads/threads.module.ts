@@ -19,6 +19,8 @@ import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module
 import { AuthModule } from '../../auth/auth.module';
 import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
 
+import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-thread-llm.service';
+
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [ThreadsController],
@@ -39,10 +41,15 @@ import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
     PrismaThreadReplyRepository,
     PrismaThreadVoteRepository,
 
+    // LLM service
+    CohereThreadLLMService,
+    
+
     // Injection tokens
     { provide: 'ThreadRepository', useClass: PrismaThreadRepository },
     { provide: 'ThreadReplyRepository', useClass: PrismaThreadReplyRepository },
     { provide: 'ThreadVoteRepository', useClass: PrismaThreadVoteRepository },
+    { provide: 'ThreadLLMService', useClass: CohereThreadLLMService },
 
     // Gateway + realtime publisher
     ThreadsGateway,
