@@ -19,7 +19,7 @@ export class CohereThreadLLMService implements ThreadLLMService {
       const response = await this.cohere.embed({
         texts: [title],
         model: 'embed-english-v3.0',
-        inputType: 'search_document',
+        inputType: 'search_query',
         embeddingTypes: ['float'],
       });
 
@@ -50,7 +50,7 @@ export class CohereThreadLLMService implements ThreadLLMService {
     query: string,
     userPanel: ThreadPanel | null,
     limit: number = 5,
-    threshold: number = 0.65,
+    threshold: number = 0.55,
   ): Promise<SimilarThread[]> {
     try {
       // Embed the query text
@@ -90,9 +90,8 @@ export class CohereThreadLLMService implements ThreadLLMService {
           1 - (te.embedding <=> $1::vector) AS similarity
         FROM "ThreadEmbedding" te
         JOIN "Thread" t ON t.id = te."threadId"
-        WHERE t.status != 'DELETED'
+        WHERE 1 - (te.embedding <=> $1::vector) >= $2
           ${panelFilter}
-          AND 1 - (te.embedding <=> $1::vector) >= $2
         ORDER BY te.embedding <=> $1::vector
         LIMIT $3
         `,
