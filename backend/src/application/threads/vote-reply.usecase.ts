@@ -1,40 +1,41 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import type { ThreadRepository, ThreadVoteRepository } from 'src/domain/repositories/thread.repository';
+import type { ThreadReplyRepository, ThreadVoteRepository } from 'src/domain/repositories/thread.repository';
 import { VoteType } from 'src/domain/entities/thread.entity';
 
 @Injectable()
-export class VoteThreadUseCase {
+export class VoteReplyUseCase {
   constructor(
-    @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
+    @Inject('ThreadReplyRepository') private readonly replyRepository: ThreadReplyRepository,
     @Inject('ThreadVoteRepository') private readonly voteRepository: ThreadVoteRepository,
   ) {}
 
-  async execute(threadId: string, userId: string, voteType: VoteType): Promise<void> {
-    const thread = await this.threadRepository.findById(threadId);
+  async execute(replyId: string, userId: string, voteType: VoteType): Promise<void> {
+    const reply = await this.replyRepository.findById(replyId);
 
-    if (!thread) {
-      throw new NotFoundException(`Thread ${threadId} not found`);
+    if (!reply) {
+      throw new NotFoundException(`Reply ${replyId} not found`);
     }
 
-    const existing = await this.voteRepository.findThreadVote(threadId, userId);
+    if (reply.isDeleted()) {
+      throw new NotFoundException('Cannot vote on a deleted reply');
+    }
+
+    const existing = await this.voteRepository.findReplyVote(replyId, userId);
 
     if (existing) {
       if (existing.voteType === voteType) {
-        // Same vote again — remove it (toggle off)
-        await this.voteRepository.deleteThreadVote(threadId, userId);
+        await this.voteRepository.deleteReplyVote(replyId, userId);
         const delta = voteType === VoteType.UPVOTE ? -1 : 1;
-        await this.voteRepository.updateThreadVoteScore(threadId, delta);
+        await this.voteRepository.updateReplyVoteScore(replyId, delta);
       } else {
-        // Switching vote (up → down or down → up)
-        await this.voteRepository.upsertThreadVote(threadId, userId, voteType);
+        await this.voteRepository.upsertReplyVote(replyId, userId, voteType);
         const delta = voteType === VoteType.UPVOTE ? 2 : -2;
-        await this.voteRepository.updateThreadVoteScore(threadId, delta);
+        await this.voteRepository.updateReplyVoteScore(replyId, delta);
       }
     } else {
-      // New vote
-      await this.voteRepository.upsertThreadVote(threadId, userId, voteType);
+      await this.voteRepository.upsertReplyVote(replyId, userId, voteType);
       const delta = voteType === VoteType.UPVOTE ? 1 : -1;
-      await this.voteRepository.updateThreadVoteScore(threadId, delta);
+      await this.voteRepository.updateReplyVoteScore(replyId, delta);
     }
   }
 }

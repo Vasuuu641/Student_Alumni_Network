@@ -4,14 +4,15 @@ import { Thread, ThreadPanel } from 'src/domain/entities/thread.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
 import { Role } from 'src/domain/entities/authorized-user.entity';
 
-interface ListThreadsInput {
+export interface ListThreadsInput {
   panel: ThreadPanel;
   skip: number;
   take: number;
   sortBy: ThreadSortBy;
+  userRole: Role;
 }
 
-interface ListThreadsOutput {
+export interface ListThreadsOutput {
   threads: Thread[];
   total: number;
 }
@@ -22,8 +23,8 @@ export class ListThreadsUseCase {
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
   ) {}
 
-  async execute(input: ListThreadsInput, userRole: Role): Promise<ListThreadsOutput> {
-    ThreadAccessPolicy.validatePanelAccess(userRole, input.panel);
+  async execute(input: ListThreadsInput): Promise<ListThreadsOutput> {
+    ThreadAccessPolicy.validatePanelAccess(input.userRole, input.panel);
 
     return this.threadRepository.listByPanel(input.panel, {
       skip: input.skip,
