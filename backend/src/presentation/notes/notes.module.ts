@@ -30,6 +30,9 @@ import { NotesRealtimePublisherService } from '../../infrastructure/services/not
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
 
+//LLM
+import { CohereNoteLLMService } from '../../infrastructure/ai/cohere/cohere-note-llm.service';
+
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [NotesController],
@@ -58,6 +61,11 @@ import { AuthModule } from '../../auth/auth.module';
     PrismaNoteVersionRepository,
     PrismaNoteActivityRepository,
     PrismaUserRepository,
+
+    // LLM Service
+    { provide: 'NoteLLMService', 
+      useClass: CohereNoteLLMService 
+    },
 
     // Provide implementations with interface names
     {
