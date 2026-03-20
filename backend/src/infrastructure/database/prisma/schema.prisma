@@ -123,6 +123,9 @@ model Note {
   collaborators NoteCollaborator[]
   versions      NoteVersion[]
   activities    NoteActivity[]
+  linkedThreads  NoteThreadLink[]
+  chunks         NoteChunk[]
+  chunkEmbeddings NoteChunkEmbedding[]
 
   @@index([ownerId])
   @@index([updatedAt])
@@ -228,6 +231,7 @@ model Thread {
   replies         ThreadReply[]
   votes           ThreadVote[]
   threadEmbedding ThreadEmbedding?
+  linkedNotes     NoteThreadLink[]
 
   @@index([panel, status, createdAt])
   @@index([authorId])
@@ -287,9 +291,57 @@ model ThreadReplyVote {
 model ThreadEmbedding {
   id        String   @id @default(uuid())
   threadId  String   @unique
+  embedding Unsupported("vector(1024)")?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   @@index([threadId])
+}
+
+//Notes - threads linking
+
+model NoteChunk {
+  id         String   @id @default(uuid())
+  noteId     String
+  chunkIndex Int
+  chunkText  String
+  createdAt  DateTime @default(now())
+  
+
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  embedding  NoteChunkEmbedding?
+
+  @@unique([noteId, chunkIndex])
+  @@index([noteId])
+}
+
+model NoteThreadLink {
+  id         String         @id @default(uuid())
+  noteId     String
+  threadId   String
+  confidence Float?
+  source     NoteLinkSource @default(AI)
+  createdAt  DateTime       @default(now())
+
+  note       Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  thread     Thread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, threadId])
+  @@index([noteId])
+  @@index([threadId])
+}
+
+model NoteChunkEmbedding {
+  id        String   @id @default(uuid())
+  chunkId   String   @unique
+  embedding Unsupported("vector(1024)")?
+  noteId    String
+  createdAt DateTime @default(now())
+
+  chunk     NoteChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  note      Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([chunkId])
+  @@index([noteId])
 }
