@@ -35,6 +35,24 @@ import { VoteRequestDto } from './dto/vote-request.dto';
 import { UpdateThreadStatusRequestDto } from './dto/update-thread-status-request.dto';
 
 import type { ThreadsRealtimePublisher } from 'src/domain/services/threads-realtime-publisher';
+import { Thread, ThreadReply } from 'src/domain/entities/thread.entity';
+import type { UserRepository } from 'src/domain/repositories/user.repository';
+import type { ThreadVoteRepository } from 'src/domain/repositories/thread.repository';
+import { VoteType } from 'src/domain/entities/thread.entity';
+
+type ThreadView = Thread & {
+  authorName?: string;
+  viewerVote?: VoteType | null;
+  upvoteCount?: number;
+  downvoteCount?: number;
+};
+
+type ReplyView = ThreadReply & {
+  authorName?: string;
+  viewerVote?: VoteType | null;
+  upvoteCount?: number;
+  downvoteCount?: number;
+};
 
 @Controller('threads')
 export class ThreadsController {
@@ -53,6 +71,10 @@ export class ThreadsController {
     @Inject('ThreadsRealtimePublisher') 
     private readonly realtimePublisher: ThreadsRealtimePublisher,
     private readonly listRepliesUseCase: ListRepliesUseCase,
+    @Inject('UserRepository')
+    private readonly userRepository: UserRepository,
+    @Inject('ThreadVoteRepository')
+    private readonly threadVoteRepository: ThreadVoteRepository,
   ) {}
 
   /**
@@ -94,7 +116,7 @@ export class ThreadsController {
     @Query() query: ListThreadsRequestDto,
   ) {
     try {
-      const { role } = request.user;
+      const { role, userId } = request.user;
       const result = await this.listThreadsUseCase.execute({
         panel: query.panel,
         skip: query.skip ?? 0,
@@ -102,7 +124,14 @@ export class ThreadsController {
         sortBy: query.sortBy ?? 'newest',
         userRole: role,
       });
-      return result;
+
+      const threadsWithAuthors = await this.withThreadAuthorNames(result.threads);
+      const threadsWithVoteCounts = await this.withThreadVoteCounts(threadsWithAuthors);
+      const threadsWithVotes = await this.withThreadViewerVotes(threadsWithVoteCounts, userId);
+      return {
+        ...result,
+        threads: threadsWithVotes,
+      };
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to list threads',
@@ -122,9 +151,12 @@ export class ThreadsController {
     @Param('id') threadId: string,
   ) {
     try {
-      const { role } = request.user;
+      const { role, userId } = request.user;
       const thread = await this.getThreadUseCase.execute(threadId, role);
-      return { thread };
+      const [threadWithAuthor] = await this.withThreadAuthorNames([thread]);
+      const [threadWithVoteCounts] = await this.withThreadVoteCounts([threadWithAuthor]);
+      const [threadWithVote] = await this.withThreadViewerVotes([threadWithVoteCounts], userId);
+      return { thread: threadWithVote };
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to get thread',
@@ -181,8 +213,11 @@ export class ThreadsController {
         body.parentReplyId ?? null,
       );
 
-      this.realtimePublisher.broadcastReplyPosted(threadId, reply);
-      return { reply };
+      const [replyWithAuthor] = await this.withReplyAuthorNames([reply]);
+      const [replyWithVoteCounts] = await this.withReplyVoteCounts([replyWithAuthor]);
+
+      this.realtimePublisher.broadcastReplyPosted(threadId, replyWithVoteCounts as ThreadReply);
+      return { reply: replyWithVoteCounts };
 
     } catch (error) {
       throw new HttpException(
@@ -212,7 +247,14 @@ async listReplies(
       parseInt(take),
       sortBy as 'newest' | 'topVoted',
     );
-    return result;
+
+    const repliesWithAuthors = await this.withReplyAuthorNames(result.replies);
+    const repliesWithVoteCounts = await this.withReplyVoteCounts(repliesWithAuthors);
+    const repliesWithVotes = await this.withReplyViewerVotes(repliesWithVoteCounts, request.user.userId);
+    return {
+      ...result,
+      replies: repliesWithVotes,
+    };
   } catch (error) {
     throw new HttpException(
       error.message || 'Failed to list replies',
@@ -284,7 +326,15 @@ async listReplies(
     try {
       const { userId } = request.user;
       const updatedScore = await this.voteThreadUseCase.execute(threadId, userId, body.voteType);
-      this.realtimePublisher.broadcastThreadVoted(threadId, updatedScore);
+      const [upvoteCount, downvoteCount] = await Promise.all([
+        this.threadVoteRepository.countThreadVotesByType(threadId, VoteType.UPVOTE),
+        this.threadVoteRepository.countThreadVotesByType(threadId, VoteType.DOWNVOTE),
+      ]);
+      this.realtimePublisher.broadcastThreadVoted(threadId, {
+        voteScore: updatedScore,
+        upvoteCount,
+        downvoteCount,
+      });
       return { success: true };
     } catch (error) {
       throw new HttpException(
@@ -309,7 +359,15 @@ async listReplies(
     try {
       const { userId } = request.user;
       const updatedScore = await this.voteReplyUseCase.execute(replyId, userId, body.voteType);
-      this.realtimePublisher.broadcastReplyVoted(threadId, replyId, updatedScore);
+      const [upvoteCount, downvoteCount] = await Promise.all([
+        this.threadVoteRepository.countReplyVotesByType(replyId, VoteType.UPVOTE),
+        this.threadVoteRepository.countReplyVotesByType(replyId, VoteType.DOWNVOTE),
+      ]);
+      this.realtimePublisher.broadcastReplyVoted(threadId, replyId, {
+        voteScore: updatedScore,
+        upvoteCount,
+        downvoteCount,
+      });
       return { success: true };
     } catch (error) {
       throw new HttpException(
@@ -317,5 +375,109 @@ async listReplies(
         error.status || HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  private async withThreadAuthorNames(threads: Thread[]): Promise<ThreadView[]> {
+    if (!threads.length) return [];
+
+    const userIds = [...new Set(threads.map((thread) => thread.authorId))];
+    const userMap = await this.getAuthorNameMap(userIds);
+
+    return threads.map((thread) => Object.assign(thread, {
+      authorName: userMap[thread.authorId],
+    }));
+  }
+
+  private async withReplyAuthorNames(replies: ThreadReply[]): Promise<ReplyView[]> {
+    if (!replies.length) return [];
+
+    const userIds = [...new Set(replies.map((reply) => reply.authorId))];
+    const userMap = await this.getAuthorNameMap(userIds);
+
+    return replies.map((reply) => Object.assign(reply, {
+      authorName: userMap[reply.authorId],
+    }));
+  }
+
+  private async withThreadVoteCounts(threads: ThreadView[]): Promise<ThreadView[]> {
+    if (!threads.length) return [];
+
+    const counts = await Promise.all(
+      threads.map(async (thread) => {
+        const [upvoteCount, downvoteCount] = await Promise.all([
+          this.threadVoteRepository.countThreadVotesByType(thread.id, VoteType.UPVOTE),
+          this.threadVoteRepository.countThreadVotesByType(thread.id, VoteType.DOWNVOTE),
+        ]);
+
+        return { upvoteCount, downvoteCount };
+      }),
+    );
+
+    return threads.map((thread, index) => Object.assign(thread, counts[index]));
+  }
+
+  private async withReplyVoteCounts(replies: ReplyView[]): Promise<ReplyView[]> {
+    if (!replies.length) return [];
+
+    const counts = await Promise.all(
+      replies.map(async (reply) => {
+        const [upvoteCount, downvoteCount] = await Promise.all([
+          this.threadVoteRepository.countReplyVotesByType(reply.id, VoteType.UPVOTE),
+          this.threadVoteRepository.countReplyVotesByType(reply.id, VoteType.DOWNVOTE),
+        ]);
+
+        return { upvoteCount, downvoteCount };
+      }),
+    );
+
+    return replies.map((reply, index) => Object.assign(reply, counts[index]));
+  }
+
+  private async withThreadViewerVotes(
+    threads: ThreadView[],
+    userId: string,
+  ): Promise<ThreadView[]> {
+    if (!threads.length) return [];
+
+    const votes = await Promise.all(
+      threads.map((thread) => this.threadVoteRepository.findThreadVote(thread.id, userId)),
+    );
+
+    return threads.map((thread, index) => Object.assign(thread, {
+      viewerVote: (votes[index]?.voteType as VoteType | undefined) ?? null,
+    }));
+  }
+
+  private async withReplyViewerVotes(
+    replies: ReplyView[],
+    userId: string,
+  ): Promise<ReplyView[]> {
+    if (!replies.length) return [];
+
+    const votes = await Promise.all(
+      replies.map((reply) => this.threadVoteRepository.findReplyVote(reply.id, userId)),
+    );
+
+    return replies.map((reply, index) => Object.assign(reply, {
+      viewerVote: (votes[index]?.voteType as VoteType | undefined) ?? null,
+    }));
+  }
+
+  private async getAuthorNameMap(userIds: string[]): Promise<Record<string, string>> {
+    if (!userIds.length) return {};
+
+    const users = await Promise.all(userIds.map((userId) => this.userRepository.findById(userId)));
+
+    return users.reduce<Record<string, string>>((acc, user, index) => {
+      const userId = userIds[index];
+      if (!user) {
+        acc[userId] = userId;
+        return acc;
+      }
+
+      const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+      acc[userId] = fullName || userId;
+      return acc;
+    }, {});
   }
 }

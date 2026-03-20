@@ -37,14 +37,16 @@ export interface ThreadReplyRepository {
 
 export interface ThreadVoteRepository {
   // Thread votes
-  findThreadVote(threadId: string, userId: string): Promise<{ voteType: string } | null>;
-  upsertThreadVote(threadId: string, userId: string, voteType: string): Promise<void>;
+  findThreadVote(threadId: string, userId: string): Promise<{ voteType: 'UPVOTE' | 'DOWNVOTE' } | null>;
+  countThreadVotesByType(threadId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<number>;
+  upsertThreadVote(threadId: string, userId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<void>;
   deleteThreadVote(threadId: string, userId: string): Promise<void>;
   updateThreadVoteScore(threadId: string, delta: number): Promise<void>;
 
   // Reply votes
-  findReplyVote(replyId: string, userId: string): Promise<{ voteType: string } | null>;
-  upsertReplyVote(replyId: string, userId: string, voteType: string): Promise<void>;
+  findReplyVote(replyId: string, userId: string): Promise<{ voteType: 'UPVOTE' | 'DOWNVOTE' } | null>;
+  countReplyVotesByType(replyId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<number>;
+  upsertReplyVote(replyId: string, userId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<void>;
   deleteReplyVote(replyId: string, userId: string): Promise<void>;
   updateReplyVoteScore(replyId: string, delta: number): Promise<void>;
 }

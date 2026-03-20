@@ -23,12 +23,20 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
 
     const [replies, total] = await Promise.all([
       this.prisma.threadReply.findMany({
-        where: { threadId },
+        where: {
+          threadId,
+          status: { not: ReplyStatus.DELETED },
+        },
         skip: options.skip,
         take: options.take,
         orderBy,
       }),
-      this.prisma.threadReply.count({ where: { threadId } }),
+      this.prisma.threadReply.count({
+        where: {
+          threadId,
+          status: { not: ReplyStatus.DELETED },
+        },
+      }),
     ]);
 
     return {
@@ -39,7 +47,10 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
 
   async findChildReplies(parentReplyId: string): Promise<ThreadReply[]> {
     const records = await this.prisma.threadReply.findMany({
-      where: { parentReplyId },
+      where: {
+        parentReplyId,
+        status: { not: ReplyStatus.DELETED },
+      },
       orderBy: { createdAt: 'asc' },
     });
     return records.map((r) => this.toDomain(r));
