@@ -1,11 +1,11 @@
 # ─── Threads REST API Tests ───────────────────────────────────────────────────
 # Set your token below after logging in
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwMTAyMiwiZXhwIjoxNzc0MDA0NjIyfQ.nAy0Fl37Hz0h25_fxkPu0UWLz4g3CI9B2_k4wbIHmDg
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwNDYzOSwiZXhwIjoxNzc0MDA4MjM5fQ.oHAjdw_ZE3UwmRKrC1ZjeseHz8kBwTWe1hLDcTWBTyU
 @baseUrl = http://localhost:3000
-@threadId = b0quu7x44
+@threadId = g2yfmswhc
 //uiw3hvp0j
-@replyId = 04hymkjzm
+@replyId = 
 
 ###
 # ─── CREATE THREAD (ACADEMIC) ────────────────────────────────────────────────
@@ -18,6 +18,19 @@ Authorization: Bearer {{token}}
 {
   "title": "How do I prepare for the CS101 midterm exam?",
   "description": "Looking for tips on what topics to focus on",
+  "panel": "ACADEMIC"
+}
+
+###
+# ─── CREATE THREAD FOR MULTI-USER TEST ───────────────────────────────────────
+
+POST {{baseUrl}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "How do I approach the Intro to Computer Science final exam?",
+  "description": "Looking for advice on the best way to prepare for the ICS final. Specifically struggling with recursion, sorting algorithms, and Big O notation. Any tips from people who have already taken it?",
   "panel": "ACADEMIC"
 }
 
