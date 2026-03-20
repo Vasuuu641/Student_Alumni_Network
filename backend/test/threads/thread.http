@@ -1,7 +1,7 @@
 # ─── Threads REST API Tests ───────────────────────────────────────────────────
 # Set your token below after logging in
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3Mzk0NzIxNiwiZXhwIjoxNzczOTUwODE2fQ.NFoGzxk0naGEujDcKdc1Cxbd9HJ8Ba-p3NkMX94X9Bk
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwMTAyMiwiZXhwIjoxNzc0MDA0NjIyfQ.nAy0Fl37Hz0h25_fxkPu0UWLz4g3CI9B2_k4wbIHmDg
 @baseUrl = http://localhost:3000
 @threadId = b0quu7x44
 //uiw3hvp0j

@@ -10,6 +10,7 @@ import { DeleteReplyUseCase } from '../../application/threads/delete-reply.useca
 import { VoteThreadUseCase } from '../../application/threads/vote-thread.usecase';
 import { VoteReplyUseCase } from '../../application/threads/vote-reply.usecase';
 import { UpdateThreadStatusUseCase } from '../../application/threads/update-thread-status.usecase';
+import { ListRepliesUseCase } from '../../application/threads/list-replies.usecase';
 
 import { PrismaThreadRepository } from '../../infrastructure/repositories/prisma-thread.repository';
 import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/thread-reply.repository';
@@ -35,6 +36,7 @@ import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-th
     VoteThreadUseCase,
     VoteReplyUseCase,
     UpdateThreadStatusUseCase,
+    ListRepliesUseCase,
 
     // Repository implementations
     PrismaThreadRepository,

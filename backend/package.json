@@ -21,7 +21,8 @@
     "test:ws:notes": "node ./test/notes/ws-notes-test.mjs",
     "test:ws:threads": "node ./test/threads/ws-threads-test.mjs",
     "test:ws:similarity": "node ./test/threads/ws-threads-similarity-search-test.mjs",
-    "reembed:threads": "node ./test/threads/re-embed-threads.mjs"
+    "reembed:threads": "node ./test/threads/re-embed-threads.mjs",
+    "test:ws:related-threads": "node ./test/notes/ws-notes-related-threads-test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

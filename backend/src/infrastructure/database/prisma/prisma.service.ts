@@ -23,6 +23,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get threadReply() { return this.client.threadReply; }
   get threadVote() { return this.client.threadVote; }
   get threadReplyVote() { return this.client.threadReplyVote; }
+  get noteChunk() { return this.client.noteChunk; }
+  get noteChunkEmbedding() { return this.client.noteChunkEmbedding; }
+  get noteThreadLink() { return this.client.noteThreadLink; }
+  get threadEmbedding() { return this.client.threadEmbedding; }
+  
   // add other models you have here...
 
   constructor() {

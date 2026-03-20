@@ -25,6 +25,7 @@ import { DeleteReplyUseCase } from '../../application/threads/delete-reply.useca
 import { VoteThreadUseCase } from '../../application/threads/vote-thread.usecase';
 import { VoteReplyUseCase } from '../../application/threads/vote-reply.usecase';
 import { UpdateThreadStatusUseCase } from '../../application/threads/update-thread-status.usecase';
+import { ListRepliesUseCase } from '../../application/threads/list-replies.usecase';
 
 import { CreateThreadRequestDto } from './dto/create-thread-request.dto';
 import { PostReplyRequestDto } from './dto/post-reply-request.dto';
@@ -51,6 +52,7 @@ export class ThreadsController {
     private readonly updateThreadStatusUseCase: UpdateThreadStatusUseCase,
     @Inject('ThreadsRealtimePublisher') 
     private readonly realtimePublisher: ThreadsRealtimePublisher,
+    private readonly listRepliesUseCase: ListRepliesUseCase,
   ) {}
 
   /**
@@ -189,6 +191,35 @@ export class ThreadsController {
       );
     }
   }
+
+  /**
+ * GET /threads/:id/replies
+ * Get all replies for a thread
+ */
+@Get(':id/replies')
+@UseGuards(JwtStrategy, RolesGuard)
+async listReplies(
+  @Req() request: any,
+  @Param('id') threadId: string,
+  @Query('skip') skip: string = '0',
+  @Query('take') take: string = '50',
+  @Query('sortBy') sortBy: string = 'newest',
+) {
+  try {
+    const result = await this.listRepliesUseCase.execute(
+      threadId,
+      parseInt(skip),
+      parseInt(take),
+      sortBy as 'newest' | 'topVoted',
+    );
+    return result;
+  } catch (error) {
+    throw new HttpException(
+      error.message || 'Failed to list replies',
+      error.status || HttpStatus.BAD_REQUEST,
+    );
+  }
+}
 
   /**
    * PATCH /threads/:id/replies/:replyId
