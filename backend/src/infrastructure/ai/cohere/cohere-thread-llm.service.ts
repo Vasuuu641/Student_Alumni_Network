@@ -91,6 +91,7 @@ export class CohereThreadLLMService implements ThreadLLMService {
         FROM "ThreadEmbedding" te
         JOIN "Thread" t ON t.id = te."threadId"
         WHERE 1 - (te.embedding <=> $1::vector) >= $2
+          AND t.status <> 'DELETED'
           ${panelFilter}
         ORDER BY te.embedding <=> $1::vector
         LIMIT $3

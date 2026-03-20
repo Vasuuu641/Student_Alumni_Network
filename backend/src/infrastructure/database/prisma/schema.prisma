@@ -200,6 +200,7 @@ enum ThreadStatus {
   OPEN
   CLOSED
   PINNED
+  DELETED
 }
 
 enum ReplyStatus {

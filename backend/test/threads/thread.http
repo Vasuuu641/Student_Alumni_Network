@@ -1,9 +1,9 @@
 # ─── Threads REST API Tests ───────────────────────────────────────────────────
 # Set your token below after logging in
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwNDYzOSwiZXhwIjoxNzc0MDA4MjM5fQ.oHAjdw_ZE3UwmRKrC1ZjeseHz8kBwTWe1hLDcTWBTyU
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzQwMjEzNzEsImV4cCI6MTc3NDAyNDk3MX0.ygp4heRZTn9DxHaW-sKf9aAC6oHV_iM3pTF1DyxebGs
 @baseUrl = http://localhost:3000
-@threadId = g2yfmswhc
+@threadId = es92yjn3y
 //uiw3hvp0j
 @replyId = 
 
@@ -216,3 +216,9 @@ Authorization: Bearer {{token}}
   "title": "This should be blocked for alumni",
   "panel": "ACADEMIC"
 }
+
+###
+# ── DELETE THREAD (admin only, soft delete) ───────────────────────────────────
+# Expected: 200 with { success: true }
+PATCH {{baseUrl}}/threads/{{threadId}}/delete
+Authorization: Bearer {{token}}

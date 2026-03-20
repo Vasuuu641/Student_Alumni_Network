@@ -24,6 +24,11 @@ export class UpdateThreadStatusUseCase {
       throw new ForbiddenException('Only admins can pin threads');
     }
 
+    // Only admin can soft-delete
+    if (status === ThreadStatus.DELETED && !isAdmin) {
+      throw new ForbiddenException('Only admins can delete threads');
+    }
+
     // Only author or admin can close
     if (status === ThreadStatus.CLOSED && !isAuthor && !isAdmin) {
       throw new ForbiddenException('Only the thread author or an admin can close a thread');

@@ -39,6 +39,7 @@ import { Thread, ThreadReply } from 'src/domain/entities/thread.entity';
 import type { UserRepository } from 'src/domain/repositories/user.repository';
 import type { ThreadVoteRepository } from 'src/domain/repositories/thread.repository';
 import { VoteType } from 'src/domain/entities/thread.entity';
+import { ThreadStatus } from 'src/domain/entities/thread.entity';
 
 type ThreadView = Thread & {
   authorName?: string;
@@ -188,6 +189,33 @@ export class ThreadsController {
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to update thread status',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * PATCH /threads/:id/delete
+   * Soft-delete a thread (admin only)
+   */
+  @Patch(':id/delete')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async deleteThread(
+    @Req() request: any,
+    @Param('id') threadId: string,
+  ): Promise<{ success: boolean }> {
+    try {
+      const { userId, role } = request.user;
+      await this.updateThreadStatusUseCase.execute(
+        threadId,
+        userId,
+        role,
+        ThreadStatus.DELETED,
+      );
+      return { success: true };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to delete thread',
         error.status || HttpStatus.BAD_REQUEST,
       );
     }

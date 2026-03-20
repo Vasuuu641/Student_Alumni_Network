@@ -7,6 +7,7 @@ export enum ThreadStatus {
   OPEN = 'OPEN',
   CLOSED = 'CLOSED',
   PINNED = 'PINNED',
+  DELETED = 'DELETED',
 }
 
 export enum ReplyStatus {

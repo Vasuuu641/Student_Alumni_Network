@@ -3,12 +3,21 @@ import { PrismaService } from "../database/prisma/prisma.service";
 import { ThreadReplyRepository } from "src/domain/repositories/thread.repository";
 import { ThreadReply, ReplyStatus } from "src/domain/entities/thread.entity";
 
+const VISIBLE_THREAD_STATUSES = ['OPEN', 'CLOSED', 'PINNED'] as const;
+
 @Injectable()
 export class PrismaThreadReplyRepository implements ThreadReplyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<ThreadReply | null> {
-    const found = await this.prisma.threadReply.findUnique({ where: { id } });
+    const found = await this.prisma.threadReply.findFirst({
+      where: {
+        id,
+        thread: {
+          status: { in: VISIBLE_THREAD_STATUSES as any },
+        },
+      },
+    });
     return found ? this.toDomain(found) : null;
   }
 
@@ -26,6 +35,9 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
         where: {
           threadId,
           status: { not: ReplyStatus.DELETED },
+          thread: {
+            status: { in: VISIBLE_THREAD_STATUSES as any },
+          },
         },
         skip: options.skip,
         take: options.take,
@@ -35,6 +47,9 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
         where: {
           threadId,
           status: { not: ReplyStatus.DELETED },
+          thread: {
+            status: { in: VISIBLE_THREAD_STATUSES as any },
+          },
         },
       }),
     ]);
@@ -50,6 +65,9 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
       where: {
         parentReplyId,
         status: { not: ReplyStatus.DELETED },
+        thread: {
+          status: { in: VISIBLE_THREAD_STATUSES as any },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });

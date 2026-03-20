@@ -1,21 +1,34 @@
 import { Injectable } from "@nestjs/common";
+import type { ThreadStatus as PrismaThreadStatus } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
 import { ThreadRepository } from "src/domain/repositories/thread.repository";
 import { Thread } from "src/domain/entities/thread.entity";
 import { ThreadStatus } from "src/domain/entities/thread.entity";
 import { ThreadPanel } from "src/domain/entities/thread.entity";
 
+const PRISMA_THREAD_STATUS_DELETED = 'DELETED' as PrismaThreadStatus;
+
 @Injectable()
 export class PrismaThreadRepository implements ThreadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<Thread | null> {
-    const found = await this.prisma.thread.findUnique({ where: { id } });
+    const found = await this.prisma.thread.findFirst({
+      where: {
+        id,
+        status: { not: PRISMA_THREAD_STATUS_DELETED },
+      },
+    });
     return found ? this.toDomain(found) : null;
   }
 
   async findByAuthorId(authorId: string): Promise<Thread[]> {
-    const records = await this.prisma.thread.findMany({ where: { authorId } });
+    const records = await this.prisma.thread.findMany({
+      where: {
+        authorId,
+        status: { not: PRISMA_THREAD_STATUS_DELETED },
+      },
+    });
     return records.map((r) => this.toDomain(r));
   }
 
@@ -26,7 +39,7 @@ export class PrismaThreadRepository implements ThreadRepository {
         title: thread.title,
         description: thread.description,
         panel: thread.panel,
-        status: thread.status,
+        status: thread.status as unknown as PrismaThreadStatus,
         authorId: thread.authorId,
         replyCount: thread.replyCount,
         lastReplyAt: thread.lastReplyAt,
@@ -44,7 +57,7 @@ export class PrismaThreadRepository implements ThreadRepository {
         title: thread.title,
         description: thread.description,
         panel: thread.panel,
-        status: thread.status,
+        status: thread.status as unknown as PrismaThreadStatus,
         // authorId intentionally excluded — Prisma does not allow
         // updating relation foreign keys directly on update
         replyCount: thread.replyCount,
@@ -59,7 +72,7 @@ export class PrismaThreadRepository implements ThreadRepository {
   async updateStatus(threadId: string, status: ThreadStatus): Promise<Thread> {
     const updated = await this.prisma.thread.update({
       where: { id: threadId },
-      data: { status },
+      data: { status: status as unknown as PrismaThreadStatus },
     });
     return this.toDomain(updated);
   }
@@ -77,12 +90,20 @@ export class PrismaThreadRepository implements ThreadRepository {
 
   const [records, total] = await Promise.all([
     this.prisma.thread.findMany({
-      where: { panel },
+      where: {
+        panel,
+        status: { not: PRISMA_THREAD_STATUS_DELETED },
+      },
       orderBy,
       skip: options.skip,
       take: options.take,
     }),
-    this.prisma.thread.count({ where: { panel } }),
+    this.prisma.thread.count({
+      where: {
+        panel,
+        status: { not: PRISMA_THREAD_STATUS_DELETED },
+      },
+    }),
   ]);
 
   return { threads: records.map((r) => this.toDomain(r)), total };
