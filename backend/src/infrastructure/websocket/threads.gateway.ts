@@ -11,7 +11,7 @@ import { Namespace, Socket } from 'socket.io';
 import { Inject, Logger } from '@nestjs/common';
 import type { TokenService } from 'src/domain/services/token-service';
 import type { ThreadRepository } from 'src/domain/repositories/thread.repository';
-import { ThreadsRealtimePublisher } from 'src/domain/services/threads-realtime-publisher';
+import { ThreadsRealtimePublisher, type VoteBroadcastPayload } from 'src/domain/services/threads-realtime-publisher';
 import { ThreadReply } from 'src/domain/entities/thread.entity';
 import type { ThreadLLMService } from 'src/domain/services/thread-llm.service';
 import { ThreadPanel } from 'src/domain/entities/thread.entity';
@@ -199,19 +199,19 @@ export class ThreadsGateway
     this.logger.log(`Reply deleted broadcast: thread ${threadId} reply ${replyId}`);
   }
 
-  broadcastThreadVoted(threadId: string, voteScore: number): void {
+  broadcastThreadVoted(threadId: string, payload: VoteBroadcastPayload): void {
     this.server.to(`threads:${threadId}`).emit('threads:thread-voted', {
       threadId,
-      voteScore,
+      ...payload,
       timestamp: new Date().toISOString(),
     });
   }
 
-  broadcastReplyVoted(threadId: string, replyId: string, voteScore: number): void {
+  broadcastReplyVoted(threadId: string, replyId: string, payload: VoteBroadcastPayload): void {
     this.server.to(`threads:${threadId}`).emit('threads:reply-voted', {
       threadId,
       replyId,
-      voteScore,
+      ...payload,
       timestamp: new Date().toISOString(),
     });
   }

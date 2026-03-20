@@ -3,12 +3,21 @@ import { PrismaService } from "../database/prisma/prisma.service";
 import { ThreadReplyRepository } from "src/domain/repositories/thread.repository";
 import { ThreadReply, ReplyStatus } from "src/domain/entities/thread.entity";
 
+const VISIBLE_THREAD_STATUSES = ['OPEN', 'CLOSED', 'PINNED'] as const;
+
 @Injectable()
 export class PrismaThreadReplyRepository implements ThreadReplyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<ThreadReply | null> {
-    const found = await this.prisma.threadReply.findUnique({ where: { id } });
+    const found = await this.prisma.threadReply.findFirst({
+      where: {
+        id,
+        thread: {
+          status: { in: VISIBLE_THREAD_STATUSES as any },
+        },
+      },
+    });
     return found ? this.toDomain(found) : null;
   }
 
@@ -23,12 +32,26 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
 
     const [replies, total] = await Promise.all([
       this.prisma.threadReply.findMany({
-        where: { threadId },
+        where: {
+          threadId,
+          status: { not: ReplyStatus.DELETED },
+          thread: {
+            status: { in: VISIBLE_THREAD_STATUSES as any },
+          },
+        },
         skip: options.skip,
         take: options.take,
         orderBy,
       }),
-      this.prisma.threadReply.count({ where: { threadId } }),
+      this.prisma.threadReply.count({
+        where: {
+          threadId,
+          status: { not: ReplyStatus.DELETED },
+          thread: {
+            status: { in: VISIBLE_THREAD_STATUSES as any },
+          },
+        },
+      }),
     ]);
 
     return {
@@ -39,7 +62,13 @@ export class PrismaThreadReplyRepository implements ThreadReplyRepository {
 
   async findChildReplies(parentReplyId: string): Promise<ThreadReply[]> {
     const records = await this.prisma.threadReply.findMany({
-      where: { parentReplyId },
+      where: {
+        parentReplyId,
+        status: { not: ReplyStatus.DELETED },
+        thread: {
+          status: { in: VISIBLE_THREAD_STATUSES as any },
+        },
+      },
       orderBy: { createdAt: 'asc' },
     });
     return records.map((r) => this.toDomain(r));

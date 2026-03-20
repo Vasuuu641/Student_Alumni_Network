@@ -58,6 +58,6 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
       },
     },
   ],
-  exports: ['TokenService', JwtStrategy, RolesGuard],
+  exports: ['TokenService', JwtStrategy, RolesGuard, 'UserRepository'],
 })
 export class AuthModule {}
