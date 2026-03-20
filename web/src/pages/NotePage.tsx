@@ -7,12 +7,14 @@ import { PresenceAvatars } from '../components/notes/PresenceAvatar'
 import { VersionHistoryPanel } from '../components/notes/VersionHistoryPanel'
 import { ConnectionStatus } from '../components/notes/ConnectionStatus'
 import { SharePanel } from '../components/notes/SharePanel'
+import { RelatedThreadsPanel } from '../components/notes/RelatedThreadsPanel'
 import { useNoteRoom } from '../hooks/useNoteRoom'
+import { useNoteRelatedThreads } from '../hooks/useNoteRelatedThreads'
 import { stringToColor } from '../lib/utils'
 import { getAccessToken } from '../lib/auth'
 import { socket } from '../lib/socket'
 import {
-  ArrowLeft, History, Share2, BookmarkPlus,
+  ArrowLeft, History, Share2, BookmarkPlus, Lightbulb,
   CheckCircle2, AlertCircle, Loader2, FileText,
 } from 'lucide-react'
 
@@ -43,8 +45,10 @@ export function NotePage() {
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShare, setShowShare] = useState(false)
+  const [showLLMPanel, setShowLLMPanel] = useState(false)
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [editorContent, setEditorContent] = useState<unknown>(null)
   const flushEditorRef = useRef<(() => Promise<void>) | null>(null)
 
   // Tracks content version so the editor knows when to re-seed
@@ -122,6 +126,15 @@ export function NotePage() {
       socket.off('notes:version-restored', onVersionRestored)
     }
   }, [noteId, fetchNote])
+
+  // ─── LLM Related Threads ──────────────────────────────────────────────────
+
+  const { threads: relatedThreads, isLoading: llmLoading } = useNoteRelatedThreads({
+    noteId: noteId!,
+    title: note?.title ?? '',
+    contentJson: editorContent,
+    enabled: showLLMPanel && room.status === 'joined',
+  })
 
 // Flush on SPA navigation away — back button, notes list link etc.
 useEffect(() => {
@@ -325,11 +338,20 @@ useEffect(() => {
           )}
 
           <button
-            onClick={() => { setShowVersionHistory((v) => !v); setShowShare(false) }}
+            onClick={() => { setShowVersionHistory((v) => !v); setShowShare(false); setShowLLMPanel(false) }}
             className={`note-header__action-btn${showVersionHistory ? ' note-header__action-btn--active' : ''}`}
           >
             <History size={15} />
             <span>History</span>
+          </button>
+
+          <button
+            onClick={() => { setShowLLMPanel((v) => !v); setShowShare(false); setShowVersionHistory(false) }}
+            className={`note-header__action-btn${showLLMPanel ? ' note-header__action-btn--active' : ''}`}
+            title="Find related discussions"
+          >
+            <Lightbulb size={15} />
+            <span>AI Insights</span>
           </button>
         </div>
       </header>
@@ -355,6 +377,7 @@ useEffect(() => {
             onRegisterFlush={(flush) => {
               flushEditorRef.current = flush
             }}
+            onContentUpdate={setEditorContent}
           />
         </main>
 
@@ -376,6 +399,14 @@ useEffect(() => {
               onRestored={handleRestored}
             />
           </aside>
+        )}
+
+        {showLLMPanel && !showShare && !showVersionHistory && (
+          <RelatedThreadsPanel
+            threads={relatedThreads}
+            isLoading={llmLoading}
+            onClose={() => setShowLLMPanel(false)}
+          />
         )}
 
       </div>

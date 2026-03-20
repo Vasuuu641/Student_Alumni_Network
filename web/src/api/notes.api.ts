@@ -19,6 +19,16 @@ api.interceptors.request.use((config) => {
 export type NoteRole = 'OWNER' | 'EDITOR' | 'VIEWER'
 export type NoteStatus = 'ACTIVE' | 'ARCHIVED'
 
+export interface RelatedThread {
+  threadId: string
+  title: string
+  description: string | null
+  panel: 'ACADEMIC' | 'ALUMNI'
+  replyCount: number
+  voteScore: number
+  similarityScore: number
+}
+
 export interface Note {
     id: string
     title: string
