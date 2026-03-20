@@ -23,6 +23,13 @@ export function DashboardPage() {
           >
             📝 My Notes
           </Button>
+          <Button
+            type="button"
+            variant="submit-wide"
+            onClick={() => navigate('/threads')}
+          >
+            💬 Discussions
+          </Button>
           <Button type="button" variant="submit-wide" onClick={handleLogout}>
             Log out
           </Button>
