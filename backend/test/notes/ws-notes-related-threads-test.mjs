@@ -2,8 +2,8 @@ import { io } from 'socket.io-client';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const BASE_URL  = 'http://localhost:3000/notes';
-const TOKEN     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3Mzk5ODQ0MiwiZXhwIjoxNzc0MDAyMDQyfQ.MzE8bv6mKewR9stbSkoQRk5ylBWIFbxU4bX3ntqAa-4';
-const NOTE_ID   = 'z99u42avz';
+const TOKEN     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwMTM1MywiZXhwIjoxNzc0MDA0OTUzfQ.dP4SFddliw9uU-vA30T7-WOhhedJqn7eqUo87rncnPc';
+const NOTE_ID   = '9jztextea';
 // ──────────────────────────────────────────────────────────────────────────────
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
