@@ -76,6 +76,7 @@ interface Props {
   canEdit: boolean
   onSaveStatusChange?: (status: SaveStatus) => void
   onRegisterFlush?: (flush: () => Promise<void>) => void
+  onContentUpdate?: (content: unknown) => void
 }
 
 export function CollaborativeEditor({
@@ -88,6 +89,7 @@ export function CollaborativeEditor({
   canEdit,
   onSaveStatusChange,
   onRegisterFlush,
+  onContentUpdate,
 }: Props) {
   const PAGE_CHAR_LIMIT = 2200
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -285,6 +287,9 @@ export function CollaborativeEditor({
       editable: false, // setEditable effect handles this
       onUpdate: ({ editor }) => {
         const snapshot = editor.getJSON()
+
+        // Notify parent about content update for LLM panel
+        onContentUpdate?.(snapshot)
 
         if (suppressAutosaveNextUpdateRef.current) {
           suppressAutosaveNextUpdateRef.current = false
