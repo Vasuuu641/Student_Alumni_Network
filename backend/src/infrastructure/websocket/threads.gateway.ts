@@ -130,43 +130,57 @@ export class ThreadsGateway
     @ConnectedSocket() socket: Socket,
     @MessageBody() data: { query: string; panel: ThreadPanel },
     ) {
-    const session: SocketSession = socket.data.session;
+      const session: SocketSession = socket.data.session;
 
-    if (!session) {
+      if (!session) {
         return this.emitError(socket, 'Unauthorized');
-    }
+      }
 
-    // Must be at least 10 characters before we bother calling Cohere
-    if (!data.query || data.query.trim().length < 10) {
+      if (!data.query || data.query.trim().length < 10) {
         socket.emit('threads:similarity-results', { results: [] });
         return;
-    }
+      }
 
-    try {
-        // Respect panel access — ACADEMIC users only see ACADEMIC results
+      try {
         const userRole = session.role as Role;
         const panelFilter = userRole === Role.ALUMNI
-        ? null  // alumni can see both panels
-        : data.panel === ThreadPanel.ACADEMIC
-        ? ThreadPanel.ACADEMIC  // students/professors searching academic only see academic
-        : null;
+          ? null
+          : data.panel === ThreadPanel.ACADEMIC
+          ? ThreadPanel.ACADEMIC
+          : null;
 
-        const results = await this.threadLLMService.findSimilarThreads(
-        data.query.trim(),
-        panelFilter,
-        5,
-        0.65,
+        // Use a consistent threshold for live similarity suggestions across panels
+        const threshold = 0.40;
+        let results = await this.threadLLMService.findSimilarThreads(
+          data.query.trim(),
+          panelFilter,
+          5,
+          threshold,
         );
+
+        // Fallback during tuning: if nothing is returned at 40%, try a softer pass
+        if (results.length === 0) {
+          const fallbackThreshold = 0.25;
+          results = await this.threadLLMService.findSimilarThreads(
+            data.query.trim(),
+            panelFilter,
+            5,
+            fallbackThreshold,
+          );
+
+          this.logger.log(
+            `Similarity fallback used: user=${session.userId} panel=${data.panel} threshold=${fallbackThreshold} results=${results.length}`,
+          );
+        }
 
         socket.emit('threads:similarity-results', { results });
         this.logger.log(
-        `Similarity search: user=${session.userId} query="${data.query.trim()}" results=${results.length}`,
+          `Similarity search: user=${session.userId} panel=${data.panel} threshold=${threshold} query="${data.query.trim()}" results=${results.length}`,
         );
-    } catch (error) {
+      } catch (error) {
         this.logger.error(`Similarity search failed: ${error.message}`);
-        // Don't emit error to client — just return empty results silently
         socket.emit('threads:similarity-results', { results: [] });
-    }
+      }
     }
 
   // ─── Server-side broadcasts ───────────────────────────────────────────────

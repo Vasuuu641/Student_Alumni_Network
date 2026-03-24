@@ -18,3 +18,50 @@ Content-Type: application/json
     "firstName": "Vivian",
     "lastName": "Murathimi"
 }
+
+###
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "ztyboc@tr.pte.hu",
+    "password": "ztyboc",
+    "firstName": "Lakshmi",
+    "lastName": "Ravikumar"
+}
+
+###
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "PMNRY6@tr.pte.hu",
+    "password": "PMNRY6",
+    "firstName": "Anna",
+    "lastName": "Andrews"
+}
+
+###
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "AK4WJQ@tr.pte.hu",
+    "password": "ak4wjq",
+    "firstName": "John",
+    "lastName": "Smith"
+}
+
+###
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "E1WU52@tr.pte.hu",
+    "password": "e1wu52",
+    "firstName": "Emily",
+    "lastName": "Cooper"
+}
+
+
+

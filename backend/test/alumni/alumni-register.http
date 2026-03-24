@@ -7,3 +7,14 @@ Content-Type: application/json
     "firstName": "Ranjan",
     "lastName": "Shankar"
 }
+
+###
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+    "email": "bnerc9@tr.pte.hu",
+    "password": "bnerc9",
+    "firstName": "Bharat",
+    "lastName": "Nair"
+}
