@@ -22,6 +22,7 @@ import {
 import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth'
 
 const MIN_SIMILARITY_CHARS = 10
+const MIN_SIMILARITY_SCORE = 0.4
 
 const PANEL_META: Record<ThreadPanel, { title: string; subtitle: string }> = {
 	ACADEMIC: {
@@ -101,9 +102,20 @@ export function ThreadsPage() {
 		const socket = createThreadsSocket(token)
 		socketRef.current = socket
 
+		if (!socket.connected) {
+			socket.connect()
+		}
+
 		socket.on('threads:similarity-results', (payload: { results: SimilarThread[] }) => {
 			setSimilarityLoading(false)
-			setSimilarThreads(payload.results ?? [])
+			const filtered = (payload.results ?? []).filter(
+				(result) => result.similarityScore >= MIN_SIMILARITY_SCORE,
+			)
+			setSimilarThreads(filtered)
+		})
+
+		socket.on('connect_error', () => {
+			setSimilarityLoading(false)
 		})
 
 		socket.on('threads:reply-posted', (payload: { threadId: string }) => {
@@ -176,9 +188,12 @@ export function ThreadsPage() {
 		}
 
 		const socket = socketRef.current
-		if (!socket || !socket.connected) return
+		if (!socket) return
 
 		const timer = window.setTimeout(() => {
+			if (!socket.connected) {
+				socket.connect()
+			}
 			setSimilarityLoading(true)
 			socket.emit('threads:typing-similarity', {
 				query: queryText,
@@ -221,7 +236,7 @@ export function ThreadsPage() {
 		: !hasEnoughSimilarityInput
 			? `Start typing — similarity search begins after ${MIN_SIMILARITY_CHARS} characters.`
 			: hasSimilarityResults
-				? topSimilarityPct >= 50
+				? topSimilarityPct >= Math.round(MIN_SIMILARITY_SCORE * 100)
 					? `We found a very close match (${topSimilarityPct}%). You might be interested in these first:`
 					: 'You might be interested in viewing these similar discussions:'
 				: 'No close matches yet. You can still post this discussion.'
@@ -236,19 +251,21 @@ export function ThreadsPage() {
 			return [created, ...rest]
 		})
 
-		const inCurrentList = threads.some((thread) => thread.id === threadId)
-		if (!inCurrentList) {
-			try {
-				const { thread } = await getThread(threadId)
-				setThreads((prev) => [thread, ...prev])
-			} catch {
-				// ignore if thread is not visible in current panel for this role
-			}
+		try {
+			const { thread } = await getThread(threadId)
+			setThreads((prev) => {
+				const withoutCurrent = prev.filter((item) => item.id !== threadId)
+				return [thread, ...withoutCurrent]
+			})
+		} catch {
+			// ignore if thread is not visible in current panel for this role
 		}
-	}, [threads])
+	}, [])
 
 	async function handleCreateThread(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
+		if (creating) return
+
 		const title = createTitle.trim()
 		const description = createDescription.trim()
 		const suggestionsAtSubmit = [...similarThreads]
