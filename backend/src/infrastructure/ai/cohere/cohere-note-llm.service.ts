@@ -74,8 +74,10 @@ export class CohereNoteLLMService implements NoteLLMService {
 
       // Store each chunk and its embedding
       for (let i = 0; i < chunks.length; i++) {
-        const chunk = await this.prisma.noteChunk.create({
-          data: {
+        const chunk = await this.prisma.noteChunk.upsert({
+          where: { noteId_chunkIndex: { noteId, chunkIndex: i } },
+          update: { chunkText: chunks[i] },
+          create: {
             id: this.generateId(),
             noteId,
             chunkIndex: i,
