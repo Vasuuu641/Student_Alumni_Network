@@ -13,8 +13,8 @@ import { UpdateThreadStatusUseCase } from '../../application/threads/update-thre
 import { ListRepliesUseCase } from '../../application/threads/list-replies.usecase';
 
 import { PrismaThreadRepository } from '../../infrastructure/repositories/prisma-thread.repository';
-import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/thread-reply.repository';
-import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/thread-vote.repository';
+import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/prisma-thread-reply.repository';
+import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/prisma-thread-vote.repository';
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
