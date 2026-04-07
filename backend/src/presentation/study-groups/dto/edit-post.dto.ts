@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class JoinGroupRequestDto {
+export class EditPostDto {
   @IsString()
   @IsNotEmpty()
-  userId!: string;
+  content!: string;
 }

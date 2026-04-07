@@ -15,6 +15,7 @@ import { CreateGroupPostUseCase } from '../../application/study-groups/create-gr
 import { ListGroupPostsUseCase } from '../../application/study-groups/list-group-posts.usecase';
 import { EditGroupPostUseCase } from '../../application/study-groups/edit-group-post.usecase';
 import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-group-post.usecase';
+import { AddMemberUseCase } from '../../application/study-groups/add-member.usecase';
 
 @Module({
   providers: [
@@ -30,9 +31,14 @@ import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-gr
     UpdateMemberRoleUseCase,
     RemoveMemberUseCase,
     CreateGroupPostUseCase,
+    AddMemberUseCase,
     ListGroupPostsUseCase,
     EditGroupPostUseCase,
     DeleteGroupPostUseCase,
+  ],
+  controllers: [
+    // controller wired to these use-cases
+    require('./study-groups.controller').StudyGroupsController,
   ],
   exports: [
     FormGroupUseCase,
@@ -46,6 +52,7 @@ import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-gr
     UpdateMemberRoleUseCase,
     RemoveMemberUseCase,
     CreateGroupPostUseCase,
+    AddMemberUseCase,
     ListGroupPostsUseCase,
     EditGroupPostUseCase,
     DeleteGroupPostUseCase,
