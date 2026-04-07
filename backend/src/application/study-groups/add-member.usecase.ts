@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
+import type { UserRepository } from '../../domain/repositories/user.repository';
+import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
 import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
 import { GroupPolicyService } from '../policies/group-policy.service';
 
@@ -18,6 +20,10 @@ export class AddMemberUseCase {
     private readonly memberRepository: StudyGroupMemberRepository,
     @Inject('StudyGroupRepository')
     private readonly studyGroupRepository: StudyGroupRepository,
+    @Inject('UserRepository')
+    private readonly userRepository: UserRepository,
+    @Inject('StudyGroupsRealtimePublisher')
+    private readonly realtimePublisher: StudyGroupsRealtimePublisher,
     private readonly policy: GroupPolicyService,
   ) {}
 
@@ -33,5 +39,18 @@ export class AddMemberUseCase {
     }
 
     await this.memberRepository.addMember(studyGroupId, userId, role);
+
+    // Broadcast member joined to group
+    const user = await this.userRepository.findById(userId);
+    const first = user?.firstName?.trim() ?? '';
+    const last = user?.lastName?.trim() ?? '';
+    const displayName = `${first} ${last}`.trim() || user?.email?.getValue() || userId;
+
+    this.realtimePublisher.broadcastMemberJoined(studyGroupId, {
+      userId,
+      displayName,
+      email: user?.email?.getValue() || '',
+      role: studyGroupMemberRole[role],
+    });
   }
 }

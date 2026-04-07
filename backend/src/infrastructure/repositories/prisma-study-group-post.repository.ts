@@ -34,8 +34,12 @@ export class PrismaStudyGroupPostRepository implements StudyGroupPostRepository 
     return { id: updated.id, studyGroupId: updated.groupId, authorId: updated.authorId, content: updated.content, status: studyGroupPostStatus[updated.status as unknown as keyof typeof studyGroupPostStatus] };
   }
 
-  async delete(postId: string): Promise<void> {
+  async delete(postId: string): Promise<{ id: string; groupId: string }> {
+    const post = await this.prisma.studyGroupPost.findUnique({ where: { id: postId } });
+    if (!post) throw new Error('Post not found');
+    
     await this.prisma.studyGroupPost.delete({ where: { id: postId } });
+    return { id: post.id, groupId: post.groupId };
   }
 
   private toDomain(record: any): { id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus } {

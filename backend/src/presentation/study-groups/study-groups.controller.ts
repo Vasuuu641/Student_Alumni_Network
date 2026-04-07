@@ -16,6 +16,7 @@ import { EditGroupPostUseCase } from '../../application/study-groups/edit-group-
 import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-group-post.usecase';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
 
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
@@ -47,6 +48,7 @@ export class StudyGroupsController {
 
   @Post()
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async createGroup(@Req() request: any, @Body() body: CreateGroupDto) {
     const ownerId = request.user?.userId;
     return this.formGroup.execute({
@@ -60,6 +62,7 @@ export class StudyGroupsController {
 
   @Get()
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async list(@Req() request: any, @Query('visibility') visibility?: string, @Query('ownerId') ownerId?: string) {
     const vis = visibility ? (visibility as any) : undefined;
     // If no explicit ownerId filter provided, default to authenticated user
@@ -69,12 +72,14 @@ export class StudyGroupsController {
 
   @Get(':id')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async get(@Param('id') id: string) {
     return this.getGroup.execute({ id });
   }
 
   @Patch(':id')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async update(@Req() request: any, @Param('id') id: string, @Body() body: UpdateGroupDto) {
     const requesterId = request.user?.userId;
     return this.updateGroup.execute({ id, requesterId, name: body.name, description: body.description });
@@ -82,6 +87,7 @@ export class StudyGroupsController {
 
   @Patch(':id/archive')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async archive(@Req() request: any, @Param('id') id: string, @Body() body: { requesterId?: string }) {
     const requesterId = request.user?.userId;
     return this.archiveGroup.execute({ id, requesterId });
@@ -89,6 +95,7 @@ export class StudyGroupsController {
 
   @Post(':id/join')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async join(@Req() request: any, @Param('id') id: string, @Body() body: JoinGroupRequestDto) {
     const userId = request.user?.userId;
     return this.joinGroup.execute({ studyGroupId: id, userId });
@@ -96,6 +103,7 @@ export class StudyGroupsController {
 
   @Post(':id/leave')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async leave(@Req() request: any, @Param('id') id: string, @Body() body: { userId?: string }) {
     const userId = request.user?.userId;
     return this.leaveGroup.execute({ studyGroupId: id, userId });
@@ -103,12 +111,14 @@ export class StudyGroupsController {
 
   @Get(':id/members')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async members(@Param('id') id: string) {
     return this.listMembers.execute({ studyGroupId: id });
   }
 
   @Post(':id/members')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async addMemberEndpoint(@Req() request: any, @Param('id') id: string, @Body() body: AddMemberDto) {
     const requesterId = request.user?.userId;
     return this.addMember.execute({ studyGroupId: id, requesterId, userId: body.userId, role: (body.role as any) });
@@ -116,6 +126,7 @@ export class StudyGroupsController {
 
   @Patch(':id/members/:userId/role')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async updateMemberRoleEndpoint(@Req() request: any, @Param('id') id: string, @Param('userId') userId: string, @Body() body: UpdateMemberRoleDto) {
     const requesterId = request.user?.userId;
     return this.updateMemberRole.execute({ studyGroupId: id, requesterId, userId, role: body.role as any });
@@ -123,6 +134,7 @@ export class StudyGroupsController {
 
   @Delete(':id/members/:userId')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async removeMemberEndpoint(@Req() request: any, @Param('id') id: string, @Param('userId') userId: string, @Body() body: { requesterId?: string }) {
     const requesterId = request.user?.userId;
     return this.removeMember.execute({ studyGroupId: id, requesterId, userId });
@@ -130,6 +142,7 @@ export class StudyGroupsController {
 
   @Post(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async createPost(@Req() request: any, @Param('id') id: string, @Body() body: CreatePostDto) {
     const authorId = request.user?.userId;
     return this.createPostUseCase.execute({ studyGroupId: id, authorId, content: body.content });
@@ -137,12 +150,14 @@ export class StudyGroupsController {
 
   @Get(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async getPosts(@Param('id') id: string) {
     return this.listPosts.execute({ studyGroupId: id });
   }
 
   @Patch(':id/posts/:postId')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async editPost(@Req() request: any, @Param('id') id: string, @Param('postId') postId: string, @Body() body: EditPostDto) {
     // editPostUseCase currently doesn't require requesterId; authorization happens in use-case/repo
     return this.editPostUseCase.execute({ postId, content: body.content });
@@ -150,6 +165,7 @@ export class StudyGroupsController {
 
   @Delete(':id/posts/:postId')
   @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
   async deletePost(@Req() request: any, @Param('id') id: string, @Param('postId') postId: string) {
     // delete use-case doesn't take requesterId currently; ensure policy enforced in use-case/repo
     return this.deletePostUseCase.execute({ postId });

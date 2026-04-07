@@ -6,5 +6,5 @@ export interface StudyGroupPostRepository {
     create(post: { studyGroupId: string; authorId: string; content: string }): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }>;
     update(postId: string, content: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }>;
     updateStatus(postId: string, status: studyGroupPostStatus): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }>;
-    delete(postId: string): Promise<void>;
+    delete(postId: string): Promise<{ id: string; groupId: string }>;
 }

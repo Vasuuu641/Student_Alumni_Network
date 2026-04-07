@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
+import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
 import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
 import { GroupPolicyService } from '../policies/group-policy.service';
 
@@ -18,6 +19,8 @@ export class UpdateMemberRoleUseCase {
     private readonly memberRepository: StudyGroupMemberRepository,
     @Inject('StudyGroupRepository')
     private readonly studyGroupRepository: StudyGroupRepository,
+    @Inject('StudyGroupsRealtimePublisher')
+    private readonly realtimePublisher: StudyGroupsRealtimePublisher,
     private readonly policy: GroupPolicyService,
   ) {}
 
@@ -30,5 +33,12 @@ export class UpdateMemberRoleUseCase {
     }
 
     await this.memberRepository.updateMemberRole(request.studyGroupId, request.userId, request.role);
+
+    // Broadcast role update to group
+    this.realtimePublisher.broadcastMemberRoleUpdated(
+      request.studyGroupId,
+      request.userId,
+      studyGroupMemberRole[request.role],
+    );
   }
 }

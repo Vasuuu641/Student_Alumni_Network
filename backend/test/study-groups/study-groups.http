@@ -1,7 +1,7 @@
 # ─── Study Groups REST API Tests ─────────────────────────────────────────────
 # Set your token below after logging in via an existing login .http (e.g. student-login.http)
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NTU2OTY1MiwiZXhwIjoxNzc1NTczMjUyfQ.5b4J20vvDsfx6T8119fW0SStoE-zB0Q-EICB5Qy3rTg
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NTU5MDM2NywiZXhwIjoxNzc1NTkzOTY3fQ.B0bgKnIlwSq5Mjc52qivMg9Z4pDTD76WTltuu6I_vpQ
 @baseUrl = http://localhost:3000
 @groupId = 694a5b97-3288-4677-aea1-6b36c6f2eaf5
 @memberUserId = e16494c2-59a3-4fcc-a9b5-223e3c0c6a5d

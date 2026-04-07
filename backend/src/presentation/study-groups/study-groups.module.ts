@@ -24,6 +24,8 @@ import { EditGroupPostUseCase } from '../../application/study-groups/edit-group-
 import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-group-post.usecase';
 import { AddMemberUseCase } from '../../application/study-groups/add-member.usecase';
 
+import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.gateway';
+
 @Module({
   imports: [PrismaModule, AuthModule],
   providers: [
@@ -48,10 +50,14 @@ import { AddMemberUseCase } from '../../application/study-groups/add-member.usec
     PrismaStudyGroupMemberRepository,
     PrismaStudyGroupPostRepository,
 
+    // WebSocket gateway
+    StudyGroupsGateway,
+
     // injection tokens
     { provide: 'StudyGroupRepository', useClass: PrismaStudyGroupRepository },
     { provide: 'StudyGroupMemberRepository', useClass: PrismaStudyGroupMemberRepository },
     { provide: 'StudyGroupPostRepository', useClass: PrismaStudyGroupPostRepository },
+    { provide: 'StudyGroupsRealtimePublisher', useClass: StudyGroupsGateway },
   ],
   controllers: [
     // controller wired to these use-cases
