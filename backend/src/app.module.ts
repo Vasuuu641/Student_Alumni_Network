@@ -10,6 +10,7 @@ import { StudentsModule } from './presentation/students/students.module';
 import { ProfessorsModule } from './presentation/professors/professors.module';
 import { NotesModule } from './presentation/notes/notes.module';
 import { ThreadsModule } from './presentation/threads/threads.module';
+import { StudyGroupsModule } from './presentation/study-groups/study-groups.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ThreadsModule } from './presentation/threads/threads.module';
     ProfessorsModule,
     NotesModule,
     ThreadsModule,
+    StudyGroupsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

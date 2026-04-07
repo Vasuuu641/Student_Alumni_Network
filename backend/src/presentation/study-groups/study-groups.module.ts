@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
 import { GroupPolicyService } from '../../application/policies/group-policy.service';
 
+import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
+import { AuthModule } from '../../auth/auth.module';
+
+import { PrismaStudyGroupRepository } from '../../infrastructure/repositories/prisma-study-group.repository';
+import { PrismaStudyGroupMemberRepository } from '../../infrastructure/repositories/prisma-study-group-member.repository';
+import { PrismaStudyGroupPostRepository } from '../../infrastructure/repositories/prisma-study-group-post.repository';
+
 import { FormGroupUseCase } from '../../application/study-groups/form-group.usecase';
 import { JoinGroupUseCase } from '../../application/study-groups/join-group.usecase';
 import { GetGroupUseCase } from '../../application/study-groups/get-group.usecase';
@@ -18,6 +25,7 @@ import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-gr
 import { AddMemberUseCase } from '../../application/study-groups/add-member.usecase';
 
 @Module({
+  imports: [PrismaModule, AuthModule],
   providers: [
     GroupPolicyService,
     FormGroupUseCase,
@@ -35,6 +43,15 @@ import { AddMemberUseCase } from '../../application/study-groups/add-member.usec
     ListGroupPostsUseCase,
     EditGroupPostUseCase,
     DeleteGroupPostUseCase,
+    // repository implementations
+    PrismaStudyGroupRepository,
+    PrismaStudyGroupMemberRepository,
+    PrismaStudyGroupPostRepository,
+
+    // injection tokens
+    { provide: 'StudyGroupRepository', useClass: PrismaStudyGroupRepository },
+    { provide: 'StudyGroupMemberRepository', useClass: PrismaStudyGroupMemberRepository },
+    { provide: 'StudyGroupPostRepository', useClass: PrismaStudyGroupPostRepository },
   ],
   controllers: [
     // controller wired to these use-cases

@@ -10,12 +10,10 @@ export class CreateGroupDto {
   @IsNotEmpty()
   description!: string;
 
-  @IsIn(['PUBLIC', 'PRIVATE'])
-  visibility!: 'PUBLIC' | 'PRIVATE';
+  @IsIn(['PUBLIC', 'PRIVATE', 'public', 'private'])
+  visibility!: 'PUBLIC' | 'PRIVATE' | 'public' | 'private';
 
-  @IsString()
-  @IsNotEmpty()
-  ownerId!: string;
+  // ownerId is derived from the authenticated user; clients must not supply it
 
   @IsOptional()
   @Type(() => Number)

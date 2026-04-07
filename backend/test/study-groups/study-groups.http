@@ -1,0 +1,166 @@
+# ─── Study Groups REST API Tests ─────────────────────────────────────────────
+# Set your token below after logging in via an existing login .http (e.g. student-login.http)
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NTU2OTY1MiwiZXhwIjoxNzc1NTczMjUyfQ.5b4J20vvDsfx6T8119fW0SStoE-zB0Q-EICB5Qy3rTg
+@baseUrl = http://localhost:3000
+@groupId = 694a5b97-3288-4677-aea1-6b36c6f2eaf5
+@memberUserId = e16494c2-59a3-4fcc-a9b5-223e3c0c6a5d
+@postId = 10171d31-7a27-4f67-b25c-a20d3b849f85
+
+###
+# ─── CREATE STUDY GROUP ──────────────────────────────────────────────────────
+# Expected: 201 { id: "..." }
+
+POST {{baseUrl}}/study-groups
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "CS101 Study Group",
+  "description": "Midterms prep",
+  "visibility": "PUBLIC",
+  "maxMembers": 50
+}
+
+###
+# ─── LIST GROUPS (optional filter) ───────────────────────────────────────────
+# Expected: 200 { groups: [...] }
+
+GET {{baseUrl}}/study-groups?visibility=public
+Authorization: Bearer {{token}}
+
+###
+# ─── GET GROUP ──────────────────────────────────────────────────────────────
+# Expected: 200 { ... }
+
+GET {{baseUrl}}/study-groups/{{groupId}}
+Authorization: Bearer {{token}}
+
+###
+# ─── UPDATE GROUP ───────────────────────────────────────────────────────────
+# Expected: 200 with updated group
+
+PATCH {{baseUrl}}/study-groups/{{groupId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "CS101 Study Group — Week 1",
+  "description": "Updated description"
+}
+
+###
+# ─── ARCHIVE GROUP ──────────────────────────────────────────────────────────
+# Expected: 200 { success: true }
+
+PATCH {{baseUrl}}/study-groups/{{groupId}}/archive
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+###
+# ─── JOIN GROUP (authenticated user joins) ───────────────────────────────────
+# Expected: 200 or 201 depending on join workflow
+
+POST {{baseUrl}}/study-groups/{{groupId}}/join
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+###
+# ─── LEAVE GROUP (authenticated user leaves) ─────────────────────────────────
+# Expected: 200 { success: true }
+
+POST {{baseUrl}}/study-groups/{{groupId}}/leave
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+###
+# ─── LIST MEMBERS ───────────────────────────────────────────────────────────
+# Expected: 200 { members: [...] }
+
+GET {{baseUrl}}/study-groups/{{groupId}}/members
+Authorization: Bearer {{token}}
+
+###
+# ─── ADD MEMBER (owner/moderator adds another user) ─────────────────────────
+# Expected: 200 { success: true }
+# Replace {{memberUserId}} with a real user id
+
+POST {{baseUrl}}/study-groups/{{groupId}}/members
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "userId": "{{memberUserId}}",
+  "role": "MEMBER"
+}
+
+###
+# ─── UPDATE MEMBER ROLE ─────────────────────────────────────────────────────
+# Expected: 200 { success: true }
+
+PATCH {{baseUrl}}/study-groups/{{groupId}}/members/{{memberUserId}}/role
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "role": "MODERATOR"
+}
+
+###
+# ─── REMOVE MEMBER ──────────────────────────────────────────────────────────
+# Expected: 200 { success: true }
+
+DELETE {{baseUrl}}/study-groups/{{groupId}}/members/{{memberUserId}}
+Authorization: Bearer {{token}}
+
+
+###
+# ─── CREATE GROUP POST (authenticated user is author) ───────────────────────
+# Expected: 201 { id: "..." }
+
+POST {{baseUrl}}/study-groups/{{groupId}}/posts
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Welcome to our study group! First meeting Friday."
+}
+
+###
+# ─── LIST GROUP POSTS ───────────────────────────────────────────────────────
+# Expected: 200 { posts: [...] }
+
+GET {{baseUrl}}/study-groups/{{groupId}}/posts
+Authorization: Bearer {{token}}
+
+###
+# ─── EDIT GROUP POST ───────────────────────────────────────────────────────
+# Expected: 200 { success: true }
+
+PATCH {{baseUrl}}/study-groups/{{groupId}}/posts/{{postId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Updated meeting: Friday 6pm in room 101."
+}
+
+###
+# ─── DELETE GROUP POST ─────────────────────────────────────────────────────
+# Expected: 200 { success: true }
+
+DELETE {{baseUrl}}/study-groups/{{groupId}}/posts/{{postId}}
+Authorization: Bearer {{token}}
+
+
+# Notes:
+# - Use an existing login .http to obtain an access token and paste it into the @token variable above.
+# - After creating resources (group, post), copy their returned IDs into @groupId/@postId for subsequent requests.
+# - The endpoints require authentication; REST Client will send the Authorization header above.
+# - Adjust roles/visibility values to match your domain enums if necessary (e.g. "public"/"private").

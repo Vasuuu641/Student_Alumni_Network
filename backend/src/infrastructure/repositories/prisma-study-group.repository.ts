@@ -24,16 +24,30 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
   async findByVisibility(visibility: studyGroupsVisibility): Promise<StudyGroup[]> {
     const records = await this.prisma.studyGroup.findMany({
       where: {
-        visibility: { equals: visibility as any },
+        visibility: { equals: typeof visibility === 'number' ? (studyGroupsVisibility[visibility] as any) : String(visibility).toUpperCase() },
       },
     });
     return records.map((r) => this.toDomain(r));
   }
 
   async create(studyGroup: StudyGroup): Promise<StudyGroup> {
-    const created = await this.prisma.studyGroup.create({
-      data: { id: studyGroup.id, name: studyGroup.name, description: studyGroup.description } as any,
-    });
+    const visibilityValue = typeof studyGroup.visibility === 'number'
+      ? (studyGroupsVisibility[studyGroup.visibility] as any)
+      : String(studyGroup.visibility).toUpperCase();
+    const statusValue = typeof studyGroup.status === 'number'
+      ? (studyGroupStatus[studyGroup.status] as any)
+      : String(studyGroup.status).toUpperCase();
+
+    const data: any = {
+      name: studyGroup.name,
+      description: studyGroup.description,
+      ownerId: studyGroup.ownerId,
+      visibility: visibilityValue,
+      status: statusValue,
+    };
+    if (studyGroup.id) data.id = studyGroup.id;
+
+    const created = await this.prisma.studyGroup.create({ data });
     return this.toDomain(created);
   }
 
@@ -48,7 +62,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
   async updateStatus(studyGroupId: string, status: studyGroupStatus): Promise<StudyGroup> {
     const updated = await this.prisma.studyGroup.update({
       where: { id: studyGroupId },
-      data: { status: status as any },
+      data: { status: typeof status === 'number' ? (studyGroupStatus[status] as any) : String(status).toUpperCase() },
     });
     return this.toDomain(updated);
   }
@@ -59,14 +73,15 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
 
   private toDomain(record: any): StudyGroup {
     return new StudyGroup(
-      record.id, 
-      record.name, 
+      record.id,
+      record.name,
       record.description,
+      // record.visibility/status are Prisma enum strings; convert to domain enums
+      (studyGroupsVisibility[record.visibility as unknown as keyof typeof studyGroupsVisibility] as unknown) as studyGroupsVisibility,
+      (studyGroupStatus[record.status as unknown as keyof typeof studyGroupStatus] as unknown) as studyGroupStatus,
       record.ownerId,
-      record.visibility,
-      record.status,
       record.createdAt,
-      record.updatedAt
+      record.updatedAt,
     );
   }
 }   
