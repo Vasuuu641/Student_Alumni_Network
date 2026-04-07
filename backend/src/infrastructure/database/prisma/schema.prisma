@@ -33,6 +33,13 @@ model User {
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
   replyVotes      ThreadReplyVote[]
+  studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
+  studyGroupMemberships StudyGroupMember[]
+  studyGroupPosts       StudyGroupPost[]      @relation("StudyGroupPostAuthor")
+  studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
+  studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
+  studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
 }
 
 model Student {
@@ -345,4 +352,150 @@ model NoteChunkEmbedding {
 
   @@index([chunkId])
   @@index([noteId])
+}
+
+//Study-groups formation
+
+enum studyGroupsVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum studyGroupStatus {
+  ACTIVE
+  ARCHIVE
+  DELETED
+}
+
+enum studyGroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum studyGroupJoinStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+  PENDING
+}
+
+enum studyGroupPostStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+model StudyGroup {
+  id             String               @id @default(uuid())
+  name           String
+  description    String
+  visibility     studyGroupsVisibility
+  status         studyGroupStatus
+  topicTags      String[]             @default([])
+  maxMembers     Int?
+  ownerId        String
+  memberCount    Int                  @default(1)
+  messageCount   Int                  @default(0)
+  lastActivityAt DateTime             @default(now())
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  owner       User                  @relation("StudyGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     StudyGroupMember[]
+  posts       StudyGroupPost[]
+  sessions    StudyGroupSession[]
+  invites     StudyGroupInvite[]
+  auditEvents StudyGroupAuditEvent[]
+
+  @@index([status, visibility, lastActivityAt])
+  @@index([ownerId])
+}
+
+model StudyGroupMember {
+  groupId    String
+  userId     String
+  role       studyGroupMemberRole @default(MEMBER)
+  joinStatus studyGroupJoinStatus @default(ACTIVE)
+  joinedAt   DateTime             @default(now())
+  leftAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, joinStatus])
+  @@index([groupId, role])
+}
+
+model StudyGroupPost {
+  id         String               @id @default(uuid())
+  groupId    String
+  authorId   String
+  content    String
+  status     studyGroupPostStatus @default(ACTIVE)
+  editedAt   DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User       @relation("StudyGroupPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+}
+
+model StudyGroupSession {
+  id          String   @id @default(uuid())
+  groupId     String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  mode        String
+  location    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator User       @relation("StudyGroupSessionCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([groupId, startsAt])
+  @@index([createdBy])
+}
+
+model StudyGroupInvite {
+  id            String   @id @default(uuid())
+  groupId       String
+  invitedUserId String
+  invitedBy     String
+  token         String   @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User       @relation("StudyGroupInviteSender", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User       @relation("StudyGroupInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, expiresAt])
+  @@index([invitedUserId])
+}
+
+model StudyGroupAuditEvent {
+  id           String   @id @default(uuid())
+  groupId      String
+  actorId      String?
+  action       String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User?      @relation("StudyGroupAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@index([actorId])
 }

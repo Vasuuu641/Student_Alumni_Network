@@ -27,6 +27,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get noteChunkEmbedding() { return this.client.noteChunkEmbedding; }
   get noteThreadLink() { return this.client.noteThreadLink; }
   get threadEmbedding() { return this.client.threadEmbedding; }
+  get studyGroup() { return this.client.studyGroup; }
+  get studyGroupMember() { return this.client.studyGroupMember; }
+  get studyGroupPost() { return this.client.studyGroupPost; }
   
   // add other models you have here...
 
