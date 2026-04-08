@@ -28,3 +28,10 @@ export class GeoHelpBoardConflictError extends GeoHelpBoardError {
     this.name = 'GeoHelpBoardConflictError';
   }
 }
+
+export class GeoHelpBoardForbiddenError extends GeoHelpBoardError {
+  constructor(message: string) {
+    super(message, 'FORBIDDEN');
+    this.name = 'GeoHelpBoardForbiddenError';
+  }
+}

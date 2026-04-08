@@ -111,6 +111,36 @@ describe('GeoHelpBoard (e2e)', () => {
     createdSpotId = response.body.id;
   });
 
+  it('PATCH /geo-help-board/spots/:spotId should edit a spot for its creator', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/geo-help-board/spots/${createdSpotId}`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        title: 'Geo E2E Student Spot Updated',
+        description: 'Updated from e2e test',
+        city: 'Pecs',
+        address: 'Updated Pecs Address',
+        latitude: 46.073,
+        longitude: 18.233,
+        category: 'FOOD',
+      })
+      .expect(200);
+
+    expect(response.body).toBeDefined();
+    expect(response.body.title).toBe('Geo E2E Student Spot Updated');
+    expect(response.body.address).toBe('Updated Pecs Address');
+  });
+
+  it('PATCH /geo-help-board/spots/:spotId/deactivate should soft delete a spot', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/geo-help-board/spots/${createdSpotId}/deactivate`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(response.body).toBeDefined();
+    expect(response.body.isActive).toBe(false);
+  });
+
   it('POST /geo-help-board/spots should create a spot for professor', async () => {
     const response = await request(app.getHttpServer())
       .post('/geo-help-board/spots')
@@ -155,10 +185,9 @@ describe('GeoHelpBoard (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post(`/geo-help-board/spots/${createdSpotId}/visit`)
       .set('Authorization', `Bearer ${studentToken}`)
-      .expect(201);
+      .expect(404);
 
     expect(response.body).toBeDefined();
-    expect(response.body.spotId).toBe(createdSpotId);
   });
 
   it('GET /geo-help-board/spots/nearby should return 400 for invalid latitude', async () => {

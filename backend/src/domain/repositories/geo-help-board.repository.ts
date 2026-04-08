@@ -11,6 +11,17 @@ export interface CreateGeoHelpSpotInput {
   createdById: string;
 }
 
+export interface UpdateGeoHelpSpotInput {
+  spotId: string;
+  title?: string;
+  description?: string | null;
+  city?: string;
+  address?: string | null;
+  latitude?: number;
+  longitude?: number;
+  category?: GeoHelpSpotCategory;
+}
+
 export interface ListGeoHelpSpotsFilter {
   city?: string;
   category?: GeoHelpSpotCategory;
@@ -21,6 +32,8 @@ export interface ListGeoHelpSpotsFilter {
 export interface GeoHelpBoardRepository {
   createSpot(input: CreateGeoHelpSpotInput): Promise<GeoHelpSpot>;
   findSpotById(spotId: string): Promise<GeoHelpSpot | null>;
+  updateSpot(input: UpdateGeoHelpSpotInput): Promise<GeoHelpSpot>;
+  deactivateSpot(spotId: string): Promise<GeoHelpSpot>;
   listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]>;
   listNearbySpots(params: {
     latitude: number;

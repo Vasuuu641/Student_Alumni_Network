@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
-import type { CreateGeoHelpSpotInput, GeoHelpBoardRepository, ListGeoHelpSpotsFilter } from '../../domain/repositories/geo-help-board.repository';
+import type { CreateGeoHelpSpotInput, GeoHelpBoardRepository, ListGeoHelpSpotsFilter, UpdateGeoHelpSpotInput } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 
 @Injectable()
@@ -27,6 +27,32 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
   async findSpotById(spotId: string): Promise<GeoHelpSpot | null> {
     const found = await this.prisma.geoHelpSpot.findUnique({ where: { id: spotId } });
     return found ? this.toDomain(found) : null;
+  }
+
+  async updateSpot(input: UpdateGeoHelpSpotInput): Promise<GeoHelpSpot> {
+    const updated = await this.prisma.geoHelpSpot.update({
+      where: { id: input.spotId },
+      data: {
+        title: input.title,
+        description: input.description,
+        city: input.city,
+        address: input.address,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        category: input.category,
+      },
+    });
+
+    return this.toDomain(updated);
+  }
+
+  async deactivateSpot(spotId: string): Promise<GeoHelpSpot> {
+    const updated = await this.prisma.geoHelpSpot.update({
+      where: { id: spotId },
+      data: { isActive: false },
+    });
+
+    return this.toDomain(updated);
   }
 
   async listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]> {
