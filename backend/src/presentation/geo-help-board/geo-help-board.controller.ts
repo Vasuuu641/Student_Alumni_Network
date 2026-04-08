@@ -9,9 +9,11 @@ import { ListNearbyGeoHelpSpotsUseCase } from '../../application/geo-help-board/
 import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/record-geo-help-spot-visit.usecase';
 import { EditGeoHelpSpotUseCase } from '../../application/geo-help-board/edit-geo-help-spot.usecase';
 import { DeactivateGeoHelpSpotUseCase } from '../../application/geo-help-board/deactivate-geo-help-spot.usecase';
+import { VerifyGeoHelpSpotUseCase } from '../../application/geo-help-board/verify-geo-help-spot.usecase';
 
 import { CreateGeoHelpSpotDto } from './dto/create-geo-help-spot.dto';
 import { UpdateGeoHelpSpotDto } from './dto/update-geo-help-spot.dto';
+import { VerifyGeoHelpSpotDto } from './dto/verify-geo-help-spot.dto';
 import { ListPopularGeoHelpSpotsQueryDto } from './dto/list-popular-geo-help-spots-query.dto';
 import { ListNearbyGeoHelpSpotsQueryDto } from './dto/list-nearby-geo-help-spots-query.dto';
 import { GeoHelpBoardError } from '../../application/geo-help-board/geo-help-board.errors';
@@ -24,6 +26,7 @@ export class GeoHelpBoardController {
     private readonly createGeoHelpSpotUseCase: CreateGeoHelpSpotUseCase,
     private readonly editGeoHelpSpotUseCase: EditGeoHelpSpotUseCase,
     private readonly deactivateGeoHelpSpotUseCase: DeactivateGeoHelpSpotUseCase,
+    private readonly verifyGeoHelpSpotUseCase: VerifyGeoHelpSpotUseCase,
     private readonly listPopularGeoHelpSpotsUseCase: ListPopularGeoHelpSpotsUseCase,
     private readonly listNearbyGeoHelpSpotsUseCase: ListNearbyGeoHelpSpotsUseCase,
     private readonly recordGeoHelpSpotVisitUseCase: RecordGeoHelpSpotVisitUseCase,
@@ -104,6 +107,20 @@ export class GeoHelpBoardController {
         spotId,
         requesterId: request.user?.userId,
         requesterRole: request.user?.role,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
+  }
+
+  @Patch('spots/:spotId/review')
+  @Patch('spots/:spotId/verification')
+  @Roles('ADMIN')
+  async verifySpot(@Param('spotId') spotId: string, @Body() body: VerifyGeoHelpSpotDto) {
+    try {
+      return await this.verifyGeoHelpSpotUseCase.execute({
+        spotId,
+        isVerified: body.isVerified,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);

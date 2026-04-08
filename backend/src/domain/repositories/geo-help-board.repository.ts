@@ -1,4 +1,4 @@
-import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../entities/geo-help-spot.entity';
 
 export interface CreateGeoHelpSpotInput {
   title: string;
@@ -22,6 +22,11 @@ export interface UpdateGeoHelpSpotInput {
   category?: GeoHelpSpotCategory;
 }
 
+export interface ReviewGeoHelpSpotInput {
+  spotId: string;
+  reviewStatus: GeoHelpSpotReviewStatus;
+}
+
 export interface ListGeoHelpSpotsFilter {
   city?: string;
   category?: GeoHelpSpotCategory;
@@ -34,6 +39,7 @@ export interface GeoHelpBoardRepository {
   findSpotById(spotId: string): Promise<GeoHelpSpot | null>;
   updateSpot(input: UpdateGeoHelpSpotInput): Promise<GeoHelpSpot>;
   deactivateSpot(spotId: string): Promise<GeoHelpSpot>;
+  reviewSpot(input: ReviewGeoHelpSpotInput): Promise<GeoHelpSpot>;
   listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]>;
   listNearbySpots(params: {
     latitude: number;

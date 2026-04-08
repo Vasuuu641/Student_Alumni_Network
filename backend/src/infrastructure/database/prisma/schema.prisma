@@ -515,6 +515,12 @@ enum GeoHelpSpotCategory {
   OTHER
 }
 
+enum GeoHelpSpotReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 model GeoHelpSpot {
   id          String              @id @default(uuid())
   title       String
@@ -526,6 +532,7 @@ model GeoHelpSpot {
   category    GeoHelpSpotCategory @default(OTHER)
   createdById String
   isActive    Boolean             @default(true)
+  reviewStatus GeoHelpSpotReviewStatus @default(PENDING)
   visitCount  Int                 @default(0)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -533,8 +540,8 @@ model GeoHelpSpot {
   createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
   visits    GeoHelpSpotVisit[]
 
-  @@index([city, category])
-  @@index([city, visitCount])
+  @@index([city, category, reviewStatus])
+  @@index([city, visitCount, reviewStatus])
   @@index([latitude, longitude])
   @@index([createdById])
 }

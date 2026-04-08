@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
 import type { CreateGeoHelpSpotInput, GeoHelpBoardRepository, ListGeoHelpSpotsFilter, UpdateGeoHelpSpotInput } from '../../domain/repositories/geo-help-board.repository';
-import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 
 @Injectable()
 export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
@@ -18,7 +18,8 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         longitude: input.longitude,
         category: input.category,
         createdById: input.createdById,
-      },
+        reviewStatus: GeoHelpSpotReviewStatus.PENDING,
+      } as any,
     });
 
     return this.toDomain(created);
@@ -40,7 +41,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         latitude: input.latitude,
         longitude: input.longitude,
         category: input.category,
-      },
+      } as any,
     });
 
     return this.toDomain(updated);
@@ -49,7 +50,16 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
   async deactivateSpot(spotId: string): Promise<GeoHelpSpot> {
     const updated = await this.prisma.geoHelpSpot.update({
       where: { id: spotId },
-      data: { isActive: false },
+      data: { isActive: false } as any,
+    });
+
+    return this.toDomain(updated);
+  }
+
+  async reviewSpot(input: { spotId: string; reviewStatus: GeoHelpSpotReviewStatus }): Promise<GeoHelpSpot> {
+    const updated = await this.prisma.geoHelpSpot.update({
+      where: { id: input.spotId },
+      data: { reviewStatus: input.reviewStatus } as any,
     });
 
     return this.toDomain(updated);
@@ -61,7 +71,8 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         city: filter.city,
         category: filter.category,
         isActive: filter.isActive ?? true,
-      },
+        reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
+      } as any,
       orderBy: [{ visitCount: 'desc' }, { createdAt: 'desc' }],
       take: filter.limit ?? 20,
     });
@@ -88,6 +99,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     const candidates = await this.prisma.geoHelpSpot.findMany({
       where: {
         isActive: true,
+        reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
         city: params.city,
         category: params.category,
         latitude: {
@@ -98,7 +110,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
           gte: minLng,
           lte: maxLng,
         },
-      },
+      } as any,
       take: Math.max(params.limit ?? 20, 50),
       orderBy: [{ visitCount: 'desc' }],
     });
@@ -163,6 +175,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
       record.category as GeoHelpSpotCategory,
       record.createdById,
       record.isActive,
+      record.reviewStatus as GeoHelpSpotReviewStatus,
       record.visitCount,
       record.createdAt,
       record.updatedAt,

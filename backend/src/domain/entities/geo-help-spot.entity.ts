@@ -9,6 +9,12 @@ export enum GeoHelpSpotCategory {
   OTHER = 'OTHER',
 }
 
+export enum GeoHelpSpotReviewStatus {
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}
+
 export class GeoHelpSpot {
   constructor(
     public readonly id: string,
@@ -21,6 +27,7 @@ export class GeoHelpSpot {
     public category: GeoHelpSpotCategory,
     public readonly createdById: string,
     public isActive: boolean,
+    public reviewStatus: GeoHelpSpotReviewStatus,
     public visitCount: number,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,

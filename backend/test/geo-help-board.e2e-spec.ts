@@ -15,17 +15,21 @@ describe('GeoHelpBoard (e2e)', () => {
   const studentEmail = `geo-student-${suffix}@tr.pte.hu`;
   const professorEmail = `geo-prof-${suffix}@tr.pte.hu`;
   const alumniEmail = `geo-alumni-${suffix}@tr.pte.hu`;
+  const adminEmail = `geo-admin-${suffix}@tr.pte.hu`;
   const password = 'test1234';
 
   let studentToken = '';
   let professorToken = '';
   let alumniToken = '';
+  let adminToken = '';
 
   let studentUserId = '';
   let professorUserId = '';
   let alumniUserId = '';
+  let adminUserId = '';
 
   let createdSpotId = '';
+  let professorSpotId = '';
 
   beforeAll(async () => {
     process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-jwt-secret';
@@ -58,7 +62,12 @@ describe('GeoHelpBoard (e2e)', () => {
       await prisma.geoHelpSpot.deleteMany({ where: { id: createdSpotId } });
     }
 
-    const userIds = [studentUserId, professorUserId, alumniUserId].filter(Boolean);
+    if (professorSpotId) {
+      await prisma.geoHelpSpotVisit.deleteMany({ where: { spotId: professorSpotId } });
+      await prisma.geoHelpSpot.deleteMany({ where: { id: professorSpotId } });
+    }
+
+    const userIds = [studentUserId, professorUserId, alumniUserId, adminUserId].filter(Boolean);
     if (userIds.length > 0) {
       await prisma.student.deleteMany({ where: { userId: { in: userIds } } });
       await prisma.professor.deleteMany({ where: { userId: { in: userIds } } });
@@ -69,7 +78,7 @@ describe('GeoHelpBoard (e2e)', () => {
     await prisma.authorizedUser.deleteMany({
       where: {
         email: {
-          in: [studentEmail, professorEmail, alumniEmail],
+          in: [studentEmail, professorEmail, alumniEmail, adminEmail],
         },
       },
     });
@@ -111,6 +120,17 @@ describe('GeoHelpBoard (e2e)', () => {
     createdSpotId = response.body.id;
   });
 
+  it('PATCH /geo-help-board/spots/:spotId/review should allow admin to verify a spot', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/geo-help-board/spots/${createdSpotId}/review`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ isVerified: true })
+      .expect(200);
+
+    expect(response.body).toBeDefined();
+    expect(response.body.reviewStatus).toBe('VERIFIED');
+  });
+
   it('PATCH /geo-help-board/spots/:spotId should edit a spot for its creator', async () => {
     const response = await request(app.getHttpServer())
       .patch(`/geo-help-board/spots/${createdSpotId}`)
@@ -131,16 +151,6 @@ describe('GeoHelpBoard (e2e)', () => {
     expect(response.body.address).toBe('Updated Pecs Address');
   });
 
-  it('PATCH /geo-help-board/spots/:spotId/deactivate should soft delete a spot', async () => {
-    const response = await request(app.getHttpServer())
-      .patch(`/geo-help-board/spots/${createdSpotId}/deactivate`)
-      .set('Authorization', `Bearer ${studentToken}`)
-      .expect(200);
-
-    expect(response.body).toBeDefined();
-    expect(response.body.isActive).toBe(false);
-  });
-
   it('POST /geo-help-board/spots should create a spot for professor', async () => {
     const response = await request(app.getHttpServer())
       .post('/geo-help-board/spots')
@@ -158,6 +168,17 @@ describe('GeoHelpBoard (e2e)', () => {
 
     expect(response.body).toBeDefined();
     expect(response.body.id).toBeDefined();
+    professorSpotId = response.body.id;
+  });
+
+  it('PATCH /geo-help-board/spots/:spotId/review should allow admin to verify professor spot', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/geo-help-board/spots/${professorSpotId}/review`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ isVerified: true })
+      .expect(200);
+
+    expect(response.body.reviewStatus).toBe('VERIFIED');
   });
 
   it('GET /geo-help-board/spots/popular should return 200 for student', async () => {
@@ -168,6 +189,7 @@ describe('GeoHelpBoard (e2e)', () => {
 
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body.length).toBeGreaterThan(0);
+    expect(response.body.every((spot: any) => spot.reviewStatus === 'VERIFIED')).toBe(true);
   });
 
   it('GET /geo-help-board/spots/nearby should return nearby spots with distance', async () => {
@@ -179,15 +201,33 @@ describe('GeoHelpBoard (e2e)', () => {
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body.length).toBeGreaterThan(0);
     expect(response.body[0].distanceKm).toBeDefined();
+    expect(response.body.every((spot: any) => spot.reviewStatus === 'VERIFIED')).toBe(true);
   });
 
   it('POST /geo-help-board/spots/:spotId/visit should record a visit', async () => {
     const response = await request(app.getHttpServer())
       .post(`/geo-help-board/spots/${createdSpotId}/visit`)
       .set('Authorization', `Bearer ${studentToken}`)
-      .expect(404);
+      .expect(201);
 
     expect(response.body).toBeDefined();
+    expect(response.body.spotId).toBe(createdSpotId);
+  });
+
+  it('PATCH /geo-help-board/spots/:spotId/deactivate should soft delete a spot', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/geo-help-board/spots/${createdSpotId}/deactivate`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(response.body.isActive).toBe(false);
+  });
+
+  it('POST /geo-help-board/spots/:spotId/visit should return 404 after deactivation', async () => {
+    await request(app.getHttpServer())
+      .post(`/geo-help-board/spots/${createdSpotId}/visit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(404);
   });
 
   it('GET /geo-help-board/spots/nearby should return 400 for invalid latitude', async () => {
@@ -215,6 +255,12 @@ describe('GeoHelpBoard (e2e)', () => {
       update: { role: 'ALUMNI', isUsed: false },
       create: { email: alumniEmail, role: 'ALUMNI', isUsed: false },
     });
+
+    await prisma.authorizedUser.upsert({
+      where: { email: adminEmail },
+      update: { role: 'ADMIN', isUsed: false },
+      create: { email: adminEmail, role: 'ADMIN', isUsed: false },
+    });
   }
 
   async function registerAndLoginUsers(): Promise<void> {
@@ -237,9 +283,11 @@ describe('GeoHelpBoard (e2e)', () => {
     studentUserId = await register(studentEmail, 'Geo', 'Student');
     professorUserId = await register(professorEmail, 'Geo', 'Professor');
     alumniUserId = await register(alumniEmail, 'Geo', 'Alumni');
+    adminUserId = await register(adminEmail, 'Geo', 'Admin');
 
     studentToken = await login(studentEmail);
     professorToken = await login(professorEmail);
     alumniToken = await login(alumniEmail);
+    adminToken = await login(adminEmail);
   }
 });

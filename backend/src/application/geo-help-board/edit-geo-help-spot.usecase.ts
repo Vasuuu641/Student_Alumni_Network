@@ -29,7 +29,7 @@ export class EditGeoHelpSpotUseCase {
       throw new GeoHelpBoardNotFoundError('Spot not found');
     }
 
-    if (request.requesterId !== spot.createdById && request.requesterRole !== 'PROFESSOR' && request.requesterRole !== 'ADMIN') {
+    if (request.requesterId !== spot.createdById && request.requesterRole !== 'ADMIN') {
       throw new GeoHelpBoardForbiddenError('You are not allowed to edit this spot');
     }
 

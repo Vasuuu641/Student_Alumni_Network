@@ -8,6 +8,7 @@ import { GeoHelpBoardController } from './geo-help-board.controller';
 import { CreateGeoHelpSpotUseCase } from '../../application/geo-help-board/create-geo-help-spot.usecase';
 import { EditGeoHelpSpotUseCase } from '../../application/geo-help-board/edit-geo-help-spot.usecase';
 import { DeactivateGeoHelpSpotUseCase } from '../../application/geo-help-board/deactivate-geo-help-spot.usecase';
+import { VerifyGeoHelpSpotUseCase } from '../../application/geo-help-board/verify-geo-help-spot.usecase';
 import { ListPopularGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-popular-geo-help-spots.usecase';
 import { ListNearbyGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-nearby-geo-help-spots.usecase';
 import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/record-geo-help-spot-visit.usecase';
@@ -21,6 +22,7 @@ import { PrismaGeoHelpBoardRepository } from '../../infrastructure/repositories/
     CreateGeoHelpSpotUseCase,
     EditGeoHelpSpotUseCase,
     DeactivateGeoHelpSpotUseCase,
+    VerifyGeoHelpSpotUseCase,
     ListPopularGeoHelpSpotsUseCase,
     ListNearbyGeoHelpSpotsUseCase,
     RecordGeoHelpSpotVisitUseCase,
