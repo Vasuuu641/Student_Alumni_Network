@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GeoHelpSpotCategory, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
+import { GeoHelpBoardValidationError } from './geo-help-board.errors';
 
 export interface ListNearbyGeoHelpSpotsRequest {
   latitude: number;
@@ -20,15 +21,15 @@ export class ListNearbyGeoHelpSpotsUseCase {
 
   async execute(request: ListNearbyGeoHelpSpotsRequest): Promise<GeoHelpSpotWithDistance[]> {
     if (request.latitude < -90 || request.latitude > 90) {
-      throw new Error('Latitude must be between -90 and 90');
+      throw new GeoHelpBoardValidationError('Latitude must be between -90 and 90');
     }
 
     if (request.longitude < -180 || request.longitude > 180) {
-      throw new Error('Longitude must be between -180 and 180');
+      throw new GeoHelpBoardValidationError('Longitude must be between -180 and 180');
     }
 
     if (request.radiusKm <= 0) {
-      throw new Error('Radius must be greater than 0');
+      throw new GeoHelpBoardValidationError('Radius must be greater than 0');
     }
 
     return this.geoHelpBoardRepository.listNearbySpots({

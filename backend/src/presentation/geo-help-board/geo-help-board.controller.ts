@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -11,6 +11,7 @@ import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/
 import { CreateGeoHelpSpotDto } from './dto/create-geo-help-spot.dto';
 import { ListPopularGeoHelpSpotsQueryDto } from './dto/list-popular-geo-help-spots-query.dto';
 import { ListNearbyGeoHelpSpotsQueryDto } from './dto/list-nearby-geo-help-spots-query.dto';
+import { GeoHelpBoardError } from '../../application/geo-help-board/geo-help-board.errors';
 
 @Controller('geo-help-board')
 @UseGuards(JwtStrategy, RolesGuard)
@@ -25,46 +26,85 @@ export class GeoHelpBoardController {
 
   @Get('spots/popular')
   async listPopular(@Query() query: ListPopularGeoHelpSpotsQueryDto) {
-    return this.listPopularGeoHelpSpotsUseCase.execute({
-      city: query.city,
-      category: query.category as any,
-      limit: query.limit,
-    });
+    try {
+      return await this.listPopularGeoHelpSpotsUseCase.execute({
+        city: query.city,
+        category: query.category as any,
+        limit: query.limit,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
   }
 
   @Get('spots/nearby')
   async listNearby(@Query() query: ListNearbyGeoHelpSpotsQueryDto) {
-    return this.listNearbyGeoHelpSpotsUseCase.execute({
-      latitude: query.latitude,
-      longitude: query.longitude,
-      radiusKm: query.radiusKm,
-      city: query.city,
-      category: query.category as any,
-      limit: query.limit,
-    });
+    try {
+      return await this.listNearbyGeoHelpSpotsUseCase.execute({
+        latitude: query.latitude,
+        longitude: query.longitude,
+        radiusKm: query.radiusKm,
+        city: query.city,
+        category: query.category as any,
+        limit: query.limit,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
   }
 
   @Post('spots')
   async createSpot(@Req() request: any, @Body() body: CreateGeoHelpSpotDto) {
     const createdById = request.user?.userId;
-
-    return this.createGeoHelpSpotUseCase.execute({
-      title: body.title,
-      description: body.description,
-      city: body.city,
-      address: body.address,
-      latitude: body.latitude,
-      longitude: body.longitude,
-      category: body.category as any,
-      createdById,
-    });
+    try {
+      return await this.createGeoHelpSpotUseCase.execute({
+        title: body.title,
+        description: body.description,
+        city: body.city,
+        address: body.address,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        category: body.category as any,
+        createdById,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
   }
 
   @Post('spots/:spotId/visit')
   async recordVisit(@Req() request: any, @Param('spotId') spotId: string) {
-    return this.recordGeoHelpSpotVisitUseCase.execute({
-      spotId,
-      userId: request.user?.userId,
-    });
+    try {
+      return await this.recordGeoHelpSpotVisitUseCase.execute({
+        spotId,
+        userId: request.user?.userId,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
+  }
+
+  private rethrowGeoHelpBoardError(error: unknown): never {
+    if (error instanceof GeoHelpBoardError) {
+      if (error.code === 'NOT_FOUND') {
+        throw new NotFoundException(error.message);
+      }
+
+      if (error.code === 'FORBIDDEN') {
+        throw new HttpException(error.message, HttpStatus.FORBIDDEN);
+      }
+
+      if (error.code === 'CONFLICT') {
+        throw new HttpException(error.message, HttpStatus.CONFLICT);
+      }
+
+      throw new BadRequestException(error.message);
+    }
+
+    if (error instanceof Error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    throw new HttpException('Unexpected geo help board error', HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }
