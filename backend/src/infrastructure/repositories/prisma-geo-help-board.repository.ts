@@ -1,0 +1,160 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../database/prisma/prisma.service';
+import type { CreateGeoHelpSpotInput, GeoHelpBoardRepository, ListGeoHelpSpotsFilter } from '../../domain/repositories/geo-help-board.repository';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
+
+@Injectable()
+export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createSpot(input: CreateGeoHelpSpotInput): Promise<GeoHelpSpot> {
+    const created = await this.prisma.geoHelpSpot.create({
+      data: {
+        title: input.title,
+        description: input.description ?? null,
+        city: input.city,
+        address: input.address ?? null,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        category: input.category,
+        createdById: input.createdById,
+      },
+    });
+
+    return this.toDomain(created);
+  }
+
+  async findSpotById(spotId: string): Promise<GeoHelpSpot | null> {
+    const found = await this.prisma.geoHelpSpot.findUnique({ where: { id: spotId } });
+    return found ? this.toDomain(found) : null;
+  }
+
+  async listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]> {
+    const records = await this.prisma.geoHelpSpot.findMany({
+      where: {
+        city: filter.city,
+        category: filter.category,
+        isActive: filter.isActive ?? true,
+      },
+      orderBy: [{ visitCount: 'desc' }, { createdAt: 'desc' }],
+      take: filter.limit ?? 20,
+    });
+
+    return records.map((record) => this.toDomain(record));
+  }
+
+  async listNearbySpots(params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    city?: string;
+    category?: GeoHelpSpotCategory;
+    limit?: number;
+  }): Promise<GeoHelpSpotWithDistance[]> {
+    const latDelta = params.radiusKm / 111;
+    const lngDelta = params.radiusKm / (111 * Math.cos((params.latitude * Math.PI) / 180));
+
+    const minLat = params.latitude - latDelta;
+    const maxLat = params.latitude + latDelta;
+    const minLng = params.longitude - lngDelta;
+    const maxLng = params.longitude + lngDelta;
+
+    const candidates = await this.prisma.geoHelpSpot.findMany({
+      where: {
+        isActive: true,
+        city: params.city,
+        category: params.category,
+        latitude: {
+          gte: minLat,
+          lte: maxLat,
+        },
+        longitude: {
+          gte: minLng,
+          lte: maxLng,
+        },
+      },
+      take: Math.max(params.limit ?? 20, 50),
+      orderBy: [{ visitCount: 'desc' }],
+    });
+
+    return candidates
+      .map((spot) => {
+        const domain = this.toDomain(spot);
+        const distanceKm = this.haversineDistanceKm(
+          params.latitude,
+          params.longitude,
+          domain.latitude,
+          domain.longitude,
+        );
+
+        return { ...domain, distanceKm } as GeoHelpSpotWithDistance;
+      })
+      .filter((spot) => spot.distanceKm <= params.radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, params.limit ?? 20);
+  }
+
+  async recordVisit(spotId: string, userId: string): Promise<GeoHelpSpotVisit> {
+    const visit = await this.prisma.$transaction(async (tx: any) => {
+      const createdVisit = await tx.geoHelpSpotVisit.upsert({
+        where: {
+          spotId_userId: {
+            spotId,
+            userId,
+          },
+        },
+        create: {
+          spotId,
+          userId,
+        },
+        update: {
+          visitedAt: new Date(),
+        },
+      });
+
+      await tx.geoHelpSpot.update({
+        where: { id: spotId },
+        data: {
+          visitCount: await tx.geoHelpSpotVisit.count({ where: { spotId } }),
+        },
+      });
+
+      return createdVisit;
+    });
+
+    return new GeoHelpSpotVisit(visit.id, visit.spotId, visit.userId, visit.visitedAt);
+  }
+
+  private toDomain(record: any): GeoHelpSpot {
+    return new GeoHelpSpot(
+      record.id,
+      record.title,
+      record.description,
+      record.city,
+      record.address,
+      Number(record.latitude),
+      Number(record.longitude),
+      record.category as GeoHelpSpotCategory,
+      record.createdById,
+      record.isActive,
+      record.visitCount,
+      record.createdAt,
+      record.updatedAt,
+    );
+  }
+
+  private haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const earthRadiusKm = 6371;
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * c;
+  }
+}

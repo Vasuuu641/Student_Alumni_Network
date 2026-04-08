@@ -11,6 +11,7 @@ import { ProfessorsModule } from './presentation/professors/professors.module';
 import { NotesModule } from './presentation/notes/notes.module';
 import { ThreadsModule } from './presentation/threads/threads.module';
 import { StudyGroupsModule } from './presentation/study-groups/study-groups.module';
+import { GeoHelpBoardModule } from './presentation/geo-help-board/geo-help-board.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { StudyGroupsModule } from './presentation/study-groups/study-groups.modu
     NotesModule,
     ThreadsModule,
     StudyGroupsModule,
+    GeoHelpBoardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

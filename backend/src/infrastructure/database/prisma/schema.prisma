@@ -40,6 +40,8 @@ model User {
   studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
   studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
   studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
+  geoHelpSpotVisits   GeoHelpSpotVisit[]
 }
 
 model Student {
@@ -498,4 +500,55 @@ model StudyGroupAuditEvent {
 
   @@index([groupId, createdAt])
   @@index([actorId])
+}
+
+// Geo-based help board
+
+enum GeoHelpSpotCategory {
+  STUDY_SPACE
+  FOOD
+  TRANSPORT
+  HOUSING
+  HEALTH
+  GYM
+  LIBRARY
+  OTHER
+}
+
+model GeoHelpSpot {
+  id          String              @id @default(uuid())
+  title       String
+  description String?
+  city        String
+  address     String?
+  latitude    Decimal             @db.Decimal(9, 6)
+  longitude   Decimal             @db.Decimal(9, 6)
+  category    GeoHelpSpotCategory @default(OTHER)
+  createdById String
+  isActive    Boolean             @default(true)
+  visitCount  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  visits    GeoHelpSpotVisit[]
+
+  @@index([city, category])
+  @@index([city, visitCount])
+  @@index([latitude, longitude])
+  @@index([createdById])
+}
+
+model GeoHelpSpotVisit {
+  id        String   @id @default(uuid())
+  spotId    String
+  userId    String
+  visitedAt DateTime @default(now())
+
+  spot GeoHelpSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, visitedAt])
+  @@index([userId, visitedAt])
+  @@unique([spotId, userId])
 }
