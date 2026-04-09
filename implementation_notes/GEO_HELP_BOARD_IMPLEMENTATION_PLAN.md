@@ -27,11 +27,23 @@ This keeps the backend truly shared and avoids separate behavior per client.
 3. Nearby spots endpoint (lat/lng/radius)
 4. Visit tracking endpoint (updates popularity)
 
-Out of scope:
+Out of scope (original V1 intent):
 - moderation workflow,
 - comments/photos,
 - AI ranking/personalized feed,
 - advanced geospatial stack (PostGIS).
+
+---
+
+## Current implementation status (as shipped)
+Beyond original V1, backend now also includes:
+- admin moderation workflow (`PENDING`/`VERIFIED`/`REJECTED`),
+- reviewer audit metadata (`reviewedById`, `reviewedAt`),
+- creator/admin edit + soft deactivate lifecycle,
+- duplicate spot protection,
+- write-path rate limiting,
+- pagination hardening for list endpoints (`limit`, `page`),
+- strict nearby radius bounds ($0.1\le radiusKm\le50$).
 
 ---
 
@@ -68,10 +80,15 @@ Indexes:
 ## API contract (V1)
 Base: `/geo-help-board`
 
-- `GET /spots/popular?city=&category=&limit=`
-- `GET /spots/nearby?latitude=&longitude=&radiusKm=&city=&category=&limit=`
+- `GET /spots/popular?city=&category=&limit=&page=`
+- `GET /spots/nearby?latitude=&longitude=&radiusKm=&city=&category=&limit=&page=`
 - `POST /spots`
 - `POST /spots/:spotId/visit`
+
+Additional implemented endpoints:
+- `PATCH /spots/:spotId`
+- `PATCH /spots/:spotId/deactivate`
+- `PATCH /spots/:spotId/review` (alias: `/spots/:spotId/verification`)
 
 ---
 
