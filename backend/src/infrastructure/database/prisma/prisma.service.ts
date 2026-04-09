@@ -30,6 +30,8 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get studyGroup() { return this.client.studyGroup; }
   get studyGroupMember() { return this.client.studyGroupMember; }
   get studyGroupPost() { return this.client.studyGroupPost; }
+  get geoHelpSpot() { return this.client.geoHelpSpot; }
+  get geoHelpSpotVisit() { return this.client.geoHelpSpotVisit; }
   
   // add other models you have here...
 
@@ -47,6 +49,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   async $connect() { return this.client.$connect(); }
   async $disconnect() { return this.client.$disconnect(); }
+
+  async $transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+    return this.client.$transaction((tx) => fn(tx as PrismaClient));
+  }
 
   async $executeRaw(query: TemplateStringsArray, ...values: any[]): Promise<number> {
   return this.client.$executeRaw(query, ...values);
