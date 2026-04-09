@@ -11,6 +11,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -41,6 +42,8 @@ import { UpdateShareRoleRequestDto } from './dto/update-share-role-request.dto';
 
 @Controller('notes')
 export class NotesController {
+  private readonly logger = new Logger(NotesController.name);
+
   constructor(
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly getNoteUseCase: GetNoteUseCase,
@@ -138,9 +141,21 @@ export class NotesController {
   ): Promise<{ success: boolean }> {
     try {
       const userId = request.user.userId;
+      const debugPatch =
+        process.env.DEBUG_NOTES_PATCH === '1' ||
+        process.env.NODE_ENV !== 'production';
+
+      if (debugPatch) {
+        const contentJson = updateNoteRequest.content;
+        const contentBytes =
+          contentJson === undefined ? 0 : JSON.stringify(contentJson).length;
+        this.logger.log(
+          `PATCH /notes/${noteId} user=${userId} hasContent=${contentJson !== undefined} contentBytes=${contentBytes} hasTitle=${updateNoteRequest.title !== undefined} hasStatus=${updateNoteRequest.status !== undefined}`,
+        );
+      }
       
       // Update content if provided
-      if (updateNoteRequest.content) {
+      if (updateNoteRequest.content !== undefined) {
         await this.updateNoteUseCase.execute(
           noteId,
           userId,
@@ -149,7 +164,10 @@ export class NotesController {
       }
 
       // Update metadata if provided
-      if (updateNoteRequest.title || updateNoteRequest.status) {
+      if (
+        updateNoteRequest.title !== undefined ||
+        updateNoteRequest.status !== undefined
+      ) {
         await this.updateNoteMetadataUseCase.execute(
           noteId,
           userId,
@@ -158,8 +176,20 @@ export class NotesController {
         );
       }
 
+      if (debugPatch) {
+        this.logger.log(`PATCH /notes/${noteId} user=${userId} success=true`);
+      }
+
       return { success: true };
     } catch (error) {
+      if (
+        process.env.DEBUG_NOTES_PATCH === '1' ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        this.logger.warn(
+          `PATCH /notes/${noteId} failed: ${error?.message ?? 'unknown error'}`,
+        );
+      }
       throw new HttpException(
         error.message || 'Failed to update note',
         HttpStatus.BAD_REQUEST,
@@ -299,7 +329,12 @@ export class NotesController {
 
       // Broadcast checkpoint event to all connected collaborators in this note room.
       // If versions exist, expose the latest version number; otherwise emit 0.
-      const latestVersion = await this.listNoteVersionsUseCase.execute(noteId, 1, 1);
+      const latestVersion = await this.listNoteVersionsUseCase.execute(
+        noteId,
+        actorId,
+        1,
+        1,
+      );
       const versionNumber = latestVersion.length > 0 ? latestVersion[0].versionNumber : 0;
       this.notesRealtimePublisher.broadcastCheckpointCreated(
         noteId,
@@ -328,14 +363,23 @@ export class NotesController {
     @Param('id') noteId: string,
   ) {
     try {
+      const actorId = request.user.userId;
       const page = 1;
       const pageSize = 10;
       const versions = await this.listNoteVersionsUseCase.execute(
         noteId,
+        actorId,
         page,
         pageSize,
       );
-      return { versions };
+      return {
+        versions: versions.map((version) => ({
+          versionNumber: version.versionNumber,
+          createdAt: version.createdAt,
+          createdBy: version.authorId,
+          snapshotJson: version.snapshotJson,
+        })),
+      };
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to list versions',
@@ -346,8 +390,6 @@ export class NotesController {
 
   /**
    * POST /notes/:id/restore/:versionNumber
-   * Restore note to a previous version
-   * Only accessible to note owner
    */
   @Post(':id/restore/:versionNumber')
   @UseGuards(JwtStrategy, RolesGuard)
@@ -362,7 +404,22 @@ export class NotesController {
       if (isNaN(version)) {
         throw new Error('Invalid version number');
       }
+
+      // Restore the version — use case writes snapshot back onto note.content
       await this.restoreNoteVersionsUseCase.execute(noteId, version, userId);
+
+      // Fetch the note now that content has been restored so we can
+      // broadcast the actual restored content to all collaborators
+      const restoredNote = await this.getNoteUseCase.execute(noteId, userId);
+
+      // Broadcast to all collaborators so their editors re-seed
+      // from the restored content without requiring a page refresh
+      this.notesRealtimePublisher.broadcastVersionRestored(
+        noteId,
+        userId,
+        restoredNote.content,
+      );
+
       return { success: true };
     } catch (error) {
       throw new HttpException(

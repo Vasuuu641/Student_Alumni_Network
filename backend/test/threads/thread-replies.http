@@ -1,0 +1,134 @@
+# ─── System Theory Thread Replies ────────────────────────────────────────────
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwMTM1MywiZXhwIjoxNzc0MDA0OTUzfQ.dP4SFddliw9uU-vA30T7-WOhhedJqn7eqUo87rncnPc
+@baseUrl = http://localhost:3000
+@threadId = b0quu7x44
+
+# After posting each reply, copy its id and paste below
+@reply1Id = airqxukby
+@reply2Id = m9430h9os
+@reply2aId = 6mqlhrpl3
+@reply3Id = 9lnqaagtn
+
+
+###
+# ─── REPLY 1 (top level) ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "For the transfer function questions, make sure you understand how to derive them from circuit diagrams and mechanical systems. The professor loves asking you to convert a physical system into its Laplace domain representation."
+}
+
+###
+# ─── REPLY 1a (nested under Reply 1) ────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Agreed — drawing the block diagrams first before writing the transfer function makes it much easier to see the signal flow.",
+  "parentReplyId": "{{reply1Id}}"
+}
+
+###
+# ─── REPLY 1b (nested under Reply 1) ────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Also worth noting — for mechanical systems remember that mass corresponds to inductance, damping to resistance, and spring stiffness to the reciprocal of capacitance in the electrical analogy.",
+  "parentReplyId": "{{reply1Id}}"
+}
+
+###
+# ─── REPLY 2 (top level) ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "The Bode plot questions are always in the practical. Practice sketching them by hand — know how poles and zeros affect the slope of the magnitude plot. A pole adds minus 20dB per decade after the corner frequency."
+}
+
+###
+# ─── REPLY 2a (nested under Reply 2) ────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "The phase plot is just as important as the magnitude plot. Remember a pole contributes minus 90 degrees of phase shift and a zero contributes plus 90 degrees.",
+  "parentReplyId": "{{reply2Id}}"
+}
+
+###
+# ─── REPLY 2a-i (nested under Reply 2a — third level) ───────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Good point — and for gain margin and phase margin, remember the system is stable if the gain margin is positive and the phase margin is between 0 and 180 degrees.",
+  "parentReplyId": "{{reply2aId}}"
+}
+
+###
+# ─── REPLY 3 (top level) ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "For the oral exam the professor asked everyone to explain negative feedback using a real world example. I used a thermostat — when the temperature drops below the setpoint the heater turns on, when it reaches the setpoint it turns off."
+}
+
+###
+# ─── REPLY 3a (nested under Reply 3) ────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "I used the cruise control system in a car as my example. The professor seemed happy with both answers. The key is explaining the feedback loop clearly.",
+  "parentReplyId": "{{reply3Id}}"
+}
+
+###
+# ─── REPLY 4 (top level) ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Routh-Hurwitz is easier than it looks. Just build the array systematically and check the signs in the first column. If all positive the system is stable. Practice with at least 10 examples before the exam."
+}
+
+###
+# ─── REPLY 5 (top level) ─────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "State space representation — think of the state vector as capturing everything you need to know about the system at a given moment. The A matrix describes how the state evolves, B is the input effect, C is what you can observe."
+}
+
+###
+# ─── GET ALL REPLIES FOR THREAD ──────────────────────────────────────────────
+# Expected: 200 with { replies: [...], total: N }
+
+GET {{baseUrl}}/threads/{{threadId}}/replies?skip=0&take=50&sortBy=newest
+Authorization: Bearer {{token}}

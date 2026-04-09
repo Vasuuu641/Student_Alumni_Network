@@ -16,6 +16,7 @@ export class Note {
     public title: string,
     public readonly ownerId: string,
     public status: NoteStatus,
+    public content: unknown,        // Tiptap JSON content
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {}

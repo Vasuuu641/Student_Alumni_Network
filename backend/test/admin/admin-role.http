@@ -1,19 +1,79 @@
 POST http://localhost:3000/admin/users/authorized
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzI3OTE3NDksImV4cCI6MTc3Mjc5NTM0OX0.4WuJfEG-39INfJQt0a_xpWtQUYryIY-7Wd6jTw-WEnQ
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY3MTMsImV4cCI6MTc3Mzk1MDMxM30.R6-ltJP-6F-QPg0i4E2Nat6ofjSbGaFOc9nfU34DZBI
 
 {
     "email": "PROFE1@tr.pte.hu",
     "role": "PROFESSOR"
 }
-
+    
 ###
 //New user registered with STUDENT role
 POST http://localhost:3000/admin/users/authorized
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzODFlMjNlNy1iNjFhLTRkNzYtYWI2YS0xNzNlNTAwNDg5OWQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzMzMDUyNjMsImV4cCI6MTc3MzMwODg2M30.IPHfTNP045KQojqMwL8-HVau01aXSYmIP29ffRYidRE
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY5MjYsImV4cCI6MTc3Mzk1MDUyNn0.2zT_yGoXHgPP5GVgS_2ht7y6Bf5zG45_BFuuSAleT0g
 
 {
     "email": "h1ckbo@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "mdrn51@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "PMNRY6@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "ztyboc@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "AK4WJQ@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "E1WU52@tr.pte.hu",
+    "role": "STUDENT"
+}
+
+###
+POST http://localhost:3000/admin/users/authorized
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzM5NDY2MDUsImV4cCI6MTc3Mzk1MDIwNX0.gmdZAtVplGVHXMUjbY5jIwhT0raGDkSxo5O1M42W25E
+
+{
+    "email": "fbn7ym@tr.pte.hu",
     "role": "STUDENT"
 }

@@ -4,7 +4,7 @@ Timeline: Last Week of February → Mid–May
 ---
 
 # Week 1 – Architecture Lock & Product Definition
-(Feb 24 – Mar 2)
+(Feb 10 – Feb 13)
 
 ## Backend
 - Finalize Prisma schema:
@@ -47,7 +47,7 @@ Locked database schema + complete product structure definition.
 ---
 
 # Week 2 – Authentication Core & UI Foundations
-(Mar 3 – Mar 9)
+(Feb 14 - Feb 18)
 
 ## Backend
 - Create IdentityProvider abstraction in domain
@@ -86,7 +86,7 @@ Authentication must be swappable later for Neptun integration.
 ---
 
 # Week 3 – Role-Based Access & Admin System
-(Mar 10 – Mar 16)
+(Feb 19 – Feb 24)
 
 ## Backend
 - Implement RoleGuard
@@ -115,8 +115,8 @@ Strict role enforcement across backend and frontend. No endpoint should be acces
 
 ---
 
-# Week 4 – User Profiles (All Roles)
-(Mar 17 – Mar 23)
+# Week 4 – User Profiles (All Roles) and Onboarding
+(Feb 25 – March 10)
 
 ## Backend
 - Complete Student profile logic
@@ -143,7 +143,7 @@ Complete profile system for all roles. **No schema redesign after this week.**
 ---
 
 # Week 5 and 6 – Notes and Threads system
-(Mar 24 – Mar 30)
+(Mar 11 – Mar 19)
 
 ## Backend
 - Create note
@@ -191,7 +191,7 @@ Functional academic discussion feature. Same logic applies for alumni career adv
 ---
 
 # Week 7 – AI Integrations
-(Apr 28 – May 4)
+(March 20 - March 26)
 
 ## Backend
 - Integrate Cohere embeddings for:
@@ -215,7 +215,7 @@ AI-powered features using embeddings and semantic search to provide a personaliz
 ---
 
 # Week 8 – Study Groups
-(Apr 7 – Apr 13)
+(March 28 – March 31)
 
 ## Backend
 - Create study group
@@ -238,34 +238,49 @@ Basic collaboration feature.
 
 ---
 
-# Week 9 – Real-Time Chat (WebSockets)
-(Apr 14 – Apr 20)
+# Week 9 – Geo-Based Help Board
+(April 1 - April 6)
 
 ## Backend
-- Implement ChatGateway
-- Authenticate WebSocket connections via JWT
-- Implement room logic
-- Persist messages
-- Prevent cross-room data leakage
-- Add message retrieval API
+- Geo Resources (Static)
+- Get all resources
+- Get nearby resources (lat, lng, radius)
+- Admin-managed only (study spaces, labs, housing)
+- Geo Events (Dynamic)
+- Create event
+- Delete event
+- Query nearby events
+- Filter by:
+* distance
+* time (upcoming events)
+* Core Logic
+* Implement radius-based filtering (bounding box approach)
+* Ensure proper indexing is used
 
-## Web
-- Chat UI
-- Room list
-- Live message updates
-- Scroll management
+## Web (React)
+- Use a map library:
+- Leaflet or
+- Google Maps API
+- Features
+- Map-based UI (primary interface)
+- Display:
+* GeoResources (pinned locations)
+* GeoEvents (user-created events)
+* Click markers → show details
+* Create event via map interaction
+- Sidebar:
+* List of nearby events/resources
 
-## Mobile
-- Basic chat interface
-- Real-time message updates
-
-## Deliverable
-Stable real-time messaging. If WebSockets break, everything feels amateur.
+## Mobile (React Native)
+- Map screen
+- Location permissions
+- Nearby events/resources view
+- Create event flow
 
 ---
 
 # Week 10 – Alumni Mentorship & Feed Foundation
-(Apr 21 – Apr 27)
+(Apr 7 - April 10)
 
 ## Backend
 - Implement mentor request workflow
@@ -291,7 +306,7 @@ Platform begins to feel like a real network.
 ---
 
 # Week 11 – Security, Testing & Hardening
-(May 5 – May 11)
+(April 11 - April 15)
 
 ## Backend
 - Add unit tests for:
@@ -320,7 +335,7 @@ System that does not collapse under basic scrutiny.
 ---
 
 # Week 12 – Finalization & Thesis Polish
-(May 12 – May 18)
+(April 21 - April 27)
 
 ## Backend
 - Clean codebase

@@ -25,7 +25,7 @@ export class PrismaNoteVersionRepository implements NoteVersionRepository {
   async findLatestByNoteId(noteId: string): Promise<NoteVersion | null> {
     const record = await this.prisma.noteVersion.findFirst({
       where: { noteId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { versionNumber: 'desc' },
     });
     return record ? this.toDomain(record) : null;
   }
@@ -33,7 +33,7 @@ export class PrismaNoteVersionRepository implements NoteVersionRepository {
   async listVersions(noteId: string, offset: number, limit: number): Promise<NoteVersion[]> {
     const records = await this.prisma.noteVersion.findMany({
       where: { noteId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { versionNumber: 'desc' },
       skip: offset,
       take: limit,
     });
@@ -42,9 +42,7 @@ export class PrismaNoteVersionRepository implements NoteVersionRepository {
 
   async findByNoteIdAndVersionNumber(noteId: string, versionNumber: number): Promise<NoteVersion | null> {
     const record = await this.prisma.noteVersion.findFirst({
-      where: { noteId },
-      orderBy: { createdAt: 'asc' },
-      skip: versionNumber - 1,
+      where: { noteId, versionNumber },
     });
     return record ? this.toDomain(record) : null;
   }

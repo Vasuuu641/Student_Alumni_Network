@@ -19,6 +19,20 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get noteActivity() { return this.client.noteActivity; }
   get noteVersion() { return this.client.noteVersion; }
   get revokedToken() { return this.client.revokedToken; }
+  get thread() { return this.client.thread; }
+  get threadReply() { return this.client.threadReply; }
+  get threadVote() { return this.client.threadVote; }
+  get threadReplyVote() { return this.client.threadReplyVote; }
+  get noteChunk() { return this.client.noteChunk; }
+  get noteChunkEmbedding() { return this.client.noteChunkEmbedding; }
+  get noteThreadLink() { return this.client.noteThreadLink; }
+  get threadEmbedding() { return this.client.threadEmbedding; }
+  get studyGroup() { return this.client.studyGroup; }
+  get studyGroupMember() { return this.client.studyGroupMember; }
+  get studyGroupPost() { return this.client.studyGroupPost; }
+  get geoHelpSpot() { return this.client.geoHelpSpot; }
+  get geoHelpSpotVisit() { return this.client.geoHelpSpotVisit; }
+  
   // add other models you have here...
 
   constructor() {
@@ -36,9 +50,39 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   async $connect() { return this.client.$connect(); }
   async $disconnect() { return this.client.$disconnect(); }
 
+  async $transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+    return this.client.$transaction((tx) => fn(tx as PrismaClient));
+  }
+
+  async $executeRaw(query: TemplateStringsArray, ...values: any[]): Promise<number> {
+  return this.client.$executeRaw(query, ...values);
+  }
+
+  async $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Promise<T> {
+    return this.client.$queryRawUnsafe<T>(query, ...values);
+  }
+
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
-    console.log('✓ Database connection established');
+
+    // Development diagnostics:
+    // If data appears to "disappear" after restart, these logs confirm
+    // exactly which database instance this process is connected to.
+    try {
+      const dbMeta = await this.client.$queryRawUnsafe<
+        Array<{ db: string; host: string | null; port: number | null }>
+      >(
+        'select current_database() as db, inet_server_addr()::text as host, inet_server_port() as port',
+      );
+      const noteCount = await this.client.note.count();
+      const meta = dbMeta[0] ?? { db: 'unknown', host: null, port: null };
+
+      console.log(
+        `✓ Database connection established (db=${meta.db} host=${meta.host ?? 'local-socket'} port=${meta.port ?? 'n/a'} notes=${noteCount})`,
+      );
+    } catch {
+      console.log('✓ Database connection established');
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

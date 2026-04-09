@@ -13,4 +13,8 @@ export class NotesRealtimePublisherService implements NotesRealtimePublisher {
   ): void {
     this.notesGateway.broadcastCheckpointCreated(noteId, actorId, versionNumber);
   }
+
+  broadcastVersionRestored(noteId: string, actorId: string, content: unknown): void {
+    this.notesGateway.broadcastVersionRestored(noteId, actorId, content)
+  }
 }

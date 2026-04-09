@@ -4,4 +4,10 @@ export interface NotesRealtimePublisher {
     actorId: string,
     versionNumber: number,
   ): void;
+
+   broadcastVersionRestored(
+    noteId: string,
+    actorId: string,
+    content: unknown,
+  ): void
 }

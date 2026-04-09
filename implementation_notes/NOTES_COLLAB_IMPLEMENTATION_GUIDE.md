@@ -249,6 +249,54 @@ Acceptance criteria:
 - Editing feels near-real-time
 - Formatting survives reload and re-open
 
+src/
+
+├── api/
+
+│   └── notes.api.ts          # REST calls: fetch note, list versions, restore version
+
+│
+
+├── lib/
+
+│   ├── socket.ts             # Socket.IO singleton (already discussed)
+
+│   └── notes-y-provider.ts   # Custom Y.js provider (already discussed)
+
+│
+
+├── components/
+
+│   └── notes/
+
+│       ├── CollaborativeEditor.tsx     # Main editor component
+
+│       ├── EditorToolbar.tsx           # Bold/italic/headings etc (Tiptap is headless)
+
+│       ├── PresenceAvatars.tsx         # Live avatars of who's in the room
+
+│       ├── VersionHistoryPanel.tsx     # Sidebar: list snapshots, click to preview
+
+│       ├── VersionPreviewModal.tsx     # Read-only Tiptap instance for a past version
+
+│       └── ConnectionStatus.tsx       # "Synced" / "Reconnecting..." indicator
+
+│
+
+├── hooks/
+
+│   ├── useNoteRoom.ts          # Join/leave socket room, get role + canEdit
+
+│   ├── useCheckpointEvents.ts  # Listen for notes:checkpoint-created broadcasts
+
+│   └── usePresence.ts          # Track who's currently in the room (joined/left events)
+
+│
+
+└── pages/
+
+    └── NotePage.tsx            # Route page, composes all the above
+
 ---
 
 ## Phase 7 — Versioning and restore UX (Week 2)

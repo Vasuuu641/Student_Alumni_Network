@@ -3,12 +3,14 @@ import { Injectable, Inject } from "@nestjs/common";
 import type { NoteRepository } from "src/domain/repositories/note.repository";
 import type { NoteActivityRepository } from "src/domain/repositories/note-activity.repository";
 import { NoteStatus } from "src/domain/entities/note.entity";
+import type { NoteLLMService } from "src/domain/services/note-llm-service";
 
 @Injectable()
 export class CreateNoteUseCase {
   constructor(
     @Inject('NoteRepository') private readonly noteRepository: NoteRepository,
-    @Inject('NoteActivityRepository') private readonly noteActivityRepository: NoteActivityRepository
+    @Inject('NoteActivityRepository') private readonly noteActivityRepository: NoteActivityRepository,
+    @Inject('NoteLLMService') private readonly noteLLMService: NoteLLMService
   ) {}
 
   async execute(userId: string, title: string): Promise<string> {
@@ -20,6 +22,7 @@ export class CreateNoteUseCase {
       title,
       ownerId: userId,
       status: NoteStatus.ACTIVE,
+      content: null,
       createdAt: now,
       updatedAt: now,
       isOwnedBy: (checkUserId: string) => userId === checkUserId,
@@ -33,6 +36,11 @@ export class CreateNoteUseCase {
       action: "CREATE",
       metadataJson: {},
       createdAt: now,
+    });
+
+     // Embed in background — title only since content is empty on creation
+    this.noteLLMService.embedNote(note.id, title, null).catch((err) => {
+      console.error(`Background embed failed for note ${note.id}:`, err.message);
     });
 
     return note.id;
