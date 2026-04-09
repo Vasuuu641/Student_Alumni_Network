@@ -126,11 +126,12 @@ export class GeoHelpBoardController {
   @Roles('ADMIN')
   @UseGuards(RateLimitGuard)
   @RateLimit({ maxRequests: 30, windowMs: 60_000 })
-  async verifySpot(@Param('spotId') spotId: string, @Body() body: VerifyGeoHelpSpotDto) {
+  async verifySpot(@Req() request: any, @Param('spotId') spotId: string, @Body() body: VerifyGeoHelpSpotDto) {
     try {
       return await this.verifyGeoHelpSpotUseCase.execute({
         spotId,
         isVerified: body.isVerified,
+        reviewerId: request.user?.userId,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);

@@ -111,10 +111,14 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     return this.toDomain(updated);
   }
 
-  async reviewSpot(input: { spotId: string; reviewStatus: GeoHelpSpotReviewStatus }): Promise<GeoHelpSpot> {
+  async reviewSpot(input: { spotId: string; reviewStatus: GeoHelpSpotReviewStatus; reviewerId: string }): Promise<GeoHelpSpot> {
     const updated = await this.prisma.geoHelpSpot.update({
       where: { id: input.spotId },
-      data: { reviewStatus: input.reviewStatus } as any,
+      data: {
+        reviewStatus: input.reviewStatus,
+        reviewedById: input.reviewerId,
+        reviewedAt: new Date(),
+      } as any,
     });
 
     return this.toDomain(updated);
@@ -231,6 +235,8 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
       record.createdById,
       record.isActive,
       record.reviewStatus as GeoHelpSpotReviewStatus,
+      record.reviewedById ?? null,
+      record.reviewedAt ?? null,
       record.visitCount,
       record.createdAt,
       record.updatedAt,

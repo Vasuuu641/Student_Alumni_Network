@@ -28,6 +28,8 @@ export class GeoHelpSpot {
     public readonly createdById: string,
     public isActive: boolean,
     public reviewStatus: GeoHelpSpotReviewStatus,
+    public reviewedById: string | null,
+    public reviewedAt: Date | null,
     public visitCount: number,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,

@@ -25,6 +25,7 @@ export interface UpdateGeoHelpSpotInput {
 export interface ReviewGeoHelpSpotInput {
   spotId: string;
   reviewStatus: GeoHelpSpotReviewStatus;
+  reviewerId: string;
 }
 
 export interface DuplicateGeoHelpSpotCheckInput {

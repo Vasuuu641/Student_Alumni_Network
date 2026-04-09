@@ -145,6 +145,8 @@ describe('GeoHelpBoard (e2e)', () => {
 
     expect(response.body).toBeDefined();
     expect(response.body.reviewStatus).toBe('VERIFIED');
+    expect(response.body.reviewedById).toBe(adminUserId);
+    expect(response.body.reviewedAt).toBeDefined();
   });
 
   it('PATCH /geo-help-board/spots/:spotId should edit a spot for its creator', async () => {
@@ -195,6 +197,8 @@ describe('GeoHelpBoard (e2e)', () => {
       .expect(200);
 
     expect(response.body.reviewStatus).toBe('VERIFIED');
+    expect(response.body.reviewedById).toBe(adminUserId);
+    expect(response.body.reviewedAt).toBeDefined();
   });
 
   it('GET /geo-help-board/spots/popular should return 200 for student', async () => {

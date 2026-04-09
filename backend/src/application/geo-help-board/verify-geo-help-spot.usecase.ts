@@ -6,6 +6,7 @@ import { GeoHelpBoardNotFoundError } from './geo-help-board.errors';
 export interface VerifyGeoHelpSpotRequest {
   spotId: string;
   isVerified: boolean;
+  reviewerId: string;
 }
 
 @Injectable()
@@ -24,6 +25,7 @@ export class VerifyGeoHelpSpotUseCase {
     return this.geoHelpBoardRepository.reviewSpot({
       spotId: request.spotId,
       reviewStatus: request.isVerified ? GeoHelpSpotReviewStatus.VERIFIED : GeoHelpSpotReviewStatus.REJECTED,
+      reviewerId: request.reviewerId,
     });
   }
 }

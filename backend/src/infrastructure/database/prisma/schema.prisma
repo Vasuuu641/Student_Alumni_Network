@@ -42,6 +42,7 @@ model User {
   studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
   geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
   geoHelpSpotVisits   GeoHelpSpotVisit[]
+  geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
 }
 
 model Student {
@@ -533,17 +534,21 @@ model GeoHelpSpot {
   createdById String
   isActive    Boolean             @default(true)
   reviewStatus GeoHelpSpotReviewStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
   visitCount  Int                 @default(0)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
   createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("GeoHelpSpotReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   visits    GeoHelpSpotVisit[]
 
   @@index([city, category, reviewStatus])
   @@index([city, visitCount, reviewStatus])
   @@index([latitude, longitude])
   @@index([createdById])
+  @@index([reviewedById, reviewedAt])
 }
 
 model GeoHelpSpotVisit {
