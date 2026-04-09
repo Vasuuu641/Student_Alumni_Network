@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
-import type { CreateGeoHelpSpotInput, GeoHelpBoardRepository, ListGeoHelpSpotsFilter, UpdateGeoHelpSpotInput } from '../../domain/repositories/geo-help-board.repository';
+import type {
+  CreateGeoHelpSpotInput,
+  DuplicateGeoHelpSpotCheckInput,
+  GeoHelpBoardRepository,
+  ListGeoHelpSpotsFilter,
+  UpdateGeoHelpSpotInput,
+} from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 
 @Injectable()
@@ -28,6 +34,55 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
   async findSpotById(spotId: string): Promise<GeoHelpSpot | null> {
     const found = await this.prisma.geoHelpSpot.findUnique({ where: { id: spotId } });
     return found ? this.toDomain(found) : null;
+  }
+
+  async findPotentialDuplicate(input: DuplicateGeoHelpSpotCheckInput): Promise<GeoHelpSpot | null> {
+    const radiusKm = input.radiusKm ?? 0.2;
+    const latDelta = radiusKm / 111;
+    const lngDelta = radiusKm / (111 * Math.cos((input.latitude * Math.PI) / 180));
+
+    const minLat = input.latitude - latDelta;
+    const maxLat = input.latitude + latDelta;
+    const minLng = input.longitude - lngDelta;
+    const maxLng = input.longitude + lngDelta;
+
+    const candidates = await this.prisma.geoHelpSpot.findMany({
+      where: {
+        isActive: true,
+        city: input.city,
+        category: input.category,
+        latitude: {
+          gte: minLat,
+          lte: maxLat,
+        },
+        longitude: {
+          gte: minLng,
+          lte: maxLng,
+        },
+      } as any,
+      take: 20,
+    });
+
+    const normalize = (value: string) => value.trim().toLowerCase();
+    const requestedTitle = normalize(input.title);
+
+    for (const candidate of candidates) {
+      const distanceKm = this.haversineDistanceKm(
+        input.latitude,
+        input.longitude,
+        Number(candidate.latitude),
+        Number(candidate.longitude),
+      );
+
+      const titleMatches = normalize(candidate.title) === requestedTitle;
+      const samePinThresholdKm = 0.05;
+
+      if (distanceKm <= radiusKm && (titleMatches || distanceKm <= samePinThresholdKm)) {
+        return this.toDomain(candidate);
+      }
+    }
+
+    return null;
   }
 
   async updateSpot(input: UpdateGeoHelpSpotInput): Promise<GeoHelpSpot> {

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GeoHelpSpot, GeoHelpSpotCategory } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
-import { GeoHelpBoardValidationError } from './geo-help-board.errors';
+import { GeoHelpBoardConflictError, GeoHelpBoardValidationError } from './geo-help-board.errors';
 
 export interface CreateGeoHelpSpotRequest {
   title: string;
@@ -22,6 +22,12 @@ export class CreateGeoHelpSpotUseCase {
   ) {}
 
   async execute(request: CreateGeoHelpSpotRequest): Promise<GeoHelpSpot> {
+    const title = request.title.trim();
+    const city = request.city.trim();
+    const address = request.address?.trim() || null;
+    const description = request.description?.trim() || null;
+    const category = request.category ?? GeoHelpSpotCategory.OTHER;
+
     if (request.latitude < -90 || request.latitude > 90) {
       throw new GeoHelpBoardValidationError('Latitude must be between -90 and 90');
     }
@@ -30,14 +36,27 @@ export class CreateGeoHelpSpotUseCase {
       throw new GeoHelpBoardValidationError('Longitude must be between -180 and 180');
     }
 
-    return this.geoHelpBoardRepository.createSpot({
-      title: request.title.trim(),
-      description: request.description?.trim() || null,
-      city: request.city.trim(),
-      address: request.address?.trim() || null,
+    const duplicate = await this.geoHelpBoardRepository.findPotentialDuplicate({
+      title,
+      city,
+      category,
       latitude: request.latitude,
       longitude: request.longitude,
-      category: request.category ?? GeoHelpSpotCategory.OTHER,
+      radiusKm: 0.2,
+    });
+
+    if (duplicate) {
+      throw new GeoHelpBoardConflictError('A similar spot already exists nearby');
+    }
+
+    return this.geoHelpBoardRepository.createSpot({
+      title,
+      description,
+      city,
+      address,
+      latitude: request.latitude,
+      longitude: request.longitude,
+      category,
       createdById: request.createdById,
     });
   }

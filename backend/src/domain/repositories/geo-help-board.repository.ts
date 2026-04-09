@@ -27,6 +27,15 @@ export interface ReviewGeoHelpSpotInput {
   reviewStatus: GeoHelpSpotReviewStatus;
 }
 
+export interface DuplicateGeoHelpSpotCheckInput {
+  title: string;
+  city: string;
+  category: GeoHelpSpotCategory;
+  latitude: number;
+  longitude: number;
+  radiusKm?: number;
+}
+
 export interface ListGeoHelpSpotsFilter {
   city?: string;
   category?: GeoHelpSpotCategory;
@@ -37,6 +46,7 @@ export interface ListGeoHelpSpotsFilter {
 export interface GeoHelpBoardRepository {
   createSpot(input: CreateGeoHelpSpotInput): Promise<GeoHelpSpot>;
   findSpotById(spotId: string): Promise<GeoHelpSpot | null>;
+  findPotentialDuplicate(input: DuplicateGeoHelpSpotCheckInput): Promise<GeoHelpSpot | null>;
   updateSpot(input: UpdateGeoHelpSpotInput): Promise<GeoHelpSpot>;
   deactivateSpot(spotId: string): Promise<GeoHelpSpot>;
   reviewSpot(input: ReviewGeoHelpSpotInput): Promise<GeoHelpSpot>;

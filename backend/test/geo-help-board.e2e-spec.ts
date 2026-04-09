@@ -120,6 +120,22 @@ describe('GeoHelpBoard (e2e)', () => {
     createdSpotId = response.body.id;
   });
 
+  it('POST /geo-help-board/spots should reject near-duplicate spot creation', async () => {
+    await request(app.getHttpServer())
+      .post('/geo-help-board/spots')
+      .set('Authorization', `Bearer ${professorToken}`)
+      .send({
+        title: 'Geo E2E Student Spot',
+        description: 'Possible duplicate',
+        city: 'Pecs',
+        address: 'Pecs Test Address 2',
+        latitude: 46.07274,
+        longitude: 18.23225,
+        category: 'STUDY_SPACE',
+      })
+      .expect(409);
+  });
+
   it('PATCH /geo-help-board/spots/:spotId/review should allow admin to verify a spot', async () => {
     const response = await request(app.getHttpServer())
       .patch(`/geo-help-board/spots/${createdSpotId}/review`)
