@@ -8,6 +8,7 @@
 @studentToken = REPLACE_WITH_STUDENT_ACCESS_TOKEN
 @professorToken = REPLACE_WITH_PROFESSOR_ACCESS_TOKEN
 @alumniToken = REPLACE_WITH_ALUMNI_ACCESS_TOKEN
+@adminToken = REPLACE_WITH_ADMIN_ACCESS_TOKEN
 
 # IDs captured from create responses
 @spotId = REPLACE_WITH_CREATED_SPOT_ID
@@ -54,37 +55,52 @@ Authorization: Bearer {{professorToken}}
 }
 
 ###
-# 4) POPULAR SPOTS (200)
+# 4) REVIEW FIRST SPOT as ADMIN (200)
+PATCH {{baseUrl}}/geo-help-board/spots/{{spotId}}/review
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "isVerified": true
+}
+
+###
+# 5) POPULAR SPOTS (200)
 GET {{baseUrl}}/geo-help-board/spots/popular?city=Pecs&limit=10
 Authorization: Bearer {{studentToken}}
 
 ###
-# 5) POPULAR SPOTS with CATEGORY FILTER (200)
-GET {{baseUrl}}/geo-help-board/spots/popular?city=Pecs&category=LIBRARY&limit=10
+# 6) POPULAR SPOTS with CATEGORY FILTER + PAGINATION (200)
+GET {{baseUrl}}/geo-help-board/spots/popular?city=Pecs&category=LIBRARY&limit=10&page=1
 Authorization: Bearer {{studentToken}}
 
 ###
-# 6) NEARBY SPOTS around Pécs center (200)
-GET {{baseUrl}}/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=3&city=Pecs&limit=10
+# 7) NEARBY SPOTS around Pécs center + PAGINATION (200)
+GET {{baseUrl}}/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=3&city=Pecs&limit=10&page=1
 Authorization: Bearer {{studentToken}}
 
 ###
-# 7) RECORD VISIT (200/201)
+# 8) RECORD VISIT (201)
 POST {{baseUrl}}/geo-help-board/spots/{{spotId}}/visit
 Authorization: Bearer {{studentToken}}
 
 ###
-# 8) VERIFY POPULARITY CHANGED (200)
+# 9) VERIFY POPULARITY CHANGED (200)
 GET {{baseUrl}}/geo-help-board/spots/popular?city=Pecs&limit=10
 Authorization: Bearer {{studentToken}}
 
 ###
-# 9) VALIDATION CHECK: invalid latitude should fail (400)
+# 10) VALIDATION CHECK: invalid latitude should fail (400)
 GET {{baseUrl}}/geo-help-board/spots/nearby?latitude=146.0&longitude=18.232266&radiusKm=3
 Authorization: Bearer {{studentToken}}
 
 ###
-# 10) NOT FOUND VISIT CHECK (should fail)
+# 11) VALIDATION CHECK: radius above max should fail (400)
+GET {{baseUrl}}/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=55
+Authorization: Bearer {{studentToken}}
+
+###
+# 12) NOT FOUND VISIT CHECK (should fail)
 POST {{baseUrl}}/geo-help-board/spots/00000000-0000-0000-0000-000000000000/visit
 Authorization: Bearer {{studentToken}}
 

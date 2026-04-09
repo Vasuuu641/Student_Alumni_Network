@@ -41,6 +41,7 @@ export class GeoHelpBoardController {
         city: query.city,
         category: query.category as any,
         limit: query.limit,
+        page: query.page,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);
@@ -57,6 +58,7 @@ export class GeoHelpBoardController {
         city: query.city,
         category: query.category as any,
         limit: query.limit,
+        page: query.page,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);

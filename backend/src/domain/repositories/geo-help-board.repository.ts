@@ -42,6 +42,7 @@ export interface ListGeoHelpSpotsFilter {
   category?: GeoHelpSpotCategory;
   isActive?: boolean;
   limit?: number;
+  offset?: number;
 }
 
 export interface GeoHelpBoardRepository {
@@ -59,6 +60,7 @@ export interface GeoHelpBoardRepository {
     city?: string;
     category?: GeoHelpSpotCategory;
     limit?: number;
+    offset?: number;
   }): Promise<GeoHelpSpotWithDistance[]>;
   recordVisit(spotId: string, userId: string): Promise<GeoHelpSpotVisit>;
 }

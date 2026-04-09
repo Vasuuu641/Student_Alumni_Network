@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { GeoHelpSpotCategory, PrismaClient, Role } from '@prisma/client';
+import { GeoHelpSpotCategory, GeoHelpSpotReviewStatus, PrismaClient, Role } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 
@@ -160,6 +160,7 @@ async function seedGeoHelpBoardSpots(): Promise<number> {
 					longitude: spot.longitude,
 					category: spot.category,
 					isActive: true,
+					reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
 				},
 			});
 			continue;
@@ -176,6 +177,7 @@ async function seedGeoHelpBoardSpots(): Promise<number> {
 				category: spot.category,
 				createdById: creator.id,
 				isActive: true,
+				reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
 			},
 		});
 	}

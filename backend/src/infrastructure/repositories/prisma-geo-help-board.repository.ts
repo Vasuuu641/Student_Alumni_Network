@@ -125,6 +125,9 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
   }
 
   async listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]> {
+    const take = filter.limit ?? 20;
+    const skip = filter.offset ?? 0;
+
     const records = await this.prisma.geoHelpSpot.findMany({
       where: {
         city: filter.city,
@@ -133,7 +136,8 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
       } as any,
       orderBy: [{ visitCount: 'desc' }, { createdAt: 'desc' }],
-      take: filter.limit ?? 20,
+      take,
+      skip,
     });
 
     return records.map((record) => this.toDomain(record));
@@ -146,7 +150,11 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     city?: string;
     category?: GeoHelpSpotCategory;
     limit?: number;
+    offset?: number;
   }): Promise<GeoHelpSpotWithDistance[]> {
+    const take = params.limit ?? 20;
+    const skip = params.offset ?? 0;
+
     const latDelta = params.radiusKm / 111;
     const lngDelta = params.radiusKm / (111 * Math.cos((params.latitude * Math.PI) / 180));
 
@@ -170,7 +178,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
           lte: maxLng,
         },
       } as any,
-      take: Math.max(params.limit ?? 20, 50),
+      take: Math.max(skip + take, 50),
       orderBy: [{ visitCount: 'desc' }],
     });
 
@@ -188,7 +196,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
       })
       .filter((spot) => spot.distanceKm <= params.radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm)
-      .slice(0, params.limit ?? 20);
+        .slice(skip, skip + take);
   }
 
   async recordVisit(spotId: string, userId: string): Promise<GeoHelpSpotVisit> {

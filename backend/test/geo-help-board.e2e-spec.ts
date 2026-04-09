@@ -212,6 +212,24 @@ describe('GeoHelpBoard (e2e)', () => {
     expect(response.body.every((spot: any) => spot.reviewStatus === 'VERIFIED')).toBe(true);
   });
 
+  it('GET /geo-help-board/spots/popular should support page-based pagination', async () => {
+    const page1 = await request(app.getHttpServer())
+      .get('/geo-help-board/spots/popular?city=Pecs&limit=1&page=1')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    const page2 = await request(app.getHttpServer())
+      .get('/geo-help-board/spots/popular?city=Pecs&limit=1&page=2')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(Array.isArray(page1.body)).toBe(true);
+    expect(Array.isArray(page2.body)).toBe(true);
+    expect(page1.body.length).toBe(1);
+    expect(page2.body.length).toBe(1);
+    expect(page1.body[0].id).not.toBe(page2.body[0].id);
+  });
+
   it('GET /geo-help-board/spots/nearby should return nearby spots with distance', async () => {
     const response = await request(app.getHttpServer())
       .get('/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=5&city=Pecs&limit=10')
@@ -222,6 +240,24 @@ describe('GeoHelpBoard (e2e)', () => {
     expect(response.body.length).toBeGreaterThan(0);
     expect(response.body[0].distanceKm).toBeDefined();
     expect(response.body.every((spot: any) => spot.reviewStatus === 'VERIFIED')).toBe(true);
+  });
+
+  it('GET /geo-help-board/spots/nearby should support page-based pagination', async () => {
+    const page1 = await request(app.getHttpServer())
+      .get('/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=5&city=Pecs&limit=1&page=1')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    const page2 = await request(app.getHttpServer())
+      .get('/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=5&city=Pecs&limit=1&page=2')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(Array.isArray(page1.body)).toBe(true);
+    expect(Array.isArray(page2.body)).toBe(true);
+    expect(page1.body.length).toBe(1);
+    expect(page2.body.length).toBe(1);
+    expect(page1.body[0].id).not.toBe(page2.body[0].id);
   });
 
   it('POST /geo-help-board/spots/:spotId/visit should record a visit', async () => {
@@ -253,6 +289,13 @@ describe('GeoHelpBoard (e2e)', () => {
   it('GET /geo-help-board/spots/nearby should return 400 for invalid latitude', async () => {
     await request(app.getHttpServer())
       .get('/geo-help-board/spots/nearby?latitude=146&longitude=18.232266&radiusKm=3')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(400);
+  });
+
+  it('GET /geo-help-board/spots/nearby should return 400 when radius exceeds maximum', async () => {
+    await request(app.getHttpServer())
+      .get('/geo-help-board/spots/nearby?latitude=46.072734&longitude=18.232266&radiusKm=55')
       .set('Authorization', `Bearer ${studentToken}`)
       .expect(400);
   });

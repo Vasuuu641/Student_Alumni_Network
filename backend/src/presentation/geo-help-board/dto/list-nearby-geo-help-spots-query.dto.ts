@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListNearbyGeoHelpSpotsQueryDto {
   @Type(() => Number)
@@ -26,8 +26,15 @@ export class ListNearbyGeoHelpSpotsQueryDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  page?: number;
 }
