@@ -237,6 +237,32 @@ describe('GeoHelpBoard (e2e)', () => {
       .expect(400);
   });
 
+  it('POST /geo-help-board/spots should return 429 when write rate limit is exceeded', async () => {
+    let hit429 = false;
+
+    for (let index = 0; index < 6; index += 1) {
+      const response = await request(app.getHttpServer())
+        .post('/geo-help-board/spots')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          title: `Rate Limit Spot ${index}`,
+          description: 'Rate-limit check',
+          city: 'Pecs',
+          address: 'Rate Test Address',
+          latitude: 46.07,
+          longitude: 18.23,
+          category: 'OTHER',
+        });
+
+      if (response.status === 429) {
+        hit429 = true;
+        break;
+      }
+    }
+
+    expect(hit429).toBe(true);
+  });
+
   async function seedAuthorizedUsers(): Promise<void> {
     await prisma.authorizedUser.upsert({
       where: { email: studentEmail },

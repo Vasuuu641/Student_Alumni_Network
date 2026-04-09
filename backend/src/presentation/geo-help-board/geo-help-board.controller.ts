@@ -2,6 +2,8 @@ import { BadRequestException, Body, Controller, Get, HttpException, HttpStatus, 
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
+import { RateLimitGuard } from '../../infrastructure/security/rate-limit.guard';
+import { RateLimit } from '../../infrastructure/security/rate-limit.decorator';
 
 import { CreateGeoHelpSpotUseCase } from '../../application/geo-help-board/create-geo-help-spot.usecase';
 import { ListPopularGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-popular-geo-help-spots.usecase';
@@ -62,6 +64,8 @@ export class GeoHelpBoardController {
   }
 
   @Post('spots')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ maxRequests: 5, windowMs: 60_000 })
   async createSpot(@Req() request: any, @Body() body: CreateGeoHelpSpotDto) {
     const createdById = request.user?.userId;
     try {
@@ -81,6 +85,8 @@ export class GeoHelpBoardController {
   }
 
   @Patch('spots/:spotId')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ maxRequests: 20, windowMs: 60_000 })
   async editSpot(@Req() request: any, @Param('spotId') spotId: string, @Body() body: UpdateGeoHelpSpotDto) {
     try {
       return await this.editGeoHelpSpotUseCase.execute({
@@ -101,6 +107,8 @@ export class GeoHelpBoardController {
   }
 
   @Patch('spots/:spotId/deactivate')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ maxRequests: 10, windowMs: 60_000 })
   async deactivateSpot(@Req() request: any, @Param('spotId') spotId: string) {
     try {
       return await this.deactivateGeoHelpSpotUseCase.execute({
@@ -116,6 +124,8 @@ export class GeoHelpBoardController {
   @Patch('spots/:spotId/review')
   @Patch('spots/:spotId/verification')
   @Roles('ADMIN')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ maxRequests: 30, windowMs: 60_000 })
   async verifySpot(@Param('spotId') spotId: string, @Body() body: VerifyGeoHelpSpotDto) {
     try {
       return await this.verifyGeoHelpSpotUseCase.execute({
@@ -128,6 +138,8 @@ export class GeoHelpBoardController {
   }
 
   @Post('spots/:spotId/visit')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ maxRequests: 60, windowMs: 60_000 })
   async recordVisit(@Req() request: any, @Param('spotId') spotId: string) {
     try {
       return await this.recordGeoHelpSpotVisitUseCase.execute({

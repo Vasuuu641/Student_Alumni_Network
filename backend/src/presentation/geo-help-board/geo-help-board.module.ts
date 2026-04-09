@@ -14,6 +14,7 @@ import { ListNearbyGeoHelpSpotsUseCase } from '../../application/geo-help-board/
 import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/record-geo-help-spot-visit.usecase';
 
 import { PrismaGeoHelpBoardRepository } from '../../infrastructure/repositories/prisma-geo-help-board.repository';
+import { RateLimitGuard } from '../../infrastructure/security/rate-limit.guard';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -26,6 +27,7 @@ import { PrismaGeoHelpBoardRepository } from '../../infrastructure/repositories/
     ListPopularGeoHelpSpotsUseCase,
     ListNearbyGeoHelpSpotsUseCase,
     RecordGeoHelpSpotVisitUseCase,
+    RateLimitGuard,
 
     PrismaGeoHelpBoardRepository,
     { provide: 'GeoHelpBoardRepository', useClass: PrismaGeoHelpBoardRepository },
