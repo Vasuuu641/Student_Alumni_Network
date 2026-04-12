@@ -108,10 +108,10 @@ export function HomePage() {
             </Pressable>
           </View>
 
-          <View className="mt-[18px] flex-row flex-wrap gap-2">
-            <Text className="rounded-full border border-[#dce5f5] bg-white px-3 py-2 text-[13px] font-semibold text-[#30425f]">🎓 Students</Text>
-            <Text className="rounded-full border border-[#dce5f5] bg-white px-3 py-2 text-[13px] font-semibold text-[#30425f]">📚 Professors</Text>
-            <Text className="rounded-full border border-[#dce5f5] bg-white px-3 py-2 text-[13px] font-semibold text-[#30425f]">🧑‍💼 Alumni</Text>
+          <View className="mt-[18px] flex-row gap-2">
+            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">🎓 Students</Text>
+            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">📚 Professors</Text>
+            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">🧑‍💼 Alumni</Text>
           </View>
         </View>
 
