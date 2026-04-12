@@ -1,12 +1,14 @@
 import { Pressable, Text, View } from 'react-native';
-import { BridgeLogo } from './BridgeLogo';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faBridge } from '@fortawesome/free-solid-svg-icons';
+import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 
 export function LandingHeader() {
   return (
     <View className="min-h-[74px] flex-row items-center justify-between border-b border-[#eef3fb] bg-white px-4">
       <View className="flex-row items-center gap-2">
         <View className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-primary">
-          <BridgeLogo size={17} color="#ffffff" />
+          <FontAwesomeIcon icon={faBridge as IconProp} size={15} color="#ffffff" />
         </View>
         <Text className="text-lg font-bold text-ink">UniBridge</Text>
       </View>
