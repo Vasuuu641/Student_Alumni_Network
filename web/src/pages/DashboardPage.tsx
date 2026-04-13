@@ -30,6 +30,13 @@ export function DashboardPage() {
           >
             💬 Discussions
           </Button>
+          <Button
+            type="button"
+            variant="submit-wide"
+            onClick={() => navigate('/study-groups')}
+          >
+            👥 Study Groups
+          </Button>
           <Button type="button" variant="submit-wide" onClick={handleLogout}>
             Log out
           </Button>
