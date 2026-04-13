@@ -50,6 +50,7 @@ export function StudyGroupsPage() {
   const [createError, setCreateError] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [initialMembersText, setInitialMembersText] = useState('');
   const [visibility, setVisibility] = useState<StudyGroupVisibility>('PUBLIC');
   const [workingGroupId, setWorkingGroupId] = useState<string | null>(null);
   const isAuthenticated = Boolean(token);
@@ -137,19 +138,33 @@ export function StudyGroupsPage() {
     event.preventDefault();
     const groupName = name.trim();
     const groupDescription = description.trim();
+    const initialMemberIds = Array.from(
+      new Set(
+        initialMembersText
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    );
 
-    if (!groupName || !groupDescription) {
-      setCreateError('Please provide a name and description.');
+    if (!groupName || !groupDescription || initialMemberIds.length < 1) {
+      setCreateError('Please provide name, description, and at least one member user ID.');
       return;
     }
 
     try {
       setIsCreating(true);
       setCreateError('');
-      const created = await createStudyGroup({ name: groupName, description: groupDescription, visibility });
+      const created = await createStudyGroup({
+        name: groupName,
+        description: groupDescription,
+        visibility,
+        initialMemberIds,
+      });
       setShowCreateModal(false);
       setName('');
       setDescription('');
+      setInitialMembersText('');
       setVisibility('PUBLIC');
       setGroups((prev) => [created, ...prev]);
       navigate(`/study-groups/${created.id}`);
@@ -388,6 +403,19 @@ export function StudyGroupsPage() {
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
                   placeholder="What should members expect from this study group?"
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Initial member IDs or emails</span>
+                <input
+                  value={initialMembersText}
+                  onChange={(event) => setInitialMembersText(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
+                  placeholder="Paste comma-separated user IDs or neptun emails (at least one)"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Group creator is auto-added. Add at least one more valid user ID or email so group size is 2+.
+                </p>
               </label>
 
               <label className="block">

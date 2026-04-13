@@ -4,6 +4,7 @@ import { Archive, ArrowLeft, Loader2, LockKeyhole, MessageSquare, Send, UserPlus
 import Button from '../components/Button';
 import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import {
+  addStudyGroupMember,
   createStudyGroupPost,
   getStudyGroup,
   joinStudyGroup,
@@ -31,6 +32,8 @@ export function StudyGroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [composerValue, setComposerValue] = useState('');
+  const [newMemberId, setNewMemberId] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
   const [working, setWorking] = useState(false);
   const isAuthenticated = Boolean(token);
 
@@ -65,6 +68,20 @@ export function StudyGroupDetailPage() {
 
   const activeMembers = useMemo(() => members.filter((member) => member.joinStatus === 'ACTIVE'), [members]);
   const isOwner = group?.ownerId === currentUserId;
+  const ownerMissingFromActiveMembers = useMemo(() => {
+    if (!group) return false;
+    return !activeMembers.some((member) => member.userId === group.ownerId);
+  }, [activeMembers, group]);
+  const activeMembersForDisplay = useMemo(() => {
+    if (!group || !ownerMissingFromActiveMembers) {
+      return activeMembers;
+    }
+
+    return [
+      { userId: group.ownerId, role: 'OWNER', joinStatus: 'ACTIVE' as const },
+      ...activeMembers,
+    ];
+  }, [activeMembers, group, ownerMissingFromActiveMembers]);
   const isMember = useMemo(() => {
     if (!currentUserId) return false;
     if (isOwner) return true;
@@ -137,6 +154,29 @@ export function StudyGroupDetailPage() {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to post to group.');
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function handleAddMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!groupId) return;
+
+    const userId = newMemberId.trim();
+    if (!userId) {
+      return;
+    }
+
+    try {
+      setAddingMember(true);
+      setErrorMessage('');
+      await addStudyGroupMember(groupId, { userId, role: 'MEMBER' });
+      const membersData = await listStudyGroupMembers(groupId);
+      setMembers(membersData);
+      setNewMemberId('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to add member.');
+    } finally {
+      setAddingMember(false);
     }
   }
 
@@ -218,7 +258,7 @@ export function StudyGroupDetailPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Members</p>
-                <p className="text-2xl font-extrabold text-slate-900">{activeMembers.length}</p>
+                <p className="text-2xl font-extrabold text-slate-900">{activeMembersForDisplay.length}</p>
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600">Current member list is powered by the backend’s membership endpoint. User display names are not exposed yet, so the UI uses member IDs.</p>
@@ -239,6 +279,23 @@ export function StudyGroupDetailPage() {
               <Button variant="secondary" className="mt-4 w-full" disabled={working} onClick={() => navigate('/study-groups')}>
                 Manage in list view
               </Button>
+            ) : null}
+
+            {isOwner && group.status === 'ACTIVE' ? (
+              <form className="mt-4 space-y-2" onSubmit={handleAddMember}>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Add member by user ID or email
+                </label>
+                <input
+                  value={newMemberId}
+                  onChange={(event) => setNewMemberId(event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white"
+                  placeholder="Enter user ID or neptun email"
+                />
+                <Button variant="secondary" className="w-full" type="submit" disabled={addingMember || !newMemberId.trim()}>
+                  {addingMember ? 'Adding...' : 'Add Member'}
+                </Button>
+              </form>
             ) : null}
           </div>
 
@@ -293,13 +350,13 @@ export function StudyGroupDetailPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Members</h2>
-                <p className="text-sm text-slate-600">{activeMembers.length} active members in this group.</p>
+                <p className="text-sm text-slate-600">{activeMembersForDisplay.length} active members in this group.</p>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {activeMembers.length > 0 ? (
-                activeMembers.map((member) => (
+              {activeMembersForDisplay.length > 0 ? (
+                activeMembersForDisplay.map((member) => (
                   <div key={member.userId} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-sky-700">
                       {member.userId.slice(0, 2).toUpperCase()}

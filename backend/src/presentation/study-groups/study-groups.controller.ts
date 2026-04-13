@@ -57,6 +57,7 @@ export class StudyGroupsController {
       visibility: body.visibility as any,
       ownerId,
       maxMembers: body.maxMembers ?? null,
+      initialMemberIds: body.initialMemberIds,
     });
   }
 

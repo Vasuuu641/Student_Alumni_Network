@@ -184,10 +184,18 @@ export async function createStudyGroup(payload: {
   name: string;
   description: string;
   visibility: StudyGroupVisibility;
+  initialMemberIds: string[];
   maxMembers?: number | null;
 }): Promise<StudyGroup> {
   const { data } = await api.post<RawStudyGroup>('/study-groups', payload);
   return toStudyGroup(data);
+}
+
+export async function addStudyGroupMember(
+  groupId: string,
+  payload: { userId: string; role?: StudyGroupMemberRole },
+): Promise<void> {
+  await api.post(`/study-groups/${groupId}/members`, payload);
 }
 
 export async function updateStudyGroup(groupId: string, payload: { name?: string; description?: string }): Promise<StudyGroup> {

@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateGroupDto {
@@ -20,4 +20,9 @@ export class CreateGroupDto {
   @IsInt()
   @Min(1)
   maxMembers?: number | null;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  initialMemberIds!: string[];
 }
