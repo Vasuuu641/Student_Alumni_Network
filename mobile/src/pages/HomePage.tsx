@@ -1,8 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LandingHeader } from '../components/LandingHeader';
 import { InfoCard } from '../components/InfoCard';
+import type { RootStackParamList } from '../navigation/root-stack';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const purposeCards = [
   {
@@ -78,11 +82,14 @@ const privacyCards = [
   },
 ];
 
-export function HomePage() {
+export function HomePage({ navigation }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LandingHeader />
+      <LandingHeader
+        onPressSignIn={() => navigation.navigate('Login')}
+        onPressGetStarted={() => navigation.navigate('Register')}
+      />
 
       <ScrollView contentContainerClassName="pb-7" showsVerticalScrollIndicator={false}>
         <View className="bg-[#f5f8ff] px-4 py-[30px]">
@@ -100,10 +107,16 @@ export function HomePage() {
           </Text>
 
           <View className="mt-[22px] gap-2.5">
-            <Pressable className="min-h-12 items-center justify-center rounded-xl bg-primary px-4">
+            <Pressable
+              className="min-h-12 items-center justify-center rounded-xl bg-primary px-4"
+              onPress={() => navigation.navigate('Register')}
+            >
               <Text className="text-[15px] font-bold text-white">Create Your Account →</Text>
             </Pressable>
-            <Pressable className="min-h-12 items-center justify-center rounded-xl border border-[#d5dff0] bg-white px-4">
+            <Pressable
+              className="min-h-12 items-center justify-center rounded-xl border border-[#d5dff0] bg-white px-4"
+              onPress={() => navigation.navigate('Login')}
+            >
               <Text className="text-[15px] font-bold text-[#1f2f4a]">Sign In</Text>
             </Pressable>
           </View>
@@ -173,11 +186,14 @@ export function HomePage() {
             started.
           </Text>
 
-          <Pressable className="mb-3 min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4">
+          <Pressable
+            className="mb-3 min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4"
+            onPress={() => navigation.navigate('Register')}
+          >
             <Text className="text-[15px] font-bold text-white">Get Started Free →</Text>
           </Pressable>
 
-          <Pressable>
+          <Pressable onPress={() => navigation.navigate('Login')}>
             <Text className="text-sm font-semibold text-[#2d63e5]">Already have an account? Sign in</Text>
           </Pressable>
         </View>
