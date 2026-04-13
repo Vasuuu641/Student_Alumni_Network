@@ -47,20 +47,137 @@ export interface StudyGroupPost {
   status: StudyGroupPostStatus;
 }
 
+type RawStudyGroup = Omit<StudyGroup, 'visibility' | 'status'> & {
+  visibility: StudyGroupVisibility | string | number;
+  status: StudyGroupStatus | string | number;
+};
+
+type RawStudyGroupMember = Omit<StudyGroupMember, 'role' | 'joinStatus'> & {
+  role: StudyGroupMemberRole | string | number;
+  joinStatus: StudyGroupJoinStatus | string | number;
+};
+
+type RawStudyGroupPost = Omit<StudyGroupPost, 'status'> & {
+  status: StudyGroupPostStatus | string | number;
+};
+
+function normalizeVisibility(value: StudyGroupVisibility | string | number): StudyGroupVisibility {
+  if (value === 'PUBLIC' || value === 'public' || value === 0 || value === '0') {
+    return 'PUBLIC';
+  }
+
+  if (value === 'PRIVATE' || value === 'private' || value === 1 || value === '1') {
+    return 'PRIVATE';
+  }
+
+  return 'PUBLIC';
+}
+
+function normalizeStatus(value: StudyGroupStatus | string | number): StudyGroupStatus {
+  if (value === 'ACTIVE' || value === 'active' || value === 0 || value === '0') {
+    return 'ACTIVE';
+  }
+
+  if (value === 'ARCHIVE' || value === 'archive' || value === 1 || value === '1') {
+    return 'ARCHIVE';
+  }
+
+  if (value === 'DELETED' || value === 'deleted' || value === 2 || value === '2') {
+    return 'DELETED';
+  }
+
+  return 'ACTIVE';
+}
+
+function normalizeMemberRole(value: StudyGroupMemberRole | string | number): StudyGroupMemberRole {
+  if (value === 'OWNER' || value === 'owner' || value === 0 || value === '0') {
+    return 'OWNER';
+  }
+
+  if (value === 'MODERATOR' || value === 'moderator' || value === 1 || value === '1') {
+    return 'MODERATOR';
+  }
+
+  if (value === 'MEMBER' || value === 'member' || value === 2 || value === '2') {
+    return 'MEMBER';
+  }
+
+  return 'MEMBER';
+}
+
+function normalizeJoinStatus(value: StudyGroupJoinStatus | string | number): StudyGroupJoinStatus {
+  if (value === 'ACTIVE' || value === 'active' || value === 0 || value === '0') {
+    return 'ACTIVE';
+  }
+
+  if (value === 'LEFT' || value === 'left' || value === 1 || value === '1') {
+    return 'LEFT';
+  }
+
+  if (value === 'REMOVED' || value === 'removed' || value === 2 || value === '2') {
+    return 'REMOVED';
+  }
+
+  if (value === 'PENDING' || value === 'pending' || value === 3 || value === '3') {
+    return 'PENDING';
+  }
+
+  return 'ACTIVE';
+}
+
+function normalizePostStatus(value: StudyGroupPostStatus | string | number): StudyGroupPostStatus {
+  if (value === 'ACTIVE' || value === 'active' || value === 0 || value === '0') {
+    return 'ACTIVE';
+  }
+
+  if (value === 'EDITED' || value === 'edited' || value === 1 || value === '1') {
+    return 'EDITED';
+  }
+
+  if (value === 'DELETED' || value === 'deleted' || value === 2 || value === '2') {
+    return 'DELETED';
+  }
+
+  return 'ACTIVE';
+}
+
+function toStudyGroup(raw: RawStudyGroup): StudyGroup {
+  return {
+    ...raw,
+    visibility: normalizeVisibility(raw.visibility),
+    status: normalizeStatus(raw.status),
+  };
+}
+
+function toStudyGroupMember(raw: RawStudyGroupMember): StudyGroupMember {
+  return {
+    ...raw,
+    role: normalizeMemberRole(raw.role),
+    joinStatus: normalizeJoinStatus(raw.joinStatus),
+  };
+}
+
+function toStudyGroupPost(raw: RawStudyGroupPost): StudyGroupPost {
+  return {
+    ...raw,
+    status: normalizePostStatus(raw.status),
+  };
+}
+
 export async function listStudyGroups(input?: {
   visibility?: StudyGroupVisibility;
   ownerId?: string;
 }): Promise<StudyGroup[]> {
-  const { data } = await api.get<StudyGroup[]>('/study-groups', {
+  const { data } = await api.get<RawStudyGroup[]>('/study-groups', {
     params: input,
   });
 
-  return data;
+  return data.map(toStudyGroup);
 }
 
 export async function getStudyGroup(groupId: string): Promise<StudyGroup> {
-  const { data } = await api.get<StudyGroup>(`/study-groups/${groupId}`);
-  return data;
+  const { data } = await api.get<RawStudyGroup>(`/study-groups/${groupId}`);
+  return toStudyGroup(data);
 }
 
 export async function createStudyGroup(payload: {
@@ -69,18 +186,18 @@ export async function createStudyGroup(payload: {
   visibility: StudyGroupVisibility;
   maxMembers?: number | null;
 }): Promise<StudyGroup> {
-  const { data } = await api.post<StudyGroup>('/study-groups', payload);
-  return data;
+  const { data } = await api.post<RawStudyGroup>('/study-groups', payload);
+  return toStudyGroup(data);
 }
 
 export async function updateStudyGroup(groupId: string, payload: { name?: string; description?: string }): Promise<StudyGroup> {
-  const { data } = await api.patch<StudyGroup>(`/study-groups/${groupId}`, payload);
-  return data;
+  const { data } = await api.patch<RawStudyGroup>(`/study-groups/${groupId}`, payload);
+  return toStudyGroup(data);
 }
 
 export async function archiveStudyGroup(groupId: string): Promise<StudyGroup> {
-  const { data } = await api.patch<StudyGroup>(`/study-groups/${groupId}/archive`, {});
-  return data;
+  const { data } = await api.patch<RawStudyGroup>(`/study-groups/${groupId}/archive`, {});
+  return toStudyGroup(data);
 }
 
 export async function joinStudyGroup(groupId: string): Promise<void> {
@@ -92,16 +209,16 @@ export async function leaveStudyGroup(groupId: string): Promise<void> {
 }
 
 export async function listStudyGroupMembers(groupId: string): Promise<StudyGroupMember[]> {
-  const { data } = await api.get<StudyGroupMember[]>(`/study-groups/${groupId}/members`);
-  return data;
+  const { data } = await api.get<RawStudyGroupMember[]>(`/study-groups/${groupId}/members`);
+  return data.map(toStudyGroupMember);
 }
 
 export async function listStudyGroupPosts(groupId: string): Promise<StudyGroupPost[]> {
-  const { data } = await api.get<StudyGroupPost[]>(`/study-groups/${groupId}/posts`);
-  return data;
+  const { data } = await api.get<RawStudyGroupPost[]>(`/study-groups/${groupId}/posts`);
+  return data.map(toStudyGroupPost);
 }
 
 export async function createStudyGroupPost(groupId: string, content: string): Promise<StudyGroupPost> {
-  const { data } = await api.post<StudyGroupPost>(`/study-groups/${groupId}/posts`, { content });
-  return data;
+  const { data } = await api.post<RawStudyGroupPost>(`/study-groups/${groupId}/posts`, { content });
+  return toStudyGroupPost(data);
 }

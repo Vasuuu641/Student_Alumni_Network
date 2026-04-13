@@ -34,30 +34,6 @@ export function StudyGroupDetailPage() {
   const [working, setWorking] = useState(false);
   const isAuthenticated = Boolean(token);
 
-  if (!isAuthenticated) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center text-slate-900">
-        <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-            <MessageSquare size={22} />
-          </div>
-          <h1 className="mt-4 text-2xl font-extrabold">Sign in to open this group</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            You need an authenticated session to open study groups and post in the discussion feed.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button variant="get-started" className="flex-1" onClick={() => navigate('/login')}>
-              Sign in
-            </Button>
-            <Button variant="secondary" className="flex-1" onClick={() => navigate('/study-groups')}>
-              Back
-            </Button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   useEffect(() => {
     async function fetchData() {
       if (!groupId) return;
@@ -96,6 +72,30 @@ export function StudyGroupDetailPage() {
   }, [activeMembers, currentUserId, isOwner]);
   const canJoin = Boolean(group && group.visibility === 'PUBLIC' && group.status === 'ACTIVE' && !isMember);
   const canPost = Boolean(group && group.status === 'ACTIVE' && isMember);
+
+  if (!isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center text-slate-900">
+        <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+            <MessageSquare size={22} />
+          </div>
+          <h1 className="mt-4 text-2xl font-extrabold">Sign in to open this group</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            You need an authenticated session to open study groups and post in the discussion feed.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button variant="get-started" className="flex-1" onClick={() => navigate('/login')}>
+              Sign in
+            </Button>
+            <Button variant="secondary" className="flex-1" onClick={() => navigate('/study-groups')}>
+              Back
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   async function handleJoin() {
     if (!groupId) return;
