@@ -16,6 +16,11 @@ export class CreateGroupDto {
   // ownerId is derived from the authenticated user; clients must not supply it
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  topicTags?: string[];
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

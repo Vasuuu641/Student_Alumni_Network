@@ -41,6 +41,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
     const data: any = {
       name: studyGroup.name,
       description: studyGroup.description,
+      topicTags: studyGroup.topicTags ?? [],
       ownerId: studyGroup.ownerId,
       visibility: visibilityValue,
       status: statusValue,
@@ -54,7 +55,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
   async update(studyGroup: StudyGroup): Promise<StudyGroup> {
     const updated = await this.prisma.studyGroup.update({
       where: { id: studyGroup.id },
-      data: { name: studyGroup.name, description: studyGroup.description },
+      data: { name: studyGroup.name, description: studyGroup.description, topicTags: studyGroup.topicTags ?? [] },
     });
     return this.toDomain(updated);
   }
@@ -76,6 +77,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
       record.id,
       record.name,
       record.description,
+      Array.isArray(record.topicTags) ? record.topicTags : [],
       // record.visibility/status are Prisma enum strings; convert to domain enums
       (studyGroupsVisibility[record.visibility as unknown as keyof typeof studyGroupsVisibility] as unknown) as studyGroupsVisibility,
       (studyGroupStatus[record.status as unknown as keyof typeof studyGroupStatus] as unknown) as studyGroupStatus,

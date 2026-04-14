@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { CohereClient } from 'cohere-ai';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import type {
@@ -16,6 +16,29 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
 
   async recommendForUser(userId: string, limit: number = 8): Promise<RecommendedStudyGroup[]> {
     const safeLimit = Math.max(1, Math.min(limit, 20));
+
+    // Fetch user profile data
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        student: true,
+        alumni: true,
+        professor: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Extract user interests and profile info
+    const userInterests = this.extractUserInterests(user);
+
+    if (!userInterests || userInterests.length === 0) {
+      throw new BadRequestException(
+        'Please complete your profile with interests to get personalized recommendations. Update your profile in the onboarding or settings.'
+      );
+    }
 
     const memberships = await this.prisma.studyGroupMember.findMany({
       where: {
@@ -43,13 +66,15 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
       return [];
     }
 
-    const profileText = memberships
-      .map((m: any) => {
+    // Build user profile from interests + current group membership
+    const userProfileParts = [
+      userInterests.join(' '),
+      ...memberships.map((m: any) => {
         const tags = Array.isArray(m.group?.topicTags) ? m.group.topicTags.join(' ') : '';
         return `${m.group?.name ?? ''} ${m.group?.description ?? ''} ${tags}`.trim();
-      })
-      .filter(Boolean)
-      .join('\n');
+      }),
+    ];
+    const profileText = userProfileParts.filter(Boolean).join('\n');
 
     if (!profileText.trim()) {
       return candidates.slice(0, safeLimit).map((group: any) => ({
@@ -132,5 +157,34 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
     }
 
     return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  private extractUserInterests(user: any): string[] {
+    const interests: string[] = [];
+
+    // Extract interests from the user's role-specific profile
+    if (user.student?.interests && Array.isArray(user.student.interests)) {
+      interests.push(...user.student.interests);
+    }
+    if (user.alumni?.interests && Array.isArray(user.alumni.interests)) {
+      interests.push(...user.alumni.interests);
+    }
+    if (user.professor?.interests && Array.isArray(user.professor.interests)) {
+      interests.push(...user.professor.interests);
+    }
+
+    // Add major/faculty info if available
+    if (user.student?.major) {
+      interests.push(user.student.major);
+    }
+    if (user.alumni?.major) {
+      interests.push(user.alumni.major);
+    }
+    if (user.professor?.faculty) {
+      interests.push(user.professor.faculty);
+    }
+
+    // Deduplicate and trim
+    return Array.from(new Set(interests.map((i) => i.trim()).filter(Boolean)));
   }
 }

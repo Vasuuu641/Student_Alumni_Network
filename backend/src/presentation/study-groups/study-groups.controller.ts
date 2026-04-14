@@ -66,6 +66,7 @@ export class StudyGroupsController {
     return this.formGroup.execute({
       name: body.name,
       description: body.description,
+      topicTags: body.topicTags,
       visibility: body.visibility as any,
       ownerId,
       maxMembers: body.maxMembers ?? null,
@@ -162,6 +163,15 @@ export class StudyGroupsController {
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
   async recommendations(@Req() request: any, @Query('limit') limit?: string) {
+    /**
+     * Returns AI-powered study group recommendations based on:
+     * 1. User's profile (interests, major, faculty from onboarding)
+     * 2. Groups user is currently in (their tags + descriptions)
+     * 3. Cohere embeddings for semantic similarity
+     *
+     * Returns 400 BadRequest if user has not filled in interests during onboarding.
+     * Frontend should prompt user to complete their profile in settings/onboarding.
+     */
     const userId = request.user?.userId;
     const parsedLimit = Number(limit);
     const effectiveLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;

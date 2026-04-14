@@ -9,6 +9,7 @@ import { Email } from '../../domain/value-objects/email.vo';
 export interface FormGroupRequest {
   name: string;
   description: string;
+  topicTags?: string[];
   visibility: studyGroupsVisibility;
   ownerId: string;
   maxMembers?: number | null;
@@ -27,7 +28,11 @@ export class FormGroupUseCase {
   ) {}
 
   async execute(request: FormGroupRequest): Promise<StudyGroup> {
-    const { name, description, visibility, ownerId, maxMembers = null, initialMemberIds } = request;
+    const { name, description, topicTags = [], visibility, ownerId, maxMembers = null, initialMemberIds } = request;
+
+    const distinctTopicTags = Array.from(
+      new Set(topicTags.map((value) => value.trim()).filter(Boolean)),
+    );
 
     const distinctInitialMemberIdentifiers = Array.from(
       new Set((initialMemberIds ?? []).map((value) => value.trim()).filter(Boolean)),
@@ -60,6 +65,7 @@ export class FormGroupUseCase {
       undefined as any,
       name,
       description,
+      distinctTopicTags,
       visibility,
       studyGroupStatus.ACTIVE,
       ownerId,
