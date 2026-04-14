@@ -39,6 +39,7 @@ model User {
   studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
   studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
   studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
   studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
   geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
   geoHelpSpotVisits   GeoHelpSpotVisit[]
@@ -410,6 +411,8 @@ model StudyGroup {
   sessions    StudyGroupSession[]
   invites     StudyGroupInvite[]
   auditEvents StudyGroupAuditEvent[]
+  joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
+  recommendedGroups String[] @default([]) // For AI recommendations
 
   @@index([status, visibility, lastActivityAt])
   @@index([ownerId])
@@ -563,4 +566,18 @@ model GeoHelpSpotVisit {
   @@index([spotId, visitedAt])
   @@index([userId, visitedAt])
   @@unique([spotId, userId])
+}
+
+model StudyGroupJoinRequest {
+  id            String   @id @default(uuid())
+  groupId       String
+  userId        String
+  status        String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt     DateTime @default(now())
+
+  group StudyGroup @relation("JoinRequests", fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation("StudyGroupJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([userId])
 }

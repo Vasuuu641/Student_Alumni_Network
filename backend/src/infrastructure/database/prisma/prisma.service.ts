@@ -30,6 +30,8 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get studyGroup() { return this.client.studyGroup; }
   get studyGroupMember() { return this.client.studyGroupMember; }
   get studyGroupPost() { return this.client.studyGroupPost; }
+  get studyGroupInvite() { return (this.client as any).studyGroupInvite; }
+  get studyGroupJoinRequest() { return (this.client as any).studyGroupJoinRequest; }
   get geoHelpSpot() { return this.client.geoHelpSpot; }
   get geoHelpSpotVisit() { return this.client.geoHelpSpotVisit; }
   

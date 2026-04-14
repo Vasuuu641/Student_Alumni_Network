@@ -200,6 +200,24 @@ export class StudyGroupsGateway
     this.logger.log(`Member role updated broadcast: group ${groupId} member ${userId} role ${newRole}`);
   }
 
+  broadcastInviteCreated(groupId: string, payload: any): void {
+    const roomKey = `study-groups:${groupId}`;
+    this.server.to(roomKey).emit('study-groups:invite-created', {
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+    this.logger.log(`Invite created broadcast: group ${groupId} invite ${payload.inviteId}`);
+  }
+
+  broadcastJoinRequestUpdated(groupId: string, payload: any): void {
+    const roomKey = `study-groups:${groupId}`;
+    this.server.to(roomKey).emit('study-groups:join-request-updated', {
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+    this.logger.log(`Join request broadcast: group ${groupId} request ${payload.requestId} status ${payload.status}`);
+  }
+
   broadcastPostCreated(groupId: string, post: any): void {
     const roomKey = `study-groups:${groupId}`;
     this.server.to(roomKey).emit('study-groups:post-created', {

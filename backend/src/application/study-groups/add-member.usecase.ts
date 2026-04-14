@@ -1,11 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
+import type { StudyGroupInviteRepository } from '../../domain/repositories/study-group-invite.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
 import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
 import { Email } from '../../domain/value-objects/email.vo';
 import { GroupPolicyService } from '../policies/group-policy.service';
+import { randomUUID } from 'crypto';
 
 export interface AddMemberRequest {
   studyGroupId: string;
@@ -21,6 +23,8 @@ export class AddMemberUseCase {
     private readonly memberRepository: StudyGroupMemberRepository,
     @Inject('StudyGroupRepository')
     private readonly studyGroupRepository: StudyGroupRepository,
+    @Inject('StudyGroupInviteRepository')
+    private readonly inviteRepository: StudyGroupInviteRepository,
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
     @Inject('StudyGroupsRealtimePublisher')
@@ -28,8 +32,8 @@ export class AddMemberUseCase {
     private readonly policy: GroupPolicyService,
   ) {}
 
-  async execute(request: AddMemberRequest): Promise<void> {
-    const { studyGroupId, requesterId, userId, role = studyGroupMemberRole.MEMBER } = request;
+  async execute(request: AddMemberRequest): Promise<{ inviteId: string; expiresAt: Date }> {
+    const { studyGroupId, requesterId, userId } = request;
     const targetIdentifier = userId.trim();
 
     // allow owner OR moderators to add members
@@ -49,19 +53,46 @@ export class AddMemberUseCase {
       await this.policy.requireGroupModerator(studyGroupId, requesterId);
     }
 
-    await this.memberRepository.addMember(studyGroupId, targetUser.id, role);
+    const existingMember = (await this.memberRepository.findByStudyGroupId(studyGroupId)).find(
+      (member) => member.userId === targetUser.id,
+    );
+    if (existingMember) {
+      throw new Error('User is already a member of this group');
+    }
 
-    // Broadcast member joined to group
-    const first = targetUser.firstName?.trim() ?? '';
-    const last = targetUser.lastName?.trim() ?? '';
-    const displayName = `${first} ${last}`.trim() || targetUser.email?.getValue() || targetUser.id;
+    const inviteToken = randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    this.realtimePublisher.broadcastMemberJoined(studyGroupId, {
-      userId: targetUser.id,
-      displayName,
-      email: targetUser.email?.getValue() || '',
-      role: studyGroupMemberRole[role],
+    const existingPendingInvite = await this.inviteRepository.findActivePendingInvite(
+      studyGroupId,
+      targetUser.id,
+      new Date(),
+    );
+
+    if (existingPendingInvite) {
+      return {
+        inviteId: existingPendingInvite.id,
+        expiresAt: existingPendingInvite.expiresAt,
+      };
+    }
+
+    const createdInvite = await this.inviteRepository.create({
+      groupId: studyGroupId,
+      invitedUserId: targetUser.id,
+      invitedBy: requesterId,
+      token: inviteToken,
+      expiresAt,
     });
+
+    this.realtimePublisher.broadcastInviteCreated(studyGroupId, {
+      inviteId: createdInvite.id,
+      groupId: studyGroupId,
+      invitedBy: requesterId,
+      invitedUserId: targetUser.id,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    return { inviteId: createdInvite.id, expiresAt };
   }
 
   private async resolveUserByIdentifier(identifier: string) {

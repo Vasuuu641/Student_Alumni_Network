@@ -16,11 +16,28 @@ export interface StudyGroupPostBroadcast {
   createdAt: string;
 }
 
+export interface StudyGroupInviteBroadcast {
+  inviteId: string;
+  groupId: string;
+  invitedBy: string;
+  invitedUserId: string;
+  expiresAt: string;
+}
+
+export interface StudyGroupJoinRequestBroadcast {
+  requestId: string;
+  groupId: string;
+  requesterUserId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+}
+
 export interface StudyGroupsRealtimePublisher {
   // Member events
   broadcastMemberJoined(groupId: string, member: StudyGroupMemberInfo): void;
   broadcastMemberLeft(groupId: string, userId: string): void;
   broadcastMemberRoleUpdated(groupId: string, userId: string, newRole: string): void;
+  broadcastInviteCreated(groupId: string, payload: StudyGroupInviteBroadcast): void;
+  broadcastJoinRequestUpdated(groupId: string, payload: StudyGroupJoinRequestBroadcast): void;
 
   // Post events
   broadcastPostCreated(groupId: string, post: StudyGroupPostBroadcast): void;

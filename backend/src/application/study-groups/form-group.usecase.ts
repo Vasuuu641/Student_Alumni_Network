@@ -12,7 +12,7 @@ export interface FormGroupRequest {
   visibility: studyGroupsVisibility;
   ownerId: string;
   maxMembers?: number | null;
-  initialMemberIds: string[];
+  initialMemberIds?: string[];
 }
 
 @Injectable()
@@ -52,10 +52,6 @@ export class FormGroupUseCase {
 
     if (invalidMemberIdentifiers.length > 0) {
       throw new Error(`Some selected members were not found: ${invalidMemberIdentifiers.join(', ')}`);
-    }
-
-    if (distinctInitialMemberIds.length < 1) {
-      throw new Error('A group must include at least one additional member.');
     }
 
     const now = new Date();

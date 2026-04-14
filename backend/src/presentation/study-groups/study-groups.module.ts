@@ -7,6 +7,9 @@ import { AuthModule } from '../../auth/auth.module';
 import { PrismaStudyGroupRepository } from '../../infrastructure/repositories/prisma-study-group.repository';
 import { PrismaStudyGroupMemberRepository } from '../../infrastructure/repositories/prisma-study-group-member.repository';
 import { PrismaStudyGroupPostRepository } from '../../infrastructure/repositories/prisma-study-group-post.repository';
+import { PrismaStudyGroupInviteRepository } from '../../infrastructure/repositories/prisma-study-group-invite.repository';
+import { PrismaStudyGroupJoinRequestRepository } from '../../infrastructure/repositories/prisma-study-group-join-request.repository';
+import { CohereStudyGroupRecommendationService } from '../../infrastructure/ai/cohere/cohere-study-group-recommendation.service';
 
 import { FormGroupUseCase } from '../../application/study-groups/form-group.usecase';
 import { JoinGroupUseCase } from '../../application/study-groups/join-group.usecase';
@@ -23,6 +26,11 @@ import { ListGroupPostsUseCase } from '../../application/study-groups/list-group
 import { EditGroupPostUseCase } from '../../application/study-groups/edit-group-post.usecase';
 import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-group-post.usecase';
 import { AddMemberUseCase } from '../../application/study-groups/add-member.usecase';
+import { ListMyInvitesUseCase } from '../../application/study-groups/list-my-invites.usecase';
+import { RespondInviteUseCase } from '../../application/study-groups/respond-invite.usecase';
+import { ListJoinRequestsUseCase } from '../../application/study-groups/list-join-requests.usecase';
+import { ReviewJoinRequestUseCase } from '../../application/study-groups/review-join-request.usecase';
+import { RecommendGroupsUseCase } from '../../application/study-groups/recommend-groups.usecase';
 
 import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.gateway';
 
@@ -45,10 +53,18 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     ListGroupPostsUseCase,
     EditGroupPostUseCase,
     DeleteGroupPostUseCase,
+    ListMyInvitesUseCase,
+    RespondInviteUseCase,
+    ListJoinRequestsUseCase,
+    ReviewJoinRequestUseCase,
+    RecommendGroupsUseCase,
     // repository implementations
     PrismaStudyGroupRepository,
     PrismaStudyGroupMemberRepository,
     PrismaStudyGroupPostRepository,
+    PrismaStudyGroupInviteRepository,
+    PrismaStudyGroupJoinRequestRepository,
+    CohereStudyGroupRecommendationService,
 
     // WebSocket gateway
     StudyGroupsGateway,
@@ -57,6 +73,9 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     { provide: 'StudyGroupRepository', useClass: PrismaStudyGroupRepository },
     { provide: 'StudyGroupMemberRepository', useClass: PrismaStudyGroupMemberRepository },
     { provide: 'StudyGroupPostRepository', useClass: PrismaStudyGroupPostRepository },
+    { provide: 'StudyGroupInviteRepository', useClass: PrismaStudyGroupInviteRepository },
+    { provide: 'StudyGroupJoinRequestRepository', useClass: PrismaStudyGroupJoinRequestRepository },
+    { provide: 'StudyGroupRecommendationService', useClass: CohereStudyGroupRecommendationService },
     { provide: 'StudyGroupsRealtimePublisher', useClass: StudyGroupsGateway },
   ],
   controllers: [
@@ -79,6 +98,11 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     ListGroupPostsUseCase,
     EditGroupPostUseCase,
     DeleteGroupPostUseCase,
+    ListMyInvitesUseCase,
+    RespondInviteUseCase,
+    ListJoinRequestsUseCase,
+    ReviewJoinRequestUseCase,
+    RecommendGroupsUseCase,
   ],
 })
 export class StudyGroupsModule {}
