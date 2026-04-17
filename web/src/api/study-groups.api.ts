@@ -47,6 +47,15 @@ export interface StudyGroupPost {
   status: StudyGroupPostStatus;
 }
 
+export interface RecommendedStudyGroup {
+  id: string;
+  name: string;
+  description: string;
+  visibility: StudyGroupVisibility;
+  score: number;
+  matchingSignals: string[];
+}
+
 type RawStudyGroup = Omit<StudyGroup, 'visibility' | 'status'> & {
   visibility: StudyGroupVisibility | string | number;
   status: StudyGroupStatus | string | number;
@@ -59,6 +68,10 @@ type RawStudyGroupMember = Omit<StudyGroupMember, 'role' | 'joinStatus'> & {
 
 type RawStudyGroupPost = Omit<StudyGroupPost, 'status'> & {
   status: StudyGroupPostStatus | string | number;
+};
+
+type RawRecommendedStudyGroup = Omit<RecommendedStudyGroup, 'visibility'> & {
+  visibility: StudyGroupVisibility | string | number;
 };
 
 function normalizeVisibility(value: StudyGroupVisibility | string | number): StudyGroupVisibility {
@@ -164,6 +177,15 @@ function toStudyGroupPost(raw: RawStudyGroupPost): StudyGroupPost {
   };
 }
 
+function toRecommendedStudyGroup(raw: RawRecommendedStudyGroup): RecommendedStudyGroup {
+  return {
+    ...raw,
+    visibility: normalizeVisibility(raw.visibility),
+    score: Number.isFinite(raw.score) ? raw.score : 0,
+    matchingSignals: Array.isArray(raw.matchingSignals) ? raw.matchingSignals : [],
+  };
+}
+
 export async function listStudyGroups(input?: {
   visibility?: StudyGroupVisibility;
   ownerId?: string;
@@ -208,6 +230,11 @@ export async function archiveStudyGroup(groupId: string): Promise<StudyGroup> {
   return toStudyGroup(data);
 }
 
+export async function deleteStudyGroup(groupId: string): Promise<StudyGroup> {
+  const { data } = await api.patch<RawStudyGroup>(`/study-groups/${groupId}/delete`, {});
+  return toStudyGroup(data);
+}
+
 export async function joinStudyGroup(groupId: string): Promise<void> {
   await api.post(`/study-groups/${groupId}/join`, {});
 }
@@ -229,4 +256,12 @@ export async function listStudyGroupPosts(groupId: string): Promise<StudyGroupPo
 export async function createStudyGroupPost(groupId: string, content: string): Promise<StudyGroupPost> {
   const { data } = await api.post<RawStudyGroupPost>(`/study-groups/${groupId}/posts`, { content });
   return toStudyGroupPost(data);
+}
+
+export async function listRecommendedStudyGroups(limit = 8): Promise<RecommendedStudyGroup[]> {
+  const { data } = await api.get<RawRecommendedStudyGroup[]>('/study-groups/recommendations/me', {
+    params: { limit },
+  });
+
+  return data.map(toRecommendedStudyGroup);
 }

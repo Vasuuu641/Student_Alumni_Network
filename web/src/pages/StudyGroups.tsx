@@ -20,7 +20,9 @@ import {
   createStudyGroup,
   joinStudyGroup,
   listStudyGroupMembers,
+  listRecommendedStudyGroups,
   listStudyGroups,
+  type RecommendedStudyGroup,
   type StudyGroup,
   type StudyGroupStatus,
   type StudyGroupVisibility,
@@ -50,6 +52,7 @@ export function StudyGroupsPage() {
 
   const [tab, setTab] = useState<GroupTab>('MY');
   const [groups, setGroups] = useState<StudyGroup[]>([]);
+  const [recommendedGroups, setRecommendedGroups] = useState<RecommendedStudyGroup[]>([]);
   const [featuredGroups, setFeaturedGroups] = useState<StudyGroup[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -68,6 +71,17 @@ export function StudyGroupsPage() {
   const isAuthenticated = Boolean(token);
 
   useEffect(() => {
+    async function fetchRecommendations() {
+      if (!token) return;
+
+      try {
+        const data = await listRecommendedStudyGroups(3);
+        setRecommendedGroups(data);
+      } catch {
+        setRecommendedGroups([]);
+      }
+    }
+
     async function fetchFeaturedGroups() {
       if (!token) return;
 
@@ -79,6 +93,7 @@ export function StudyGroupsPage() {
       }
     }
 
+    void fetchRecommendations();
     void fetchFeaturedGroups();
   }, [token]);
 
@@ -140,7 +155,23 @@ export function StudyGroupsPage() {
     });
   }, [groups, searchText]);
 
-  const aiSuggestedGroups = useMemo(() => featuredGroups.slice(0, 3), [featuredGroups]);
+  const aiSuggestedGroups = useMemo(() => {
+    if (recommendedGroups.length > 0) {
+      return recommendedGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        score: Math.max(0, Math.min(100, Math.round(group.score * 100))),
+      }));
+    }
+
+    return featuredGroups.slice(0, 3).map((group, index) => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      score: [95, 88, 82][index] ?? 80,
+    }));
+  }, [featuredGroups, recommendedGroups]);
 
   if (!isAuthenticated) {
     return (
@@ -253,16 +284,14 @@ export function StudyGroupsPage() {
               <h2 className="text-xl font-bold">AI-Suggested Groups For You</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
-              {aiSuggestedGroups.map((group, index) => {
-                const score = [95, 88, 82][index] ?? 80;
-
+              {aiSuggestedGroups.map((group) => {
                 return (
                   <article key={group.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
                         <BookOpen size={18} />
                       </div>
-                      <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700">{score}% match</span>
+                      <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700">{group.score}% match</span>
                     </div>
                     <h3 className="text-base font-bold text-slate-900">{group.name}</h3>
                     <p className="mt-1 line-clamp-2 text-sm text-slate-600">{group.description}</p>
