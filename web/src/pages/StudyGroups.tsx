@@ -62,6 +62,7 @@ export function StudyGroupsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -75,7 +76,6 @@ export function StudyGroupsPage() {
   const isAuthenticated = Boolean(token);
 
   useEffect(() => {
-    void refreshRecommendations();
     void fetchArchivedGroups();
   }, [token]);
 
@@ -245,10 +245,13 @@ export function StudyGroupsPage() {
     if (!token) return;
 
     try {
+      setIsLoadingRecommendations(true);
       const data = await listRecommendedStudyGroups(8);
       setRecommendedGroups(data);
     } catch {
       setRecommendedGroups([]);
+    } finally {
+      setIsLoadingRecommendations(false);
     }
   }
 
@@ -266,7 +269,6 @@ export function StudyGroupsPage() {
     const nextGroups = tab === 'DISCOVER' ? await listStudyGroups({ visibility: 'PUBLIC' }) : await listStudyGroups();
     setGroups(nextGroups);
     setArchivedGroups(await listArchivedStudyGroups());
-    await refreshRecommendations();
   }
 
   async function handleUnarchive(groupId: string) {
@@ -310,13 +312,24 @@ export function StudyGroupsPage() {
           </Button>
         </div>
 
-        {aiSuggestedGroups.length > 0 ? (
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2 text-slate-900">
-              <Sparkles size={16} className="text-sky-600" />
-              <h2 className="text-xl font-bold">AI-Suggested Groups For You</h2>
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-2 text-slate-900">
+              <Sparkles size={16} className="mt-1 text-sky-600" />
+              <div>
+                <h2 className="text-xl font-bold">AI-Suggested Groups For You</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Run the LLM only when you want fresh recommendations.
+                </p>
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <Button variant="secondary" onClick={() => void refreshRecommendations()} disabled={isLoadingRecommendations}>
+              {isLoadingRecommendations ? 'Finding matches...' : 'Get recommendations'}
+            </Button>
+          </div>
+
+          {aiSuggestedGroups.length > 0 ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               {aiSuggestedGroups.map((group) => {
                 return (
                   <article key={group.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -342,8 +355,12 @@ export function StudyGroupsPage() {
                 );
               })}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              No recommendations loaded yet. Press <span className="font-semibold text-slate-900">Get recommendations</span> when you want the LLM to run.
+            </div>
+          )}
+        </section>
 
         <section className="mt-5">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
