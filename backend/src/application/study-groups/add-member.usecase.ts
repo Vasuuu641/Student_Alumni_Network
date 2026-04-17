@@ -4,7 +4,7 @@ import type { StudyGroupRepository } from '../../domain/repositories/study-group
 import type { StudyGroupInviteRepository } from '../../domain/repositories/study-group-invite.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
-import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import { studyGroupMemberRole, studyGroupsVisibility } from '../../domain/entities/study-group.entity';
 import { Email } from '../../domain/value-objects/email.vo';
 import { GroupPolicyService } from '../policies/group-policy.service';
 import { randomUUID } from 'crypto';
@@ -32,7 +32,7 @@ export class AddMemberUseCase {
     private readonly policy: GroupPolicyService,
   ) {}
 
-  async execute(request: AddMemberRequest): Promise<{ inviteId: string; expiresAt: Date }> {
+  async execute(request: AddMemberRequest): Promise<{ status: 'ADDED' | 'INVITED'; inviteId?: string; expiresAt?: Date }> {
     const { studyGroupId, requesterId, userId } = request;
     const targetIdentifier = userId.trim();
 
@@ -60,6 +60,36 @@ export class AddMemberUseCase {
       throw new Error('User is already a member of this group');
     }
 
+    // For private groups, owner/moderator-added users should join immediately without invite acceptance.
+    if (group.visibility === studyGroupsVisibility.PRIVATE) {
+      await this.memberRepository.addMember(studyGroupId, targetUser.id, studyGroupMemberRole.MEMBER);
+
+      const displayName =
+        `${targetUser.firstName?.trim?.() ?? ''} ${targetUser.lastName?.trim?.() ?? ''}`.trim() ||
+        targetUser.email?.getValue?.() ||
+        targetUser.id;
+      const email = targetUser.email?.getValue?.() ?? '';
+
+      this.realtimePublisher.broadcastMemberJoined(studyGroupId, {
+        userId: targetUser.id,
+        displayName,
+        email,
+        role: 'MEMBER',
+      });
+
+      const existingPendingInvite = await this.inviteRepository.findActivePendingInvite(
+        studyGroupId,
+        targetUser.id,
+        new Date(),
+      );
+
+      if (existingPendingInvite) {
+        await this.inviteRepository.delete(existingPendingInvite.id);
+      }
+
+      return { status: 'ADDED' };
+    }
+
     const inviteToken = randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -71,6 +101,7 @@ export class AddMemberUseCase {
 
     if (existingPendingInvite) {
       return {
+        status: 'INVITED',
         inviteId: existingPendingInvite.id,
         expiresAt: existingPendingInvite.expiresAt,
       };
@@ -92,7 +123,7 @@ export class AddMemberUseCase {
       expiresAt: expiresAt.toISOString(),
     });
 
-    return { inviteId: createdInvite.id, expiresAt };
+    return { status: 'INVITED', inviteId: createdInvite.id, expiresAt };
   }
 
   private async resolveUserByIdentifier(identifier: string) {
