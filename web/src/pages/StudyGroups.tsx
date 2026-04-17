@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -18,6 +19,7 @@ import Button from '../components/Button';
 import {
   archiveStudyGroup,
   createStudyGroup,
+  deleteStudyGroup,
   joinStudyGroup,
   listStudyGroupMembers,
   listRecommendedStudyGroups,
@@ -268,6 +270,27 @@ export function StudyGroupsPage() {
     }
   }
 
+  async function handleDelete(groupId: string) {
+    const confirmed = window.confirm('Delete this group permanently from normal listings? This cannot be undone from the UI.');
+    if (!confirmed) return;
+
+    try {
+      setWorkingGroupId(groupId);
+      await deleteStudyGroup(groupId);
+      setGroups((prev) => prev.filter((group) => group.id !== groupId));
+      setFeaturedGroups((prev) => prev.filter((group) => group.id !== groupId));
+      setMemberCounts((prev) => {
+        const next = { ...prev };
+        delete next[groupId];
+        return next;
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to delete group.');
+    } finally {
+      setWorkingGroupId(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -397,13 +420,24 @@ export function StudyGroupsPage() {
                       </Button>
 
                       {isOwner ? (
-                        <Button
-                          variant="secondary"
-                          disabled={workingGroupId === group.id || isArchived}
-                          onClick={() => handleArchive(group.id)}
-                        >
-                          {workingGroupId === group.id ? 'Working...' : 'Archive'}
-                        </Button>
+                        <>
+                          <Button
+                            variant="secondary"
+                            disabled={workingGroupId === group.id || isArchived}
+                            onClick={() => handleArchive(group.id)}
+                          >
+                            {workingGroupId === group.id ? 'Working...' : 'Archive'}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={workingGroupId === group.id}
+                            onClick={() => handleDelete(group.id)}
+                            className="text-rose-700"
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </Button>
+                        </>
                       ) : canJoin ? (
                         <Button
                           variant="secondary"

@@ -8,6 +8,7 @@ import {
   Plus,
   Search,
   Send,
+  Trash2,
   UserMinus,
   UserPlus,
   Users,
@@ -17,6 +18,7 @@ import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import {
   addStudyGroupMember,
   createStudyGroupPost,
+  deleteStudyGroup,
   getStudyGroup,
   joinStudyGroup,
   leaveStudyGroup,
@@ -223,6 +225,23 @@ export function StudyGroupDetailPage() {
     }
   }
 
+  async function handleDeleteGroup() {
+    if (!groupId || !isOwner) return;
+
+    const confirmed = window.confirm('Delete this group permanently from normal listings? This cannot be undone from the UI.');
+    if (!confirmed) return;
+
+    try {
+      setWorking(true);
+      await deleteStudyGroup(groupId);
+      navigate('/study-groups');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to delete group.');
+    } finally {
+      setWorking(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
@@ -339,6 +358,12 @@ export function StudyGroupDetailPage() {
                 <ArrowLeft size={15} />
                 All Groups
               </Button>
+              {isOwner ? (
+                <Button variant="secondary" disabled={working} onClick={handleDeleteGroup} className="text-rose-700">
+                  <Trash2 size={15} />
+                  Delete Group
+                </Button>
+              ) : null}
             </div>
           </header>
 
