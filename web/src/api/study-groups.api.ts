@@ -262,7 +262,7 @@ export async function createStudyGroupPost(groupId: string, content: string): Pr
   return toStudyGroupPost(data);
 }
 
-export async function listRecommendedStudyGroups(limit = 8): Promise<RecommendedStudyGroup[]> {
+export async function listRecommendedStudyGroups(limit = 3): Promise<RecommendedStudyGroup[]> {
   const { data } = await api.get<RawRecommendedStudyGroup[]>('/study-groups/recommendations/me', {
     params: { limit },
   });

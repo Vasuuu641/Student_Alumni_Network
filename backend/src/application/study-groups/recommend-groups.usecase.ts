@@ -12,7 +12,7 @@ export class RecommendGroupsUseCase {
   ) {}
 
   async execute(input: { userId: string; limit?: number }): Promise<RecommendedStudyGroup[]> {
-    const limit = Math.max(1, Math.min(input.limit ?? 8, 20));
+    const limit = Math.max(1, Math.min(input.limit ?? 3, 3));
     return this.recommendationService.recommendForUser(input.userId, limit);
   }
 }

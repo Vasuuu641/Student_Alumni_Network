@@ -246,7 +246,7 @@ export function StudyGroupsPage() {
 
     try {
       setIsLoadingRecommendations(true);
-      const data = await listRecommendedStudyGroups(8);
+      const data = await listRecommendedStudyGroups(3);
       setRecommendedGroups(data);
     } catch {
       setRecommendedGroups([]);

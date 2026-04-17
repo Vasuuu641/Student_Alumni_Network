@@ -14,8 +14,8 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
     this.cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
   }
 
-  async recommendForUser(userId: string, limit: number = 8): Promise<RecommendedStudyGroup[]> {
-    const safeLimit = Math.max(1, Math.min(limit, 20));
+  async recommendForUser(userId: string, limit: number = 3): Promise<RecommendedStudyGroup[]> {
+    const safeLimit = Math.max(1, Math.min(limit, 3));
 
     // Fetch user profile data
     const user = await this.prisma.user.findUnique({
@@ -43,14 +43,18 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
     const memberships = await this.prisma.studyGroupMember.findMany({
       where: {
         userId,
-        joinStatus: 'ACTIVE' as any,
+        joinStatus: { in: ['ACTIVE', 'LEFT', 'REMOVED'] as any },
       },
       include: {
         group: true,
       },
     });
 
-    const joinedIds = new Set(memberships.map((m: any) => m.groupId));
+    const activeJoinedIds = new Set(
+      memberships
+        .filter((membership: any) => membership.joinStatus === 'ACTIVE')
+        .map((membership: any) => membership.groupId),
+    );
     const archiveDelegate = (this.prisma as any).studyGroupUserArchive;
     const archivedIds = new Set(
       archiveDelegate
@@ -67,7 +71,7 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
       where: {
         status: 'ACTIVE' as any,
         visibility: 'PUBLIC' as any,
-        id: { notIn: Array.from(new Set([...joinedIds, ...archivedIds])) },
+        id: { notIn: Array.from(new Set([...activeJoinedIds, ...archivedIds])) },
       },
       orderBy: [{ lastActivityAt: 'desc' }],
       take: 200,
@@ -77,7 +81,7 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
       return [];
     }
 
-    // Build user profile from interests + current group membership
+    // Build user profile from onboarding interests + current and historical memberships.
     const userProfileParts = [
       userInterests.join(' '),
       ...memberships.map((m: any) => {
