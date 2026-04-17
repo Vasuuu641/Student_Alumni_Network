@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -176,8 +176,12 @@ export function StudyGroupDetailPage() {
 
   async function handleCreatePost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await submitPostFromComposer();
+  }
+
+  async function submitPostFromComposer() {
     const content = composerValue.trim();
-    if (!groupId || !content) return;
+    if (!groupId || !content || !canPost || working) return;
 
     try {
       setWorking(true);
@@ -188,6 +192,13 @@ export function StudyGroupDetailPage() {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to post to group.');
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      await submitPostFromComposer();
     }
   }
 
@@ -234,7 +245,7 @@ export function StudyGroupDetailPage() {
   }
 
   return (
-    <main className="h-[calc(100vh-72px)] overflow-hidden bg-slate-100 text-slate-900">
+    <main className="h-dvh overflow-hidden bg-slate-100 text-slate-900">
       <section className="mx-auto grid h-full w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
         <aside className="hidden h-full flex-col border-r border-slate-200 bg-slate-50 md:flex">
           <div className="border-b border-slate-200 px-4 py-4">
@@ -286,7 +297,7 @@ export function StudyGroupDetailPage() {
           </div>
         </aside>
 
-        <section className="flex h-full min-w-0 flex-col">
+        <section className="flex h-full min-w-0 min-h-0 flex-col">
           <header className="flex h-16 items-center justify-between border-b border-slate-200 px-4 sm:px-6">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -398,6 +409,7 @@ export function StudyGroupDetailPage() {
               <textarea
                 value={composerValue}
                 onChange={(event) => setComposerValue(event.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 disabled={!canPost || working}
                 rows={2}
                 className="min-h-[44px] flex-1 resize-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-sky-400 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100"

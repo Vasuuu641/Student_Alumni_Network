@@ -210,8 +210,13 @@ export function StudyGroupsPage() {
       ),
     );
 
-    if (!groupName || !groupDescription || initialMemberIds.length < 1) {
-      setCreateError('Please provide group name, subject/topic, and at least one member user ID.');
+    if (!groupName || !groupDescription) {
+      setCreateError('Please provide group name and subject/topic.');
+      return;
+    }
+
+    if (visibility === 'PRIVATE' && initialMemberIds.length < 1) {
+      setCreateError('Private groups require at least one invitee when creating the group.');
       return;
     }
 
@@ -463,8 +468,17 @@ export function StudyGroupsPage() {
                   value={initialMembersText}
                   onChange={(event) => setInitialMembersText(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
-                  placeholder="Comma-separated: user-id-1, user-id-2"
+                  placeholder={
+                    visibility === 'PRIVATE'
+                      ? 'Required for private groups: user-id-1, user-id-2'
+                      : 'Optional for public groups: user-id-1, user-id-2'
+                  }
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  {visibility === 'PRIVATE'
+                    ? 'Private groups need at least one person added at creation.'
+                    : 'Public groups can be created without invitees, and you can invite people later.'}
+                </p>
               </label>
 
               <label className="block">
