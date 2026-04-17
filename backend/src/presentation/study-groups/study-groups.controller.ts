@@ -259,8 +259,9 @@ export class StudyGroupsController {
   @Get(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
-  async getPosts(@Param('id') id: string) {
-    return this.listPosts.execute({ studyGroupId: id });
+  async getPosts(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.listPosts.execute({ studyGroupId: id, requesterId });
   }
 
   @Patch(':id/posts/:postId')

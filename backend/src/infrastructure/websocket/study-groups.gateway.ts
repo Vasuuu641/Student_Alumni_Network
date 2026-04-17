@@ -19,7 +19,6 @@ import type { StudyGroupRepository } from 'src/domain/repositories/study-group.r
 import type { StudyGroupMemberRepository } from 'src/domain/repositories/study-group-member.repository';
 import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { StudyGroupsRealtimePublisher } from 'src/domain/services/study-groups-realtime-publisher';
-import { studyGroupsVisibility } from 'src/domain/entities/study-group.entity';
 import { studyGroupJoinStatus } from 'src/domain/entities/study-group.entity';
 
 interface SocketSession {
@@ -40,7 +39,7 @@ export class StudyGroupsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, StudyGroupsRealtimePublisher
 {
   @WebSocketServer()
-  server: Namespace;
+  server!: Namespace;
 
   private readonly logger = new Logger(StudyGroupsGateway.name);
 
@@ -110,16 +109,13 @@ export class StudyGroupsGateway
       return this.emitError(socket, 'Study group not found');
     }
 
-    // For public groups, allow any authenticated user
-    // For private groups, require active membership
-    if (group.visibility === studyGroupsVisibility.PRIVATE) {
-      const members = await this.memberRepository.findByStudyGroupId(groupId);
-      const isMember = members.some(
-        (m) => m.userId === session.userId && m.joinStatus === studyGroupJoinStatus.ACTIVE,
-      );
-      if (!isMember) {
-        return this.emitError(socket, 'Access denied: not a member of this private group');
-      }
+    // Chat rooms are members-only (public groups are discoverable, but chat requires joining).
+    const members = await this.memberRepository.findByStudyGroupId(groupId);
+    const isMember = members.some(
+      (m) => m.userId === session.userId && m.joinStatus === studyGroupJoinStatus.ACTIVE,
+    );
+    if (!isMember) {
+      return this.emitError(socket, 'Access denied: join the group to view chat');
     }
 
     // Join room
