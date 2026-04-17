@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
 import { studyGroupMemberRole, studyGroupStatus } from '../../domain/entities/study-group.entity';
@@ -16,18 +16,18 @@ export class GroupPolicyService {
 
   async requireGroupOwner(group: StudyGroup, requesterId: string, allowAdmin = false) {
     if (group.status !== studyGroupStatus.ACTIVE) {
-      throw new Error('Study group not found');
+      throw new NotFoundException('Study group not found');
     }
 
     if (group.ownerId === requesterId) return;
     if (allowAdmin) return; // admin handling left to caller (pass allowAdmin=true when controller knows requester is admin)
-    throw new Error('Forbidden');
+    throw new ForbiddenException('Forbidden');
   }
 
   async requireGroupMember(groupId: string, userId: string) {
     const group = await this.groupRepository.findById(groupId);
     if (!group || group.status !== studyGroupStatus.ACTIVE) {
-      throw new Error('Study group not found');
+      throw new NotFoundException('Study group not found');
     }
 
     if (group.ownerId === userId) return;
@@ -38,19 +38,19 @@ export class GroupPolicyService {
     );
     if (found) return;
 
-    throw new Error('Forbidden');
+    throw new ForbiddenException('Forbidden');
   }
 
   async requireGroupModerator(groupId: string, userId: string) {
     const group = await this.groupRepository.findById(groupId);
     if (!group || group.status !== studyGroupStatus.ACTIVE) {
-      throw new Error('Study group not found');
+      throw new NotFoundException('Study group not found');
     }
 
     const members = await this.memberRepository.findByStudyGroupId(groupId);
     const found = members.find((m) => m.userId === userId);
-    if (!found) throw new Error('Forbidden');
+    if (!found) throw new ForbiddenException('Forbidden');
     if (found.role === studyGroupMemberRole.OWNER || found.role === studyGroupMemberRole.MODERATOR) return;
-    throw new Error('Forbidden');
+    throw new ForbiddenException('Forbidden');
   }
 }

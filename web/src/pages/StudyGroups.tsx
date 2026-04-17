@@ -62,6 +62,7 @@ export function StudyGroupsPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [searchText, setSearchText] = useState('');
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [recommendationHint, setRecommendationHint] = useState('');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -249,10 +250,18 @@ export function StudyGroupsPage() {
 
     try {
       setIsLoadingRecommendations(true);
+      setRecommendationHint('');
       const data = await listRecommendedStudyGroups(3);
       setRecommendedGroups(data);
-    } catch {
+    } catch (error) {
       setRecommendedGroups([]);
+      const message = (error as any)?.response?.data?.message;
+      const resolvedMessage = Array.isArray(message) ? message.join(' ') : message;
+      if (typeof resolvedMessage === 'string' && resolvedMessage.trim().length > 0) {
+        setRecommendationHint(resolvedMessage);
+      } else {
+        setRecommendationHint('Add your interests in your profile to get personalized recommendations.');
+      }
     } finally {
       setIsLoadingRecommendations(false);
     }
@@ -344,7 +353,7 @@ export function StudyGroupsPage() {
                     <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
                       <span>{memberCounts[group.id] ?? 0} members</span>
                       <button
-                        onClick={() => navigate(`/study-groups/${group.id}`)}
+                        onClick={() => void handleJoin(group.id)}
                         className="inline-flex items-center gap-1.5 font-semibold text-sky-700 hover:text-sky-900"
                       >
                         <UserPlus size={14} />
@@ -357,7 +366,14 @@ export function StudyGroupsPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              No recommendations loaded yet. Press <span className="font-semibold text-slate-900">Get recommendations</span> when you want the LLM to run.
+              {recommendationHint ? (
+                <>
+                  <p className="font-semibold text-slate-900">More profile details needed</p>
+                  <p className="mt-1">{recommendationHint}</p>
+                </>
+              ) : (
+                <>No recommendations loaded yet. Press <span className="font-semibold text-slate-900">Get recommendations</span> when you want the LLM to run.</>
+              )}
             </div>
           )}
         </section>
