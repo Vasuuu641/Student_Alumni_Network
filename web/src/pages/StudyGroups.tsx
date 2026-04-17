@@ -22,8 +22,10 @@ import {
   deleteStudyGroup,
   joinStudyGroup,
   listStudyGroupMembers,
+  listArchivedStudyGroups,
   listRecommendedStudyGroups,
   listStudyGroups,
+  unarchiveStudyGroup,
   type RecommendedStudyGroup,
   type StudyGroup,
   type StudyGroupStatus,
@@ -55,7 +57,7 @@ export function StudyGroupsPage() {
   const [tab, setTab] = useState<GroupTab>('MY');
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [recommendedGroups, setRecommendedGroups] = useState<RecommendedStudyGroup[]>([]);
-  const [featuredGroups, setFeaturedGroups] = useState<StudyGroup[]>([]);
+  const [archivedGroups, setArchivedGroups] = useState<StudyGroup[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -73,30 +75,8 @@ export function StudyGroupsPage() {
   const isAuthenticated = Boolean(token);
 
   useEffect(() => {
-    async function fetchRecommendations() {
-      if (!token) return;
-
-      try {
-        const data = await listRecommendedStudyGroups(3);
-        setRecommendedGroups(data);
-      } catch {
-        setRecommendedGroups([]);
-      }
-    }
-
-    async function fetchFeaturedGroups() {
-      if (!token) return;
-
-      try {
-        const publicGroups = await listStudyGroups({ visibility: 'PUBLIC' });
-        setFeaturedGroups(publicGroups.filter((group) => group.status === 'ACTIVE'));
-      } catch {
-        setFeaturedGroups([]);
-      }
-    }
-
-    void fetchRecommendations();
-    void fetchFeaturedGroups();
+    void refreshRecommendations();
+    void fetchArchivedGroups();
   }, [token]);
 
   useEffect(() => {
@@ -158,22 +138,13 @@ export function StudyGroupsPage() {
   }, [groups, searchText]);
 
   const aiSuggestedGroups = useMemo(() => {
-    if (recommendedGroups.length > 0) {
-      return recommendedGroups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-        score: Math.max(0, Math.min(100, Math.round(group.score * 100))),
-      }));
-    }
-
-    return featuredGroups.slice(0, 3).map((group, index) => ({
+    return recommendedGroups.map((group) => ({
       id: group.id,
       name: group.name,
       description: group.description,
-      score: [95, 88, 82][index] ?? 80,
+      score: Math.max(0, Math.min(100, Math.round(group.score * 100))),
     }));
-  }, [featuredGroups, recommendedGroups]);
+  }, [recommendedGroups]);
 
   if (!isAuthenticated) {
     return (
@@ -237,7 +208,7 @@ export function StudyGroupsPage() {
       setDescription('');
       setInitialMembersText('');
       setVisibility('PUBLIC');
-      setGroups((prev) => [created, ...prev]);
+      await refreshGroups();
       navigate(`/study-groups/${created.id}`);
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : 'Unable to create study group.');
@@ -261,10 +232,50 @@ export function StudyGroupsPage() {
   async function handleArchive(groupId: string) {
     try {
       setWorkingGroupId(groupId);
-      const updated = await archiveStudyGroup(groupId);
-      setGroups((prev) => prev.map((group) => (group.id === groupId ? updated : group)));
+      await archiveStudyGroup(groupId);
+      await refreshGroups();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to archive group.');
+    } finally {
+      setWorkingGroupId(null);
+    }
+  }
+
+  async function refreshRecommendations() {
+    if (!token) return;
+
+    try {
+      const data = await listRecommendedStudyGroups(8);
+      setRecommendedGroups(data);
+    } catch {
+      setRecommendedGroups([]);
+    }
+  }
+
+  async function fetchArchivedGroups() {
+    if (!token) return;
+
+    try {
+      setArchivedGroups(await listArchivedStudyGroups());
+    } catch {
+      setArchivedGroups([]);
+    }
+  }
+
+  async function refreshGroups() {
+    const nextGroups = tab === 'DISCOVER' ? await listStudyGroups({ visibility: 'PUBLIC' }) : await listStudyGroups();
+    setGroups(nextGroups);
+    setArchivedGroups(await listArchivedStudyGroups());
+    await refreshRecommendations();
+  }
+
+  async function handleUnarchive(groupId: string) {
+    try {
+      setWorkingGroupId(groupId);
+      await unarchiveStudyGroup(groupId);
+      await refreshGroups();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to unarchive group.');
     } finally {
       setWorkingGroupId(null);
     }
@@ -277,13 +288,7 @@ export function StudyGroupsPage() {
     try {
       setWorkingGroupId(groupId);
       await deleteStudyGroup(groupId);
-      setGroups((prev) => prev.filter((group) => group.id !== groupId));
-      setFeaturedGroups((prev) => prev.filter((group) => group.id !== groupId));
-      setMemberCounts((prev) => {
-        const next = { ...prev };
-        delete next[groupId];
-        return next;
-      });
+      await refreshGroups();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to delete group.');
     } finally {
@@ -414,30 +419,31 @@ export function StudyGroupsPage() {
                       <StatusChip label={statusMeta.label} className={statusMeta.className} />
                     </div>
 
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <Button variant="submit-wide" className="flex-1" onClick={() => navigate(`/study-groups/${group.id}`)}>
                         Open Group
                       </Button>
 
+                      {!isArchived ? (
+                        <Button
+                          variant="secondary"
+                          disabled={workingGroupId === group.id}
+                          onClick={() => handleArchive(group.id)}
+                        >
+                          {workingGroupId === group.id ? 'Working...' : 'Archive'}
+                        </Button>
+                      ) : null}
+
                       {isOwner ? (
-                        <>
-                          <Button
-                            variant="secondary"
-                            disabled={workingGroupId === group.id || isArchived}
-                            onClick={() => handleArchive(group.id)}
-                          >
-                            {workingGroupId === group.id ? 'Working...' : 'Archive'}
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            disabled={workingGroupId === group.id}
-                            onClick={() => handleDelete(group.id)}
-                            className="text-rose-700"
-                          >
-                            <Trash2 size={14} />
-                            Delete
-                          </Button>
-                        </>
+                        <Button
+                          variant="secondary"
+                          disabled={workingGroupId === group.id}
+                          onClick={() => handleDelete(group.id)}
+                          className="text-rose-700"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </Button>
                       ) : canJoin ? (
                         <Button
                           variant="secondary"
@@ -456,6 +462,46 @@ export function StudyGroupsPage() {
           )}
         </section>
       </section>
+      {archivedGroups.length > 0 ? (
+        <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Archived</h2>
+              <p className="text-sm text-slate-600">Groups you archived for yourself.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {archivedGroups.map((group) => (
+              <article key={group.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 text-slate-700">
+                      <BookOpen size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">{group.name}</h3>
+                      <p className="mt-0.5 text-xs text-slate-500">Archived for you</p>
+                    </div>
+                  </div>
+                  <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">Archived</span>
+                </div>
+
+                <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">{group.description}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button variant="submit-wide" className="flex-1" onClick={() => navigate(`/study-groups/${group.id}`)}>
+                    Open Group
+                  </Button>
+                  <Button variant="secondary" disabled={workingGroupId === group.id} onClick={() => handleUnarchive(group.id)}>
+                    {workingGroupId === group.id ? 'Working...' : 'Unarchive'}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8 backdrop-blur-sm">

@@ -418,6 +418,19 @@ model StudyGroup {
   @@index([ownerId])
 }
 
+model StudyGroupUserArchive {
+  id         String   @id @default(uuid())
+  groupId    String
+  userId     String
+  archivedAt DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId, archivedAt])
+}
+
 model StudyGroupMember {
   groupId    String
   userId     String

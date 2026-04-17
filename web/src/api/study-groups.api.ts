@@ -230,6 +230,10 @@ export async function archiveStudyGroup(groupId: string): Promise<StudyGroup> {
   return toStudyGroup(data);
 }
 
+export async function unarchiveStudyGroup(groupId: string): Promise<void> {
+  await api.delete(`/study-groups/${groupId}/archive`);
+}
+
 export async function deleteStudyGroup(groupId: string): Promise<StudyGroup> {
   const { data } = await api.patch<RawStudyGroup>(`/study-groups/${groupId}/delete`, {});
   return toStudyGroup(data);
@@ -264,4 +268,9 @@ export async function listRecommendedStudyGroups(limit = 8): Promise<Recommended
   });
 
   return data.map(toRecommendedStudyGroup);
+}
+
+export async function listArchivedStudyGroups(): Promise<StudyGroup[]> {
+  const { data } = await api.get<RawStudyGroup[]>('/study-groups/me/archived');
+  return data.map(toStudyGroup);
 }

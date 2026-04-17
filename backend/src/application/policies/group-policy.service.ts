@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
-import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import { studyGroupMemberRole, studyGroupStatus } from '../../domain/entities/study-group.entity';
 import { StudyGroup } from '../../domain/entities/study-group.entity';
 import { studyGroupJoinStatus } from '../../domain/entities/study-group.entity';
 
@@ -15,6 +15,10 @@ export class GroupPolicyService {
   ) {}
 
   async requireGroupOwner(group: StudyGroup, requesterId: string, allowAdmin = false) {
+    if (group.status !== studyGroupStatus.ACTIVE) {
+      throw new Error('Study group not found');
+    }
+
     if (group.ownerId === requesterId) return;
     if (allowAdmin) return; // admin handling left to caller (pass allowAdmin=true when controller knows requester is admin)
     throw new Error('Forbidden');
@@ -22,9 +26,11 @@ export class GroupPolicyService {
 
   async requireGroupMember(groupId: string, userId: string) {
     const group = await this.groupRepository.findById(groupId);
-    if (group && group.ownerId === userId) {
-      return;
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
+      throw new Error('Study group not found');
     }
+
+    if (group.ownerId === userId) return;
 
     const members = await this.memberRepository.findByStudyGroupId(groupId);
     const found = members.find(
@@ -36,6 +42,11 @@ export class GroupPolicyService {
   }
 
   async requireGroupModerator(groupId: string, userId: string) {
+    const group = await this.groupRepository.findById(groupId);
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
+      throw new Error('Study group not found');
+    }
+
     const members = await this.memberRepository.findByStudyGroupId(groupId);
     const found = members.find((m) => m.userId === userId);
     if (!found) throw new Error('Forbidden');

@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
+import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
 import type { StudyGroupInviteRepository } from '../../domain/repositories/study-group-invite.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
 import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import { studyGroupStatus } from '../../domain/entities/study-group.entity';
 
 export type InviteDecision = 'ACCEPT' | 'DECLINE';
 
@@ -14,6 +16,8 @@ export class RespondInviteUseCase {
     private readonly inviteRepository: StudyGroupInviteRepository,
     @Inject('StudyGroupMemberRepository')
     private readonly memberRepository: StudyGroupMemberRepository,
+    @Inject('StudyGroupRepository')
+    private readonly groupRepository: StudyGroupRepository,
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
     @Inject('StudyGroupsRealtimePublisher')
@@ -37,6 +41,11 @@ export class RespondInviteUseCase {
 
     if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
       throw new Error('Invite expired');
+    }
+
+    const group = await this.groupRepository.findById(invite.groupId);
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
+      throw new Error('Study group not found');
     }
 
     if (input.decision === 'DECLINE') {

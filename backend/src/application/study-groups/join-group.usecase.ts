@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
-import { studyGroupsVisibility, studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import { studyGroupsVisibility, studyGroupMemberRole, studyGroupStatus } from '../../domain/entities/study-group.entity';
 
 export interface JoinGroupRequest {
   studyGroupId: string;
@@ -25,7 +25,7 @@ export class JoinGroupUseCase {
     const { studyGroupId, userId } = request;
 
     const group = await this.studyGroupRepository.findById(studyGroupId);
-    if (!group) {
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
       throw new Error('Study group not found');
     }
 

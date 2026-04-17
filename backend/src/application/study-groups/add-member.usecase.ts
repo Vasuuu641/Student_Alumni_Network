@@ -4,7 +4,7 @@ import type { StudyGroupRepository } from '../../domain/repositories/study-group
 import type { StudyGroupInviteRepository } from '../../domain/repositories/study-group-invite.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
-import { studyGroupMemberRole, studyGroupsVisibility } from '../../domain/entities/study-group.entity';
+import { studyGroupMemberRole, studyGroupsVisibility, studyGroupStatus } from '../../domain/entities/study-group.entity';
 import { Email } from '../../domain/value-objects/email.vo';
 import { GroupPolicyService } from '../policies/group-policy.service';
 import { randomUUID } from 'crypto';
@@ -38,7 +38,7 @@ export class AddMemberUseCase {
 
     // allow owner OR moderators to add members
     const group = await this.studyGroupRepository.findById(studyGroupId);
-    if (!group) {
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
       throw new Error('Study group not found');
     }
 

@@ -20,6 +20,8 @@ import { ListJoinRequestsUseCase } from '../../application/study-groups/list-joi
 import { ReviewJoinRequestUseCase } from '../../application/study-groups/review-join-request.usecase';
 import { RecommendGroupsUseCase } from '../../application/study-groups/recommend-groups.usecase';
 import { DeleteGroupUseCase } from '../../application/study-groups/delete-group.usecase';
+import { ListArchivedGroupsUseCase } from '../../application/study-groups/list-archived-groups.usecase';
+import { UnarchiveGroupUseCase } from '../../application/study-groups/unarchive-group.usecase';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -58,6 +60,8 @@ export class StudyGroupsController {
     private readonly reviewJoinRequestUseCase: ReviewJoinRequestUseCase,
     private readonly recommendGroupsUseCase: RecommendGroupsUseCase,
     private readonly deleteGroup: DeleteGroupUseCase,
+    private readonly listArchivedGroupsUseCase: ListArchivedGroupsUseCase,
+    private readonly unarchiveGroupUseCase: UnarchiveGroupUseCase,
   ) {}
 
   @Post()
@@ -81,7 +85,8 @@ export class StudyGroupsController {
   @Roles('STUDENT', 'PROFESSOR')
   async list(@Req() request: any, @Query('visibility') visibility?: string, @Query('ownerId') ownerId?: string) {
     const vis = visibility ? (visibility as any) : undefined;
-    return this.listGroups.execute({ visibility: vis, ownerId });
+    const userId = request.user?.userId;
+    return this.listGroups.execute({ visibility: vis, userId: ownerId ?? userId });
   }
 
   @Get(':id')
@@ -105,6 +110,14 @@ export class StudyGroupsController {
   async archive(@Req() request: any, @Param('id') id: string, @Body() body: { requesterId?: string }) {
     const requesterId = request.user?.userId;
     return this.archiveGroup.execute({ id, requesterId });
+  }
+
+  @Delete(':id/archive')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async unarchive(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.unarchiveGroupUseCase.execute({ id, requesterId });
   }
 
   @Patch(':id/delete')
@@ -186,6 +199,14 @@ export class StudyGroupsController {
     const parsedLimit = Number(limit);
     const effectiveLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;
     return this.recommendGroupsUseCase.execute({ userId, limit: effectiveLimit });
+  }
+
+  @Get('me/archived')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async archivedGroups(@Req() request: any) {
+    const userId = request.user?.userId;
+    return this.listArchivedGroupsUseCase.execute(userId);
   }
 
   @Post(':id/leave')

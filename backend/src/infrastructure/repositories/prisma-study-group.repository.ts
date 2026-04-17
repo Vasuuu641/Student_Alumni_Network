@@ -22,6 +22,21 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
     return records.map((r) => this.toDomain(r));
   }
 
+  async findByIds(ids: string[]): Promise<StudyGroup[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.studyGroup.findMany({
+      where: {
+        id: { in: ids },
+        status: { not: 'DELETED' as any },
+      },
+    });
+
+    return records.map((r) => this.toDomain(r));
+  }
+
   async findByVisibility(visibility: studyGroupsVisibility): Promise<StudyGroup[]> {
     const records = await this.prisma.studyGroup.findMany({
       where: {

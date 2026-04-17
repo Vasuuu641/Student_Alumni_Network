@@ -5,7 +5,7 @@ import type { StudyGroupMemberRepository } from '../../domain/repositories/study
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import type { StudyGroupJoinRequestRepository } from '../../domain/repositories/study-group-join-request.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
-import { studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import { studyGroupMemberRole, studyGroupStatus } from '../../domain/entities/study-group.entity';
 
 export type JoinRequestDecision = 'APPROVE' | 'DECLINE';
 
@@ -32,7 +32,7 @@ export class ReviewJoinRequestUseCase {
     decision: JoinRequestDecision;
   }) {
     const group = await this.studyGroupRepository.findById(input.studyGroupId);
-    if (!group) {
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
       throw new Error('Study group not found');
     }
 
