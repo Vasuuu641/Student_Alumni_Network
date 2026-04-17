@@ -6,8 +6,17 @@ import type { StudyGroupUserArchiveRepository } from '../../domain/repositories/
 export class PrismaStudyGroupUserArchiveRepository implements StudyGroupUserArchiveRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private get archiveDelegate(): any | null {
+    return (this.prisma as any).studyGroupUserArchive ?? null;
+  }
+
   async archiveForUser(groupId: string, userId: string): Promise<void> {
-    await (this.prisma as any).studyGroupUserArchive.upsert({
+    const delegate = this.archiveDelegate;
+    if (!delegate) {
+      return;
+    }
+
+    await delegate.upsert({
       where: { groupId_userId: { groupId, userId } },
       update: { archivedAt: new Date() },
       create: { groupId, userId },
@@ -15,13 +24,23 @@ export class PrismaStudyGroupUserArchiveRepository implements StudyGroupUserArch
   }
 
   async unarchiveForUser(groupId: string, userId: string): Promise<void> {
-    await (this.prisma as any).studyGroupUserArchive.deleteMany({
+    const delegate = this.archiveDelegate;
+    if (!delegate) {
+      return;
+    }
+
+    await delegate.deleteMany({
       where: { groupId, userId },
     });
   }
 
   async findArchivedGroupIdsByUserId(userId: string): Promise<string[]> {
-    const records = await (this.prisma as any).studyGroupUserArchive.findMany({
+    const delegate = this.archiveDelegate;
+    if (!delegate) {
+      return [];
+    }
+
+    const records = await delegate.findMany({
       where: { userId },
       select: { groupId: true },
       orderBy: { archivedAt: 'desc' },

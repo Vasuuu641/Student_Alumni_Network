@@ -51,13 +51,16 @@ export class CohereStudyGroupRecommendationService implements StudyGroupRecommen
     });
 
     const joinedIds = new Set(memberships.map((m: any) => m.groupId));
-      const archivedIds = new Set(
-        (
-          await (this.prisma as any).studyGroupUserArchive.findMany({
-          where: { userId },
-          select: { groupId: true },
-        })
-      ).map((archive: any) => archive.groupId),
+    const archiveDelegate = (this.prisma as any).studyGroupUserArchive;
+    const archivedIds = new Set(
+      archiveDelegate
+        ? (
+            await archiveDelegate.findMany({
+              where: { userId },
+              select: { groupId: true },
+            })
+          ).map((archive: any) => archive.groupId)
+        : [],
     );
 
     const candidates = await this.prisma.studyGroup.findMany({

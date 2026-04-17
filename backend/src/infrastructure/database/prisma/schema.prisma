@@ -41,6 +41,7 @@ model User {
   studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
   studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
   studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  studyGroupArchives    StudyGroupUserArchive[]
   geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
   geoHelpSpotVisits   GeoHelpSpotVisit[]
   geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
@@ -411,6 +412,7 @@ model StudyGroup {
   sessions    StudyGroupSession[]
   invites     StudyGroupInvite[]
   auditEvents StudyGroupAuditEvent[]
+  userArchives     StudyGroupUserArchive[]
   joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
   recommendedGroups String[] @default([]) // For AI recommendations
 
