@@ -31,6 +31,7 @@ import { RespondInviteUseCase } from '../../application/study-groups/respond-inv
 import { ListJoinRequestsUseCase } from '../../application/study-groups/list-join-requests.usecase';
 import { ReviewJoinRequestUseCase } from '../../application/study-groups/review-join-request.usecase';
 import { RecommendGroupsUseCase } from '../../application/study-groups/recommend-groups.usecase';
+import { DeleteGroupUseCase } from '../../application/study-groups/delete-group.usecase';
 
 import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.gateway';
 
@@ -58,6 +59,7 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     ListJoinRequestsUseCase,
     ReviewJoinRequestUseCase,
     RecommendGroupsUseCase,
+    DeleteGroupUseCase,
     // repository implementations
     PrismaStudyGroupRepository,
     PrismaStudyGroupMemberRepository,
@@ -103,6 +105,7 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     ListJoinRequestsUseCase,
     ReviewJoinRequestUseCase,
     RecommendGroupsUseCase,
+    DeleteGroupUseCase,
   ],
 })
 export class StudyGroupsModule {}

@@ -16,6 +16,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
     const records = await this.prisma.studyGroup.findMany({
       where: {
         ownerId: memberId,
+        status: { not: 'DELETED' as any },
       },
     });
     return records.map((r) => this.toDomain(r));
@@ -25,6 +26,7 @@ export class PrismaStudyGroupRepository implements StudyGroupRepository {
     const records = await this.prisma.studyGroup.findMany({
       where: {
         visibility: { equals: typeof visibility === 'number' ? (studyGroupsVisibility[visibility] as any) : String(visibility).toUpperCase() },
+        status: { not: 'DELETED' as any },
       },
     });
     return records.map((r) => this.toDomain(r));

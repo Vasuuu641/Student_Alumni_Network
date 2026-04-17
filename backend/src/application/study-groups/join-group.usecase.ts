@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
-import type { StudyGroupJoinRequestRepository } from '../../domain/repositories/study-group-join-request.repository';
 import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
 import { studyGroupsVisibility, studyGroupMemberRole } from '../../domain/entities/study-group.entity';
 
@@ -18,13 +17,11 @@ export class JoinGroupUseCase {
     private readonly studyGroupRepository: StudyGroupRepository,
     @Inject('StudyGroupMemberRepository')
     private readonly memberRepository: StudyGroupMemberRepository,
-    @Inject('StudyGroupJoinRequestRepository')
-    private readonly joinRequestRepository: StudyGroupJoinRequestRepository,
     @Inject('StudyGroupsRealtimePublisher')
     private readonly realtimePublisher: StudyGroupsRealtimePublisher,
   ) {}
 
-  async execute(request: JoinGroupRequest): Promise<{ requestId: string; status: 'PENDING' | 'ALREADY_MEMBER' }> {
+  async execute(request: JoinGroupRequest): Promise<{ requestId: string; status: 'JOINED' | 'ALREADY_MEMBER' }> {
     const { studyGroupId, userId } = request;
 
     const group = await this.studyGroupRepository.findById(studyGroupId);
@@ -44,21 +41,15 @@ export class JoinGroupUseCase {
       return { requestId: '', status: 'ALREADY_MEMBER' };
     }
 
-    const existingPending = await this.joinRequestRepository.findPendingByGroupAndUser(studyGroupId, userId);
+    await this.memberRepository.addMember(studyGroupId, userId, studyGroupMemberRole.MEMBER);
 
-    if (existingPending) {
-      return { requestId: existingPending.id, status: 'PENDING' };
-    }
-
-    const createdRequest = await this.joinRequestRepository.createPending(studyGroupId, userId);
-
-    this.realtimePublisher.broadcastJoinRequestUpdated(studyGroupId, {
-      requestId: createdRequest.id,
-      groupId: studyGroupId,
-      requesterUserId: userId,
-      status: 'PENDING',
+    this.realtimePublisher.broadcastMemberJoined(studyGroupId, {
+      userId,
+      displayName: userId,
+      email: '',
+      role: 'MEMBER',
     });
 
-    return { requestId: createdRequest.id, status: 'PENDING' };
+    return { requestId: '', status: 'JOINED' };
   }
 }

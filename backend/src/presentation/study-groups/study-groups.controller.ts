@@ -19,6 +19,7 @@ import { RespondInviteUseCase } from '../../application/study-groups/respond-inv
 import { ListJoinRequestsUseCase } from '../../application/study-groups/list-join-requests.usecase';
 import { ReviewJoinRequestUseCase } from '../../application/study-groups/review-join-request.usecase';
 import { RecommendGroupsUseCase } from '../../application/study-groups/recommend-groups.usecase';
+import { DeleteGroupUseCase } from '../../application/study-groups/delete-group.usecase';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -56,6 +57,7 @@ export class StudyGroupsController {
     private readonly listJoinRequestsUseCase: ListJoinRequestsUseCase,
     private readonly reviewJoinRequestUseCase: ReviewJoinRequestUseCase,
     private readonly recommendGroupsUseCase: RecommendGroupsUseCase,
+    private readonly deleteGroup: DeleteGroupUseCase,
   ) {}
 
   @Post()
@@ -103,6 +105,14 @@ export class StudyGroupsController {
   async archive(@Req() request: any, @Param('id') id: string, @Body() body: { requesterId?: string }) {
     const requesterId = request.user?.userId;
     return this.archiveGroup.execute({ id, requesterId });
+  }
+
+  @Patch(':id/delete')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async deleteGroupEndpoint(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.deleteGroup.execute({ id, requesterId });
   }
 
   @Post(':id/join')
