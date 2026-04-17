@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import Button from '../components/Button';
+import { PlatformTopNav } from '../components/PlatformTopNav';
 import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import {
   addStudyGroupMember,
@@ -265,7 +266,8 @@ export function StudyGroupDetailPage() {
 
   return (
     <main className="h-dvh overflow-hidden bg-slate-100 text-slate-900">
-      <section className="mx-auto grid h-full w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+      <PlatformTopNav />
+      <section className="mx-auto grid h-[calc(100dvh-56px)] w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
         <aside className="hidden h-full flex-col border-r border-slate-200 bg-slate-50 md:flex">
           <div className="border-b border-slate-200 px-4 py-4">
             <div className="mb-3 flex items-center justify-between">

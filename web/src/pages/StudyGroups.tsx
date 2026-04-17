@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import Button from '../components/Button';
+import { PlatformTopNav } from '../components/PlatformTopNav';
 import {
   archiveStudyGroup,
   createStudyGroup,
@@ -309,6 +310,7 @@ export function StudyGroupsPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
+      <PlatformTopNav />
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
