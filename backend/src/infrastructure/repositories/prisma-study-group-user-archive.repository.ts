@@ -13,7 +13,7 @@ export class PrismaStudyGroupUserArchiveRepository implements StudyGroupUserArch
   async archiveForUser(groupId: string, userId: string): Promise<void> {
     const delegate = this.archiveDelegate;
     if (!delegate) {
-      return;
+      throw new Error('Study group archives are unavailable. Prisma client is missing studyGroupUserArchive delegate.');
     }
 
     await delegate.upsert({
@@ -26,7 +26,7 @@ export class PrismaStudyGroupUserArchiveRepository implements StudyGroupUserArch
   async unarchiveForUser(groupId: string, userId: string): Promise<void> {
     const delegate = this.archiveDelegate;
     if (!delegate) {
-      return;
+      throw new Error('Study group archives are unavailable. Prisma client is missing studyGroupUserArchive delegate.');
     }
 
     await delegate.deleteMany({
@@ -37,7 +37,7 @@ export class PrismaStudyGroupUserArchiveRepository implements StudyGroupUserArch
   async findArchivedGroupIdsByUserId(userId: string): Promise<string[]> {
     const delegate = this.archiveDelegate;
     if (!delegate) {
-      return [];
+      throw new Error('Study group archives are unavailable. Prisma client is missing studyGroupUserArchive delegate.');
     }
 
     const records = await delegate.findMany({

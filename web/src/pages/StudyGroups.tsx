@@ -32,7 +32,7 @@ import {
   type StudyGroupVisibility,
 } from '../api/study-groups.api';
 
-type GroupTab = 'MY' | 'DISCOVER';
+type GroupTab = 'MY' | 'DISCOVER' | 'ARCHIVED';
 
 const VISIBILITY_META: Record<StudyGroupVisibility, { label: string; className: string; icon: typeof Globe }> = {
   PUBLIC: { label: 'Public', className: 'border-emerald-200 bg-emerald-50 text-emerald-700', icon: Globe },
@@ -57,7 +57,6 @@ export function StudyGroupsPage() {
   const [tab, setTab] = useState<GroupTab>('MY');
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [recommendedGroups, setRecommendedGroups] = useState<RecommendedStudyGroup[]>([]);
-  const [archivedGroups, setArchivedGroups] = useState<StudyGroup[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -76,10 +75,6 @@ export function StudyGroupsPage() {
   const isAuthenticated = Boolean(token);
 
   useEffect(() => {
-    void fetchArchivedGroups();
-  }, [token]);
-
-  useEffect(() => {
     async function fetchGroups() {
       if (!token) return;
 
@@ -87,7 +82,15 @@ export function StudyGroupsPage() {
         setLoading(true);
         setErrorMessage('');
 
-        const data = tab === 'DISCOVER' ? await listStudyGroups({ visibility: 'PUBLIC' }) : await listStudyGroups();
+        let data: StudyGroup[] = [];
+        if (tab === 'DISCOVER') {
+          data = await listStudyGroups({ visibility: 'PUBLIC' });
+        } else if (tab === 'ARCHIVED') {
+          data = await listArchivedStudyGroups();
+        } else {
+          data = await listStudyGroups();
+        }
+
         setGroups(data);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : 'Failed to load study groups.');
@@ -255,20 +258,17 @@ export function StudyGroupsPage() {
     }
   }
 
-  async function fetchArchivedGroups() {
-    if (!token) return;
-
-    try {
-      setArchivedGroups(await listArchivedStudyGroups());
-    } catch {
-      setArchivedGroups([]);
-    }
-  }
-
   async function refreshGroups() {
-    const nextGroups = tab === 'DISCOVER' ? await listStudyGroups({ visibility: 'PUBLIC' }) : await listStudyGroups();
+    let nextGroups: StudyGroup[] = [];
+    if (tab === 'DISCOVER') {
+      nextGroups = await listStudyGroups({ visibility: 'PUBLIC' });
+    } else if (tab === 'ARCHIVED') {
+      nextGroups = await listArchivedStudyGroups();
+    } else {
+      nextGroups = await listStudyGroups();
+    }
+
     setGroups(nextGroups);
-    setArchivedGroups(await listArchivedStudyGroups());
   }
 
   async function handleUnarchive(groupId: string) {
@@ -371,6 +371,9 @@ export function StudyGroupsPage() {
               <TabButton active={tab === 'DISCOVER'} onClick={() => setTab('DISCOVER')} icon={<Compass size={15} />}>
                 Discover
               </TabButton>
+              <TabButton active={tab === 'ARCHIVED'} onClick={() => setTab('ARCHIVED')} icon={<BookOpen size={15} />}>
+                Archived
+              </TabButton>
             </div>
 
             <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 md:max-w-xs">
@@ -399,20 +402,25 @@ export function StudyGroupsPage() {
               <p className="mt-2 max-w-md text-sm text-slate-600">
                 {tab === 'DISCOVER'
                   ? 'There are no public groups to show yet. Try creating the first one.'
-                  : 'You have not created or joined any groups yet.'}
+                  : tab === 'ARCHIVED'
+                    ? 'You have not archived any groups yet.'
+                    : 'You have not created or joined any groups yet.'}
               </p>
-              <Button variant="get-started" className="mt-4" onClick={() => setShowCreateModal(true)}>
-                Create Group
-              </Button>
+              {tab !== 'ARCHIVED' ? (
+                <Button variant="get-started" className="mt-4" onClick={() => setShowCreateModal(true)}>
+                  Create Group
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {filteredGroups.map((group) => {
                 const isOwner = group.ownerId === currentUserId;
-                const isArchived = group.status !== 'ACTIVE';
+                const isDiscoverTab = tab === 'DISCOVER';
+                const isArchived = tab === 'ARCHIVED' || group.status !== 'ACTIVE';
                 const canJoin = group.visibility === 'PUBLIC' && !isOwner && !isArchived;
                 const visibilityMeta = VISIBILITY_META[group.visibility] ?? VISIBILITY_META.PUBLIC;
-                const statusMeta = STATUS_META[group.status] ?? STATUS_META.ACTIVE;
+                const statusMeta = tab === 'ARCHIVED' ? STATUS_META.ARCHIVE : STATUS_META[group.status] ?? STATUS_META.ACTIVE;
 
                 return (
                   <article key={group.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300">
@@ -437,40 +445,50 @@ export function StudyGroupsPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="submit-wide" className="flex-1" onClick={() => navigate(`/study-groups/${group.id}`)}>
-                        Open Group
-                      </Button>
-
-                      {!isArchived ? (
-                        <Button
-                          variant="secondary"
-                          disabled={workingGroupId === group.id}
-                          onClick={() => handleArchive(group.id)}
-                        >
-                          {workingGroupId === group.id ? 'Working...' : 'Archive'}
+                      {!isDiscoverTab ? (
+                        <Button variant="submit-wide" className="flex-1" onClick={() => navigate(`/study-groups/${group.id}`)}>
+                          Open Group
                         </Button>
                       ) : null}
 
-                      {isOwner ? (
-                        <Button
-                          variant="secondary"
-                          disabled={workingGroupId === group.id}
-                          onClick={() => handleDelete(group.id)}
-                          className="text-rose-700"
-                        >
-                          <Trash2 size={14} />
-                          Delete
+                      {tab === 'ARCHIVED' ? (
+                        <Button variant="secondary" disabled={workingGroupId === group.id} onClick={() => handleUnarchive(group.id)}>
+                          {workingGroupId === group.id ? 'Working...' : 'Unarchive'}
                         </Button>
-                      ) : canJoin ? (
-                        <Button
-                          variant="secondary"
-                          disabled={workingGroupId === group.id}
-                          onClick={() => handleJoin(group.id)}
-                        >
-                          <UserPlus size={15} />
-                          Join
-                        </Button>
-                      ) : null}
+                      ) : (
+                        <>
+                          {!isDiscoverTab && !isArchived ? (
+                            <Button
+                              variant="secondary"
+                              disabled={workingGroupId === group.id}
+                              onClick={() => handleArchive(group.id)}
+                            >
+                              {workingGroupId === group.id ? 'Working...' : 'Archive'}
+                            </Button>
+                          ) : null}
+
+                          {isOwner ? (
+                            <Button
+                              variant="secondary"
+                              disabled={workingGroupId === group.id}
+                              onClick={() => handleDelete(group.id)}
+                              className="text-rose-700"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </Button>
+                          ) : canJoin ? (
+                            <Button
+                              variant="secondary"
+                              disabled={workingGroupId === group.id}
+                              onClick={() => handleJoin(group.id)}
+                            >
+                              <UserPlus size={15} />
+                              Join
+                            </Button>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                   </article>
                 );
@@ -479,46 +497,6 @@ export function StudyGroupsPage() {
           )}
         </section>
       </section>
-      {archivedGroups.length > 0 ? (
-        <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Archived</h2>
-              <p className="text-sm text-slate-600">Groups you archived for yourself.</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {archivedGroups.map((group) => (
-              <article key={group.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 text-slate-700">
-                      <BookOpen size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900">{group.name}</h3>
-                      <p className="mt-0.5 text-xs text-slate-500">Archived for you</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">Archived</span>
-                </div>
-
-                <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">{group.description}</p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="submit-wide" className="flex-1" onClick={() => navigate(`/study-groups/${group.id}`)}>
-                    Open Group
-                  </Button>
-                  <Button variant="secondary" disabled={workingGroupId === group.id} onClick={() => handleUnarchive(group.id)}>
-                    {workingGroupId === group.id ? 'Working...' : 'Unarchive'}
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8 backdrop-blur-sm">

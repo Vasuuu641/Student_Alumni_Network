@@ -89,6 +89,14 @@ export class StudyGroupsController {
     return this.listGroups.execute({ visibility: vis, userId: ownerId ?? userId });
   }
 
+  @Get('me/archived')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async archivedGroups(@Req() request: any) {
+    const userId = request.user?.userId;
+    return this.listArchivedGroupsUseCase.execute(userId);
+  }
+
   @Get(':id')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
@@ -199,14 +207,6 @@ export class StudyGroupsController {
     const parsedLimit = Number(limit);
     const effectiveLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;
     return this.recommendGroupsUseCase.execute({ userId, limit: effectiveLimit });
-  }
-
-  @Get('me/archived')
-  @UseGuards(JwtStrategy, RolesGuard)
-  @Roles('STUDENT', 'PROFESSOR')
-  async archivedGroups(@Req() request: any) {
-    const userId = request.user?.userId;
-    return this.listArchivedGroupsUseCase.execute(userId);
   }
 
   @Post(':id/leave')

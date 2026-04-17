@@ -225,9 +225,8 @@ export async function updateStudyGroup(groupId: string, payload: { name?: string
   return toStudyGroup(data);
 }
 
-export async function archiveStudyGroup(groupId: string): Promise<StudyGroup> {
-  const { data } = await api.patch<RawStudyGroup>(`/study-groups/${groupId}/archive`, {});
-  return toStudyGroup(data);
+export async function archiveStudyGroup(groupId: string): Promise<void> {
+  await api.patch(`/study-groups/${groupId}/archive`, {});
 }
 
 export async function unarchiveStudyGroup(groupId: string): Promise<void> {
