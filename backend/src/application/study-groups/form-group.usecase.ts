@@ -59,6 +59,13 @@ export class FormGroupUseCase {
       throw new Error(`Some selected members were not found: ${invalidMemberIdentifiers.join(', ')}`);
     }
 
+    if (
+      visibility === studyGroupsVisibility.PRIVATE &&
+      distinctInitialMemberIds.length < 1
+    ) {
+      throw new Error('Private groups require at least one initial member besides the owner.');
+    }
+
     const now = new Date();
 
     const group = new StudyGroup(
