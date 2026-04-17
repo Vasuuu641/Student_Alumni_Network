@@ -1,33 +1,29 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
-import type { StudyGroupUserArchiveRepository } from '../../domain/repositories/study-group-user-archive.repository';
 import { studyGroupStatus } from '../../domain/entities/study-group.entity';
 import { GroupPolicyService } from '../policies/group-policy.service';
 
-export interface ArchiveGroupRequest {
+export interface DeleteGroupRequest {
   id: string;
   requesterId: string;
 }
 
 @Injectable()
-export class ArchiveGroupUseCase {
+export class DeleteGroupUseCase {
   constructor(
     @Inject('StudyGroupRepository')
     private readonly studyGroupRepository: StudyGroupRepository,
-    @Inject('StudyGroupUserArchiveRepository')
-    private readonly archiveRepository: StudyGroupUserArchiveRepository,
     private readonly policy: GroupPolicyService,
   ) {}
 
-  async execute(request: ArchiveGroupRequest) {
+  async execute(request: DeleteGroupRequest) {
     const group = await this.studyGroupRepository.findById(request.id);
-    if (!group || group.status !== studyGroupStatus.ACTIVE) {
+    if (!group) {
       throw new Error('Study group not found');
     }
 
-    await this.policy.requireGroupMember(request.id, request.requesterId);
-    await this.archiveRepository.archiveForUser(request.id, request.requesterId);
+    await this.policy.requireGroupOwner(group, request.requesterId);
 
-    return { archived: true as const };
+    return this.studyGroupRepository.updateStatus(request.id, studyGroupStatus.DELETED);
   }
 }

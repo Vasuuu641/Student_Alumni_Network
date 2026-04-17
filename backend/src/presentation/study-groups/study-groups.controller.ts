@@ -14,6 +14,14 @@ import { CreateGroupPostUseCase } from '../../application/study-groups/create-gr
 import { ListGroupPostsUseCase } from '../../application/study-groups/list-group-posts.usecase';
 import { EditGroupPostUseCase } from '../../application/study-groups/edit-group-post.usecase';
 import { DeleteGroupPostUseCase } from '../../application/study-groups/delete-group-post.usecase';
+import { ListMyInvitesUseCase } from '../../application/study-groups/list-my-invites.usecase';
+import { RespondInviteUseCase } from '../../application/study-groups/respond-invite.usecase';
+import { ListJoinRequestsUseCase } from '../../application/study-groups/list-join-requests.usecase';
+import { ReviewJoinRequestUseCase } from '../../application/study-groups/review-join-request.usecase';
+import { RecommendGroupsUseCase } from '../../application/study-groups/recommend-groups.usecase';
+import { DeleteGroupUseCase } from '../../application/study-groups/delete-group.usecase';
+import { ListArchivedGroupsUseCase } from '../../application/study-groups/list-archived-groups.usecase';
+import { UnarchiveGroupUseCase } from '../../application/study-groups/unarchive-group.usecase';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -25,6 +33,8 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { EditPostDto } from './dto/edit-post.dto';
+import { RespondInviteDto } from './dto/respond-invite.dto';
+import { ReviewJoinRequestDto } from './dto/review-join-request.dto';
 
 @Controller('study-groups')
 export class StudyGroupsController {
@@ -44,6 +54,14 @@ export class StudyGroupsController {
     private readonly listPosts: ListGroupPostsUseCase,
     private readonly editPostUseCase: EditGroupPostUseCase,
     private readonly deletePostUseCase: DeleteGroupPostUseCase,
+    private readonly listMyInvitesUseCase: ListMyInvitesUseCase,
+    private readonly respondInviteUseCase: RespondInviteUseCase,
+    private readonly listJoinRequestsUseCase: ListJoinRequestsUseCase,
+    private readonly reviewJoinRequestUseCase: ReviewJoinRequestUseCase,
+    private readonly recommendGroupsUseCase: RecommendGroupsUseCase,
+    private readonly deleteGroup: DeleteGroupUseCase,
+    private readonly listArchivedGroupsUseCase: ListArchivedGroupsUseCase,
+    private readonly unarchiveGroupUseCase: UnarchiveGroupUseCase,
   ) {}
 
   @Post()
@@ -54,9 +72,11 @@ export class StudyGroupsController {
     return this.formGroup.execute({
       name: body.name,
       description: body.description,
+      topicTags: body.topicTags,
       visibility: body.visibility as any,
       ownerId,
       maxMembers: body.maxMembers ?? null,
+      initialMemberIds: body.initialMemberIds,
     });
   }
 
@@ -65,9 +85,16 @@ export class StudyGroupsController {
   @Roles('STUDENT', 'PROFESSOR')
   async list(@Req() request: any, @Query('visibility') visibility?: string, @Query('ownerId') ownerId?: string) {
     const vis = visibility ? (visibility as any) : undefined;
-    // If no explicit ownerId filter provided, default to authenticated user
-    const effectiveOwnerId = ownerId ?? request.user?.userId;
-    return this.listGroups.execute({ visibility: vis, ownerId: effectiveOwnerId });
+    const userId = request.user?.userId;
+    return this.listGroups.execute({ visibility: vis, userId: ownerId ?? userId });
+  }
+
+  @Get('me/archived')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async archivedGroups(@Req() request: any) {
+    const userId = request.user?.userId;
+    return this.listArchivedGroupsUseCase.execute(userId);
   }
 
   @Get(':id')
@@ -93,12 +120,93 @@ export class StudyGroupsController {
     return this.archiveGroup.execute({ id, requesterId });
   }
 
+  @Delete(':id/archive')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async unarchive(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.unarchiveGroupUseCase.execute({ id, requesterId });
+  }
+
+  @Patch(':id/delete')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async deleteGroupEndpoint(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.deleteGroup.execute({ id, requesterId });
+  }
+
   @Post(':id/join')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
   async join(@Req() request: any, @Param('id') id: string, @Body() body: JoinGroupRequestDto) {
     const userId = request.user?.userId;
     return this.joinGroup.execute({ studyGroupId: id, userId });
+  }
+
+  @Get('invites/me')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async myInvites(@Req() request: any) {
+    const userId = request.user?.userId;
+    return this.listMyInvitesUseCase.execute(userId);
+  }
+
+  @Post(':id/invites/:inviteId/respond')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async respondToInvite(
+    @Req() request: any,
+    @Param('inviteId') inviteId: string,
+    @Body() body: RespondInviteDto,
+  ) {
+    const userId = request.user?.userId;
+    return this.respondInviteUseCase.execute({ inviteId, userId, decision: body.decision });
+  }
+
+  @Get(':id/join-requests')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async listJoinRequests(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.listJoinRequestsUseCase.execute({ studyGroupId: id, requesterId });
+  }
+
+  @Patch(':id/join-requests/:requestId')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async reviewJoinRequest(
+    @Req() request: any,
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @Body() body: ReviewJoinRequestDto,
+  ) {
+    const requesterId = request.user?.userId;
+    return this.reviewJoinRequestUseCase.execute({
+      studyGroupId: id,
+      joinRequestId: requestId,
+      requesterId,
+      decision: body.decision,
+    });
+  }
+
+  @Get('recommendations/me')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles('STUDENT', 'PROFESSOR')
+  async recommendations(@Req() request: any, @Query('limit') limit?: string) {
+    /**
+     * Returns AI-powered study group recommendations based on:
+     * 1. User's profile (interests, major, faculty from onboarding)
+     * 2. Groups user is currently in (their tags + descriptions)
+     * 3. Cohere embeddings for semantic similarity
+     *
+     * Returns 400 BadRequest if user has not filled in interests during onboarding.
+     * Frontend should prompt user to complete their profile in settings/onboarding.
+     */
+    const userId = request.user?.userId;
+    const parsedLimit = Number(limit);
+    const effectiveLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;
+    return this.recommendGroupsUseCase.execute({ userId, limit: effectiveLimit });
   }
 
   @Post(':id/leave')
@@ -151,8 +259,9 @@ export class StudyGroupsController {
   @Get(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
-  async getPosts(@Param('id') id: string) {
-    return this.listPosts.execute({ studyGroupId: id });
+  async getPosts(@Req() request: any, @Param('id') id: string) {
+    const requesterId = request.user?.userId;
+    return this.listPosts.execute({ studyGroupId: id, requesterId });
   }
 
   @Patch(':id/posts/:postId')

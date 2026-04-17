@@ -4,6 +4,7 @@ import { studyGroupsVisibility, studyGroupStatus, StudyGroup } from "../entities
 export interface StudyGroupRepository {
     findById(id: string): Promise<StudyGroup | null>;
     findByOwnerId(ownerId: string): Promise<StudyGroup[]>;
+    findByIds(ids: string[]): Promise<StudyGroup[]>;
     findByVisibility(visibility: studyGroupsVisibility): Promise<StudyGroup[]>;
     create(studyGroup: StudyGroup): Promise<StudyGroup>;
     update(studyGroup: StudyGroup): Promise<StudyGroup>;

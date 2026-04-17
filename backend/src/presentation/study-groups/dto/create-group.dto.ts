@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateGroupDto {
@@ -16,8 +16,18 @@ export class CreateGroupDto {
   // ownerId is derived from the authenticated user; clients must not supply it
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  topicTags?: string[];
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   maxMembers?: number | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  initialMemberIds?: string[];
 }

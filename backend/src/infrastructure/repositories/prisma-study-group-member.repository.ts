@@ -31,7 +31,7 @@ export class PrismaStudyGroupMemberRepository implements StudyGroupMemberReposit
   async addMember(studyGroupId: string, userId: string, role: studyGroupMemberRole): Promise<void> {
     const roleValue: PrismaStudyGroupMemberRole =
       (typeof role === 'number' ? studyGroupMemberRole[role] : String(role)).toUpperCase() as PrismaStudyGroupMemberRole;
-    const joinStatusValue: PrismaStudyGroupJoinStatus = PrismaStudyGroupJoinStatus.PENDING;
+    const joinStatusValue: PrismaStudyGroupJoinStatus = PrismaStudyGroupJoinStatus.ACTIVE;
     await this.prisma.studyGroupMember.create({
       data: { groupId: studyGroupId, userId, role: roleValue, joinStatus: joinStatusValue },
     });

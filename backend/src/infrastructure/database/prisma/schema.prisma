@@ -39,7 +39,9 @@ model User {
   studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
   studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
   studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
   studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  studyGroupArchives    StudyGroupUserArchive[]
   geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
   geoHelpSpotVisits   GeoHelpSpotVisit[]
   geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
@@ -410,9 +412,25 @@ model StudyGroup {
   sessions    StudyGroupSession[]
   invites     StudyGroupInvite[]
   auditEvents StudyGroupAuditEvent[]
+  userArchives     StudyGroupUserArchive[]
+  joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
+  recommendedGroups String[] @default([]) // For AI recommendations
 
   @@index([status, visibility, lastActivityAt])
   @@index([ownerId])
+}
+
+model StudyGroupUserArchive {
+  id         String   @id @default(uuid())
+  groupId    String
+  userId     String
+  archivedAt DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId, archivedAt])
 }
 
 model StudyGroupMember {
@@ -563,4 +581,18 @@ model GeoHelpSpotVisit {
   @@index([spotId, visitedAt])
   @@index([userId, visitedAt])
   @@unique([spotId, userId])
+}
+
+model StudyGroupJoinRequest {
+  id            String   @id @default(uuid())
+  groupId       String
+  userId        String
+  status        String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt     DateTime @default(now())
+
+  group StudyGroup @relation("JoinRequests", fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation("StudyGroupJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([userId])
 }

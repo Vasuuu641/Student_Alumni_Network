@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { StudyGroupRepository } from '../../domain/repositories/study-group.repository';
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
-import { studyGroupsVisibility, studyGroupMemberRole } from '../../domain/entities/study-group.entity';
+import type { StudyGroupsRealtimePublisher } from '../../domain/services/study-groups-realtime-publisher';
+import { studyGroupsVisibility, studyGroupMemberRole, studyGroupStatus } from '../../domain/entities/study-group.entity';
 
 export interface JoinGroupRequest {
   studyGroupId: string;
@@ -16,31 +17,39 @@ export class JoinGroupUseCase {
     private readonly studyGroupRepository: StudyGroupRepository,
     @Inject('StudyGroupMemberRepository')
     private readonly memberRepository: StudyGroupMemberRepository,
+    @Inject('StudyGroupsRealtimePublisher')
+    private readonly realtimePublisher: StudyGroupsRealtimePublisher,
   ) {}
 
-  async execute(request: JoinGroupRequest): Promise<void> {
-    const { studyGroupId, userId, role = studyGroupMemberRole.MEMBER } = request;
+  async execute(request: JoinGroupRequest): Promise<{ requestId: string; status: 'JOINED' | 'ALREADY_MEMBER' }> {
+    const { studyGroupId, userId } = request;
 
     const group = await this.studyGroupRepository.findById(studyGroupId);
-    if (!group) {
+    if (!group || group.status !== studyGroupStatus.ACTIVE) {
       throw new Error('Study group not found');
     }
 
-    // V1 policy: private groups are invite-only
+    // Private groups are invite-only
     if (group.visibility === studyGroupsVisibility.PRIVATE) {
       throw new Error('Cannot join private group without an invite');
     }
 
-    // Attempt to add member; repository should enforce uniqueness.
-    try {
-      await this.memberRepository.addMember(studyGroupId, userId, role);
-    } catch (err: any) {
-      // If already a member, treat as idempotent; otherwise rethrow
-      const msg = err?.message ?? '';
-      if (msg.includes('Unique') || msg.includes('unique') || msg.includes('already exists')) {
-        return;
-      }
-      throw err;
+    const existingMember = (await this.memberRepository.findByStudyGroupId(studyGroupId)).find(
+      (member) => member.userId === userId,
+    );
+    if (existingMember) {
+      return { requestId: '', status: 'ALREADY_MEMBER' };
     }
+
+    await this.memberRepository.addMember(studyGroupId, userId, studyGroupMemberRole.MEMBER);
+
+    this.realtimePublisher.broadcastMemberJoined(studyGroupId, {
+      userId,
+      displayName: userId,
+      email: '',
+      role: 'MEMBER',
+    });
+
+    return { requestId: '', status: 'JOINED' };
   }
 }

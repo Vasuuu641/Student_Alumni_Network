@@ -8,6 +8,8 @@ import { NotesListPage } from './pages/NotesListPage';
 import { NotePage } from './pages/NotePage';
 import { ThreadsPage } from './pages/Threads';
 import { ThreadDetailPage } from './pages/ThreadDetailPage';
+import { StudyGroupsPage } from './pages/StudyGroups';
+import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
       <Route path="/notes/:noteId" element={<NotePage />} />
       <Route path="/threads" element={<ThreadsPage />} />
       <Route path="/threads/:threadId" element={<ThreadDetailPage />} />
+      <Route path="/study-groups" element={<StudyGroupsPage />} />
+      <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

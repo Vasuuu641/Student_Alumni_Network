@@ -34,13 +34,14 @@ export class StudyGroup {
         public readonly id: string,
         public name: string,
         public description: string,
+        public topicTags: string[],
         public visibility: studyGroupsVisibility,
         public status: studyGroupStatus,
         public readonly ownerId: string,
         public readonly createdAt: Date,
         public readonly updatedAt: Date,
-    ) {}   
-    
+    ) {}
+
     isOwnedBy(userId: string): boolean {
         return this.ownerId === userId;
     }
