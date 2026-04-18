@@ -20,7 +20,6 @@ import Button from '../components/Button';
 import { getAccessToken } from '../lib/auth';
 import {
   listNearbyGeoHelpSpots,
-  listPopularGeoHelpSpots,
   recordGeoHelpSpotVisit,
   type GeoHelpSpot,
   type GeoHelpSpotCategory,
@@ -28,7 +27,6 @@ import {
 } from '../api/geo-help-board.api';
 
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'insecure' | 'error';
-type ResourceTab = 'NEARBY' | 'POPULAR';
 type CategoryFilter = 'ALL' | GeoHelpSpotCategory;
 
 interface Point {
@@ -453,7 +451,6 @@ export function GeoHelpBoardPage() {
   const token = getAccessToken();
   const isAuthenticated = Boolean(token);
 
-  const [tab, setTab] = useState<ResourceTab>('NEARBY');
   const [category, setCategory] = useState<CategoryFilter>('ALL');
   const [radiusKm, setRadiusKm] = useState(5);
   const [searchText, setSearchText] = useState('');
@@ -546,29 +543,17 @@ export function GeoHelpBoardPage() {
         setErrorMessage('');
         setIsLoading(true);
 
-        if (tab === 'NEARBY') {
-          const nearby = await listNearbyGeoHelpSpots({
-            latitude: point.latitude,
-            longitude: point.longitude,
-            radiusKm,
-            city: cityFilter.trim() || undefined,
-            category: apiCategory,
-            limit: 30,
-            page: 1,
-          });
-
-          setSpots(nearby);
-          return;
-        }
-
-        const popular = await listPopularGeoHelpSpots({
+        const nearby = await listNearbyGeoHelpSpots({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          radiusKm,
           city: cityFilter.trim() || undefined,
           category: apiCategory,
           limit: 30,
           page: 1,
         });
 
-        setSpots(popular);
+        setSpots(nearby);
       } catch (error) {
         setSpots([]);
         setErrorMessage(error instanceof Error ? error.message : 'Failed to load resources.');
@@ -578,7 +563,7 @@ export function GeoHelpBoardPage() {
     }
 
     void loadResources();
-  }, [apiCategory, cityFilter, isAuthenticated, point.latitude, point.longitude, radiusKm, tab]);
+  }, [apiCategory, cityFilter, isAuthenticated, point.latitude, point.longitude, radiusKm]);
 
   useEffect(() => {
     if (!isDrawerOpen || !selectedSpotId) {
@@ -609,29 +594,17 @@ export function GeoHelpBoardPage() {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      if (tab === 'NEARBY') {
-        const nearby = await listNearbyGeoHelpSpots({
-          latitude: point.latitude,
-          longitude: point.longitude,
-          radiusKm,
-          city: cityFilter.trim() || undefined,
-          category: apiCategory,
-          limit: 30,
-          page: 1,
-        });
-
-        setSpots(nearby);
-        return;
-      }
-
-      const popular = await listPopularGeoHelpSpots({
+      const nearby = await listNearbyGeoHelpSpots({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        radiusKm,
         city: cityFilter.trim() || undefined,
         category: apiCategory,
         limit: 30,
         page: 1,
       });
 
-      setSpots(popular);
+      setSpots(nearby);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh resources.');
     } finally {
@@ -872,22 +845,63 @@ export function GeoHelpBoardPage() {
           />
         </section>
 
+        {errorMessage ? (
+          <section className="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+            <AlertTriangle size={16} />
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="inline-flex items-center gap-2">
+              <Compass size={16} className="text-sky-700" />
+              <p className="text-sm font-semibold text-slate-700">Interactive map</p>
+            </div>
+            <a
+              href={buildOpenStreetMapUrl(mapCenterPoint)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
+            >
+              Open full map <ExternalLink size={12} />
+            </a>
+          </header>
+
+          <MapContainer
+            center={mapCenter}
+            zoom={15}
+            className="h-[460px] w-full"
+            scrollWheelZoom
+          >
+            <MapViewportController points={mapPoints} />
+            <MapZoomBridge onZoomChange={setMapZoom} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            <Circle
+              center={[point.latitude, point.longitude]}
+              radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
+              pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
+            />
+
+            <CircleMarker
+              center={[point.latitude, point.longitude]}
+              radius={8}
+              pathOptions={{ color: '#0284c7', fillColor: '#0284c7', fillOpacity: 0.9 }}
+            >
+              <Popup>Your current center point</Popup>
+            </CircleMarker>
+
+            <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
+          </MapContainer>
+        </section>
+
         <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            {(['NEARBY', 'POPULAR'] as ResourceTab[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setTab(item)}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  tab === item
-                    ? 'bg-sky-100 text-sky-800'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
-                }`}
-              >
-                {item === 'NEARBY' ? 'Nearby' : 'Popular'}
-              </button>
-            ))}
+            <span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Resource Type</span>
 
             <div className="ml-auto flex items-center gap-2">
               <label htmlFor="radiusKm" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -898,7 +912,6 @@ export function GeoHelpBoardPage() {
                 value={radiusKm}
                 onChange={(event) => setRadiusKm(Number(event.target.value))}
                 className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
-                disabled={tab !== 'NEARBY'}
               >
                 <option value={2}>2 km</option>
                 <option value={5}>5 km</option>
@@ -926,157 +939,101 @@ export function GeoHelpBoardPage() {
           </div>
         </section>
 
-        {errorMessage ? (
-          <section className="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-            <AlertTriangle size={16} />
-            {errorMessage}
-          </section>
-        ) : null}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-900">Locations</h2>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {filteredSpots.length} result{filteredSpots.length === 1 ? '' : 's'}
+            </p>
+          </div>
 
-        <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-          <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <div className="inline-flex items-center gap-2">
-                <Compass size={16} className="text-sky-700" />
-                <p className="text-sm font-semibold text-slate-700">Interactive map</p>
-              </div>
-              <a
-                href={buildOpenStreetMapUrl(mapCenterPoint)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
-              >
-                Open full map <ExternalLink size={12} />
-              </a>
-            </header>
+          {isLoading ? (
+            <div className="flex h-52 items-center justify-center text-slate-500">
+              <Loader2 size={18} className="mr-2 animate-spin" />
+              Loading resources...
+            </div>
+          ) : null}
 
-            <MapContainer
-              center={mapCenter}
-              zoom={15}
-              className="h-[420px] w-full"
-              scrollWheelZoom
-            >
-              <MapViewportController points={mapPoints} />
-              <MapZoomBridge onZoomChange={setMapZoom} />
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              <Circle
-                center={[point.latitude, point.longitude]}
-                radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
-                pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
-              />
-
-              <CircleMarker
-                center={[point.latitude, point.longitude]}
-                radius={8}
-                pathOptions={{ color: '#0284c7', fillColor: '#0284c7', fillOpacity: 0.9 }}
-              >
-                <Popup>Your current center point</Popup>
-              </CircleMarker>
-
-              <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
-            </MapContainer>
-          </article>
-
-          <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Resource list</h2>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {filteredSpots.length} result{filteredSpots.length === 1 ? '' : 's'}
+          {!isLoading && filteredSpots.length === 0 ? (
+            <div className="flex h-52 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+              <Building2 size={22} className="text-slate-500" />
+              <p className="mt-2 text-sm font-semibold text-slate-700">No resources found</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Try a broader radius or clear search/category filters.
               </p>
             </div>
+          ) : null}
 
-            {isLoading ? (
-              <div className="flex h-72 items-center justify-center text-slate-500">
-                <Loader2 size={18} className="mr-2 animate-spin" />
-                Loading resources...
-              </div>
-            ) : null}
-
-            {!isLoading && filteredSpots.length === 0 ? (
-              <div className="flex h-72 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
-                <Building2 size={22} className="text-slate-500" />
-                <p className="mt-2 text-sm font-semibold text-slate-700">No resources found</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Try a broader radius, switch tab, or clear search/category filters.
-                </p>
-              </div>
-            ) : null}
-
-            {!isLoading ? (
-              <div className="max-h-[420px] space-y-3 overflow-auto pr-1">
-                {filteredSpots.map((spot) => {
-                  const isSelected = selectedSpotId === spot.id;
-                  return (
-                    <article
-                      key={spot.id}
-                      ref={(node) => {
-                        cardRefs.current[spot.id] = node;
-                      }}
-                      className={`rounded-xl border p-3 transition ${
-                        isSelected
-                          ? 'border-sky-300 bg-sky-50/50'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
+          {!isLoading ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {filteredSpots.map((spot) => {
+                const isSelected = selectedSpotId === spot.id;
+                return (
+                  <article
+                    key={spot.id}
+                    ref={(node) => {
+                      cardRefs.current[spot.id] = node;
+                    }}
+                    className={`rounded-xl border p-3 transition ${
+                      isSelected
+                        ? 'border-sky-300 bg-sky-50/50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectSpot(spot.id, true)}
+                      className="w-full text-left"
                     >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-bold text-slate-900">{spot.title}</h3>
+                        <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                          {categoryLabel(spot.category)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {spot.address ? `${spot.address}, ${spot.city}` : spot.city}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                          {formatDistance(spot.distanceKm)}
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${reviewBadgeClass(spot.reviewStatus)}`}>
+                          {spot.reviewStatus}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                          {spot.visitCount} visits
+                        </span>
+                      </div>
+                      {spot.description ? (
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{spot.description}</p>
+                      ) : null}
+                    </button>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => selectSpot(spot.id, true)}
-                        className="w-full text-left"
+                        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-sm font-bold text-slate-900">{spot.title}</h3>
-                          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                            {categoryLabel(spot.category)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-600">
-                          {spot.address ? `${spot.address}, ${spot.city}` : spot.city}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                            {formatDistance(spot.distanceKm)}
-                          </span>
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${reviewBadgeClass(spot.reviewStatus)}`}>
-                            {spot.reviewStatus}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                            {spot.visitCount} visits
-                          </span>
-                        </div>
-                        {spot.description ? (
-                          <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{spot.description}</p>
-                        ) : null}
+                        View details
                       </button>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => selectSpot(spot.id, true)}
-                          className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                        >
-                          View details
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleRecordVisit(spot.id);
-                          }}
-                          disabled={workingSpotId === spot.id}
-                          className="inline-flex items-center rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {workingSpotId === spot.id ? 'Saving...' : 'Mark visited'}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : null}
-          </article>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleRecordVisit(spot.id);
+                        }}
+                        disabled={workingSpotId === spot.id}
+                        className="inline-flex items-center rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {workingSpotId === spot.id ? 'Saving...' : 'Mark visited'}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
         </section>
       </section>
 
