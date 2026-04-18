@@ -175,3 +175,20 @@ export async function recordGeoHelpSpotVisit(spotId: string): Promise<void> {
     throw new Error(toApiErrorMessage(error, 'Failed to record the visit.'));
   }
 }
+
+export async function createGeoHelpSpot(payload: {
+  title: string;
+  description?: string;
+  city: string;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  category: GeoHelpSpotCategory;
+}): Promise<GeoHelpSpot> {
+  try {
+    const { data } = await api.post<RawGeoHelpSpot>('/geo-help-board/spots', payload);
+    return toGeoHelpSpot(data);
+  } catch (error) {
+    throw new Error(toApiErrorMessage(error, 'Failed to create the location.'));
+  }
+}

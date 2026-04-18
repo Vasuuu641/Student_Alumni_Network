@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, CircleMarker, MapContainer, Marker, Popup, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { divIcon, latLngBounds, type LatLngBoundsExpression } from 'leaflet';
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   LocateFixed,
   MapPinned,
   Navigation,
+  Plus,
   RefreshCw,
   Search,
   X,
@@ -19,6 +20,7 @@ import { PlatformTopNav } from '../components/PlatformTopNav';
 import Button from '../components/Button';
 import { getAccessToken } from '../lib/auth';
 import {
+  createGeoHelpSpot,
   listNearbyGeoHelpSpots,
   recordGeoHelpSpotVisit,
   type GeoHelpSpot,
@@ -53,6 +55,9 @@ const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; label: string }> = [
   { value: 'OTHER', label: 'Other' },
 ];
 
+const CREATE_CATEGORY_OPTIONS: Array<{ value: GeoHelpSpotCategory; label: string }> = CATEGORY_OPTIONS
+  .filter((item): item is { value: GeoHelpSpotCategory; label: string } => item.value !== 'ALL');
+
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
 
@@ -70,6 +75,22 @@ function formatDistance(distanceKm?: number): string {
   }
 
   return `${distanceKm.toFixed(1)} km away`;
+}
+
+function haversineDistanceKm(from: Point, to: Point): number {
+  const earthRadiusKm = 6371;
+  const latDelta = ((to.latitude - from.latitude) * Math.PI) / 180;
+  const lonDelta = ((to.longitude - from.longitude) * Math.PI) / 180;
+
+  const fromLat = (from.latitude * Math.PI) / 180;
+  const toLat = (to.latitude * Math.PI) / 180;
+
+  const a =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
 }
 
 function formatAccuracy(accuracyMeters?: number): string {
@@ -181,31 +202,22 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   return resolved;
 }
 
-async function searchLocation(query: string): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+async function searchLocation(
+  query: string,
+  options?: { nearPoint?: Point; cityHint?: string },
+): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
   const normalizedQuery = query.trim();
-  const cached = searchGeocodeCache.get(normalizedQuery.toLowerCase());
+  const cacheKey = `${normalizedQuery.toLowerCase()}::${options?.cityHint?.toLowerCase() ?? ''}`;
+  const cached = searchGeocodeCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const params = new URLSearchParams({
-    format: 'jsonv2',
-    q: normalizedQuery,
-    addressdetails: '1',
-    limit: '1',
-  });
+  const candidates = options?.cityHint
+    ? [`${normalizedQuery}, ${options.cityHint}`, normalizedQuery]
+    : [normalizedQuery];
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-    headers: {
-      'Accept-Language': 'en',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Location search failed.');
-  }
-
-  const results = (await response.json()) as Array<{
+  let allResults: Array<{
     display_name?: string;
     lat?: string;
     lon?: string;
@@ -216,9 +228,80 @@ async function searchLocation(query: string): Promise<{ label: string; city?: st
       municipality?: string;
       county?: string;
     };
-  }>;
+  }> = [];
 
-  const first = results[0];
+  const parseResults = async (candidate: string, localOnly: boolean) => {
+    const params = new URLSearchParams({
+      format: 'jsonv2',
+      q: candidate,
+      addressdetails: '1',
+      limit: '12',
+    });
+
+    if (localOnly && options?.nearPoint) {
+      const latDelta = 6 / 111;
+      const lonDelta = 6 / (111 * Math.max(Math.cos((options.nearPoint.latitude * Math.PI) / 180), 0.2));
+      const left = options.nearPoint.longitude - lonDelta;
+      const right = options.nearPoint.longitude + lonDelta;
+      const top = options.nearPoint.latitude + latDelta;
+      const bottom = options.nearPoint.latitude - latDelta;
+
+      params.set('viewbox', `${left},${top},${right},${bottom}`);
+      params.set('bounded', '1');
+    }
+
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: {
+        'Accept-Language': 'en',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Location search failed.');
+    }
+
+    return (await response.json()) as Array<{
+      display_name?: string;
+      lat?: string;
+      lon?: string;
+      address?: {
+        city?: string;
+        town?: string;
+        village?: string;
+        municipality?: string;
+        county?: string;
+      };
+    }>;
+  };
+
+  for (const candidate of candidates) {
+    const localResults = await parseResults(candidate, true);
+    if (localResults.length > 0) {
+      allResults = localResults;
+      break;
+    }
+  }
+
+  if (allResults.length === 0) {
+    for (const candidate of candidates) {
+      const globalResults = await parseResults(candidate, false);
+      if (globalResults.length > 0) {
+        allResults = globalResults;
+        break;
+      }
+    }
+  }
+
+  const first = options?.nearPoint
+    ? allResults
+      .filter((item) => typeof item.lat === 'string' && typeof item.lon === 'string')
+      .sort((a, b) => {
+        const pointA = { latitude: Number(a.lat), longitude: Number(a.lon) };
+        const pointB = { latitude: Number(b.lat), longitude: Number(b.lon) };
+        return haversineDistanceKm(options.nearPoint as Point, pointA) - haversineDistanceKm(options.nearPoint as Point, pointB);
+      })[0]
+    : allResults[0];
+
   if (!first?.lat || !first?.lon) {
     throw new Error('No matching location was found.');
   }
@@ -237,7 +320,7 @@ async function searchLocation(query: string): Promise<{ label: string; city?: st
     longitude: Number(first.lon),
   };
 
-  searchGeocodeCache.set(normalizedQuery.toLowerCase(), resolved);
+  searchGeocodeCache.set(cacheKey, resolved);
   return resolved;
 }
 
@@ -378,6 +461,24 @@ function buildClusterIcon(count: number, isSelected: boolean) {
   });
 }
 
+function buildDestinationIcon() {
+  return divIcon({
+    className: '',
+    html: `
+      <div style="
+        width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        border: 2px solid #ffffff;
+        background: #f97316;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+      "></div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+}
+
 function MapResourceMarkers({
   clusters,
   selectedSpotId,
@@ -454,12 +555,15 @@ export function GeoHelpBoardPage() {
   const [category, setCategory] = useState<CategoryFilter>('ALL');
   const [radiusKm, setRadiusKm] = useState(5);
   const [searchText, setSearchText] = useState('');
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [cityFilter, setCityFilter] = useState(DEFAULT_LOCATION.city);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
   const [locationNote, setLocationNote] = useState('');
   const [locationAccuracyM, setLocationAccuracyM] = useState<number | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
+  const [devicePoint, setDevicePoint] = useState<Point | null>(null);
+  const [searchDestination, setSearchDestination] = useState<{ label: string; point: Point } | null>(null);
   const [point, setPoint] = useState<Point>({
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
@@ -473,6 +577,17 @@ export function GeoHelpBoardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workingSpotId, setWorkingSpotId] = useState<string | null>(null);
   const [mapZoom, setMapZoom] = useState(15);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreatingSpot, setIsCreatingSpot] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createTitle, setCreateTitle] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createCity, setCreateCity] = useState(DEFAULT_LOCATION.city);
+  const [createAddress, setCreateAddress] = useState('');
+  const [createCategory, setCreateCategory] = useState<GeoHelpSpotCategory>('STUDY_SPACE');
+  const [createLatitude, setCreateLatitude] = useState(String(DEFAULT_LOCATION.latitude));
+  const [createLongitude, setCreateLongitude] = useState(String(DEFAULT_LOCATION.longitude));
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -504,11 +619,23 @@ export function GeoHelpBoardPage() {
     ? { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude }
     : point;
 
+  const currentLocationPoint = devicePoint ?? point;
+  const destinationDistanceKm = searchDestination
+    ? haversineDistanceKm(currentLocationPoint, searchDestination.point)
+    : null;
+
   const mapCenter: [number, number] = [mapCenterPoint.latitude, mapCenterPoint.longitude];
   const mapClusters = useMemo(() => clusterSpots(filteredSpots, mapZoom), [filteredSpots, mapZoom]);
   const mapPoints = useMemo<Array<[number, number]>>(
-    () => filteredSpots.map((spot) => [spot.latitude, spot.longitude]),
-    [filteredSpots],
+    () => {
+      const points = filteredSpots.map((spot) => [spot.latitude, spot.longitude] as [number, number]);
+      points.push([currentLocationPoint.latitude, currentLocationPoint.longitude]);
+      if (searchDestination) {
+        points.push([searchDestination.point.latitude, searchDestination.point.longitude]);
+      }
+      return points;
+    },
+    [filteredSpots, currentLocationPoint.latitude, currentLocationPoint.longitude, searchDestination],
   );
 
   useEffect(() => {
@@ -636,6 +763,8 @@ export function GeoHelpBoardPage() {
         };
 
         setPoint(nextPoint);
+        setDevicePoint(nextPoint);
+        setSearchDestination(null);
         setLocationAccuracyM(position.coords.accuracy);
         setLocationStatus('granted');
 
@@ -687,13 +816,18 @@ export function GeoHelpBoardPage() {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const result = await searchLocation(query);
+      const result = await searchLocation(query, {
+        nearPoint: devicePoint ?? point,
+        cityHint: cityFilter.trim() || undefined,
+      });
       const nextPoint = {
         latitude: result.latitude,
         longitude: result.longitude,
       };
 
       setPoint(nextPoint);
+      setDevicePoint(nextPoint);
+      setSearchDestination(null);
       setLocationStatus('granted');
       setLocationLabel(result.label);
       setLocationNote('Refined from the typed location query.');
@@ -726,6 +860,107 @@ export function GeoHelpBoardPage() {
       }
     } finally {
       setWorkingSpotId(null);
+    }
+  }
+
+  async function handleSearchAsLocation() {
+    const query = searchText.trim();
+    if (!query) {
+      return;
+    }
+
+    try {
+      setIsSearchingLocation(true);
+      setErrorMessage('');
+
+      const result = await searchLocation(query, {
+        nearPoint: devicePoint ?? point,
+        cityHint: cityFilter.trim() || undefined,
+      });
+      const nextPoint = {
+        latitude: result.latitude,
+        longitude: result.longitude,
+      };
+
+      setPoint(nextPoint);
+      setSearchDestination({ label: result.label, point: nextPoint });
+      const referencePoint = devicePoint ?? point;
+      const searchDistanceKm = haversineDistanceKm(referencePoint, nextPoint);
+      if (searchDistanceKm > 40) {
+        setLocationNote('No nearby match found. Showing the closest global match for this query.');
+      } else {
+        setLocationNote('Destination found from search query.');
+      }
+      if (result.city) {
+        setCityFilter(result.city);
+      }
+      setSearchText('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not find a matching place for this search.');
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  }
+
+  function openCreateModal() {
+    setCreateError('');
+    setCreateTitle('');
+    setCreateDescription('');
+    setCreateCity(cityFilter.trim() || DEFAULT_LOCATION.city);
+    setCreateAddress('');
+    setCreateCategory('STUDY_SPACE');
+    setCreateLatitude(point.latitude.toFixed(6));
+    setCreateLongitude(point.longitude.toFixed(6));
+    setIsCreateModalOpen(true);
+  }
+
+  async function handleCreateSpot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = createTitle.trim();
+    const city = createCity.trim();
+    const address = createAddress.trim();
+    const latitude = Number(createLatitude);
+    const longitude = Number(createLongitude);
+
+    if (!title || !city) {
+      setCreateError('Title and city are required.');
+      return;
+    }
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setCreateError('Latitude and longitude must be valid numbers.');
+      return;
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      setCreateError('Coordinates are out of range.');
+      return;
+    }
+
+    try {
+      setIsCreatingSpot(true);
+      setCreateError('');
+
+      const created = await createGeoHelpSpot({
+        title,
+        description: createDescription.trim() || undefined,
+        city,
+        address: address || undefined,
+        latitude,
+        longitude,
+        category: createCategory,
+      });
+
+      setIsCreateModalOpen(false);
+      setPoint({ latitude: created.latitude, longitude: created.longitude });
+      setSearchDestination(null);
+      setSelectedSpotId(created.id);
+      await handleRefresh();
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Failed to create location.');
+    } finally {
+      setIsCreatingSpot(false);
     }
   }
 
@@ -775,6 +1010,14 @@ export function GeoHelpBoardPage() {
           >
             {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             Refresh
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+          >
+            <Plus size={15} />
+            Add resource
           </button>
         </div>
 
@@ -828,13 +1071,19 @@ export function GeoHelpBoardPage() {
         </section>
 
         <section className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
-          <div className="relative">
+          <div className="relative md:col-span-2">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search title, address, description, city"
+              placeholder="Filter loaded resources, or search a place then click Search place"
               className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleSearchAsLocation();
+                }
+              }}
             />
           </div>
           <input
@@ -843,6 +1092,23 @@ export function GeoHelpBoardPage() {
             placeholder="City"
             className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
           />
+          <button
+            type="button"
+            onClick={() => {
+              void handleSearchAsLocation();
+            }}
+            disabled={isSearchingLocation || searchText.trim().length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSearchingLocation ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            Search place
+          </button>
+          {searchDestination ? (
+            <p className="md:col-span-2 text-xs text-slate-600">
+              Destination: <span className="font-semibold text-slate-800">{searchDestination.label}</span>
+              {' '}({formatDistance(destinationDistanceKm ?? undefined)} from your location)
+            </p>
+          ) : null}
         </section>
 
         {errorMessage ? (
@@ -882,18 +1148,43 @@ export function GeoHelpBoardPage() {
             />
 
             <Circle
-              center={[point.latitude, point.longitude]}
+              center={[currentLocationPoint.latitude, currentLocationPoint.longitude]}
               radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
               pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
             />
 
             <CircleMarker
-              center={[point.latitude, point.longitude]}
+              center={[currentLocationPoint.latitude, currentLocationPoint.longitude]}
               radius={8}
               pathOptions={{ color: '#0284c7', fillColor: '#0284c7', fillOpacity: 0.9 }}
             >
               <Popup>Your current center point</Popup>
             </CircleMarker>
+
+            {searchDestination ? (
+              <Marker
+                position={[searchDestination.point.latitude, searchDestination.point.longitude]}
+                icon={buildDestinationIcon()}
+              >
+                <Popup>
+                  <div className="min-w-[170px]">
+                    <p className="text-sm font-bold text-slate-900">Destination</p>
+                    <p className="mt-1 text-xs text-slate-600">{searchDestination.label}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(destinationDistanceKm ?? undefined)} from your location</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ) : null}
+
+            {searchDestination ? (
+              <Polyline
+                positions={[
+                  [currentLocationPoint.latitude, currentLocationPoint.longitude],
+                  [searchDestination.point.latitude, searchDestination.point.longitude],
+                ]}
+                pathOptions={{ color: '#f97316', weight: 2, dashArray: '6 6' }}
+              />
+            ) : null}
 
             <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
           </MapContainer>
@@ -1109,6 +1400,149 @@ export function GeoHelpBoardPage() {
                 {workingSpotId === selectedSpot.id ? 'Saving...' : 'Mark visited'}
               </button>
             </div>
+          </aside>
+        </>
+      ) : null}
+
+      {isCreateModalOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close create resource modal"
+            onClick={() => setIsCreateModalOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-900/35"
+          />
+          <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl max-sm:top-auto max-sm:bottom-0 max-sm:h-[90vh] max-sm:max-w-none max-sm:rounded-t-3xl max-sm:border-l-0 max-sm:border-t max-sm:p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Create resource</p>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">Add a new location</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              className="mt-4 space-y-3"
+              onSubmit={(event) => {
+                void handleCreateSpot(event);
+              }}
+            >
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Title</label>
+                <input
+                  value={createTitle}
+                  onChange={(event) => setCreateTitle(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  placeholder="Main Library"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Category</label>
+                <select
+                  value={createCategory}
+                  onChange={(event) => setCreateCategory(event.target.value as GeoHelpSpotCategory)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                >
+                  {CREATE_CATEGORY_OPTIONS.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">City</label>
+                <input
+                  value={createCity}
+                  onChange={(event) => setCreateCity(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  placeholder="Pecs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Address</label>
+                <input
+                  value={createAddress}
+                  onChange={(event) => setCreateAddress(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  placeholder="Hungaria utca 49/c"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Latitude</label>
+                  <input
+                    value={createLatitude}
+                    onChange={(event) => setCreateLatitude(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                    placeholder="46.072734"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Longitude</label>
+                  <input
+                    value={createLongitude}
+                    onChange={(event) => setCreateLongitude(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                    placeholder="18.232266"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateLatitude(point.latitude.toFixed(6));
+                  setCreateLongitude(point.longitude.toFixed(6));
+                }}
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Use current map center coordinates
+              </button>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
+                <textarea
+                  value={createDescription}
+                  onChange={(event) => setCreateDescription(event.target.value)}
+                  className="min-h-[96px] w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  placeholder="Helpful details for students"
+                />
+              </div>
+
+              {createError ? (
+                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{createError}</p>
+              ) : null}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingSpot}
+                  className="inline-flex items-center rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isCreatingSpot ? 'Creating...' : 'Create location'}
+                </button>
+              </div>
+            </form>
           </aside>
         </>
       ) : null}
