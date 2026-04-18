@@ -37,6 +37,13 @@ export function DashboardPage() {
           >
             👥 Study Groups
           </Button>
+          <Button
+            type="button"
+            variant="submit-wide"
+            onClick={() => navigate('/geo-help-board')}
+          >
+            📍 Geo Help Board
+          </Button>
           <Button type="button" variant="submit-wide" onClick={handleLogout}>
             Log out
           </Button>

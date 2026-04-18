@@ -29,13 +29,34 @@ Use two different layers here:
 - browser geolocation for the user's current position, via `navigator.geolocation`
 - a map rendering provider for the visual map, markers, and search/geocoding experience
 
-Recommended approach for V1:
+### Web-first location flow (permission-safe)
+Web location should be opt-in and user-triggered. Do not request browser location on page load.
 
-- use browser geolocation when the user allows it
-- fall back to a saved campus default for Pecs, Hungary when geolocation is unavailable or denied
-- keep the backend centered on latitude/longitude plus city, so the frontend can work across campuses
+1. Start with a campus default centered on Pecs, Hungary.
+2. Show a visible "Use my location" action in the location banner.
+3. On click, request geolocation permission via `navigator.geolocation.getCurrentPosition`.
+4. If granted:
+   - store `latitude`, `longitude`, `accuracy`, and `timestamp`
+   - reverse geocode coordinates to a short place label for the UI banner
+   - fetch nearby resources using the coordinates
+5. If denied, unavailable, timeout, or unsupported:
+   - keep the default city/location
+   - allow manual location override via city text input and map-centered browsing
+6. Cache reverse-geocode responses by rounded coordinates to avoid repeated API calls.
 
-For the visual map, Google Maps API is a valid choice, but it is not the only one. If you want the quickest, most controllable implementation, a lighter stack such as Leaflet with OpenStreetMap tiles is often simpler and cheaper. If the product needs places autocomplete, rich place details, or Google-native branding, then Google Maps JavaScript API is the better fit.
+This keeps web behavior robust across desktop/mobile browsers, HTTPS constraints, and mixed permission states.
+
+### Free API recommendation for V1
+Use a no-cost stack first:
+
+- browser geolocation: `navigator.geolocation` (free, built-in)
+- reverse geocoding: OpenStreetMap Nominatim (`/reverse` endpoint)
+- map rendering: OpenStreetMap tiles (Leaflet/MapLibre, or an OSM embed for first pass)
+
+Important operational note:
+
+- public Nominatim is free but rate-limited and not suitable for high production volume.
+- for MVP and low traffic this is fine, but long term you should either self-host Nominatim or move to a hosted geocoding provider.
 
 For this feature, the important distinction is:
 

@@ -10,6 +10,7 @@ import { ThreadsPage } from './pages/Threads';
 import { ThreadDetailPage } from './pages/ThreadDetailPage';
 import { StudyGroupsPage } from './pages/StudyGroups';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
+import { GeoHelpBoardPage } from './pages/GeoHelpBoardPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/threads/:threadId" element={<ThreadDetailPage />} />
       <Route path="/study-groups" element={<StudyGroupsPage />} />
       <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
+      <Route path="/geo-help-board" element={<GeoHelpBoardPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

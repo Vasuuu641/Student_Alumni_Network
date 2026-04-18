@@ -1,4 +1,4 @@
-import { LayoutDashboard, MessageSquare, NotebookText, Users } from 'lucide-react';
+import { LayoutDashboard, MapPinned, MessageSquare, NotebookText, Users } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import { NavLink } from 'react-router-dom';
@@ -8,6 +8,7 @@ const ITEMS = [
   { to: '/notes', label: 'Notes', icon: NotebookText },
   { to: '/threads', label: 'Threads', icon: MessageSquare },
   { to: '/study-groups', label: 'Study Groups', icon: Users },
+  { to: '/geo-help-board', label: 'Geo Help', icon: MapPinned },
 ];
 
 export function PlatformTopNav() {
