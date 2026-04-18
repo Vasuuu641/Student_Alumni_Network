@@ -1,21 +1,4 @@
-import axios from 'axios';
-import { getAccessToken } from '../lib/auth';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
-const NORMALIZED_API_BASE = API_BASE_URL.replace(/\/$/, '');
-
-const api = axios.create({
-  baseURL: NORMALIZED_API_BASE,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { api } from './http-client';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (

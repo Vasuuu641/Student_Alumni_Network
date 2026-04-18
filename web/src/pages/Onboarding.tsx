@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { getOnboardingProfile, updateOnboardingProfile } from '../api/onboarding';
-import { getAccessToken, getRoleFromAccessToken, isTokenExpired, type UserRole } from '../lib/auth';
+import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth';
 import Button from '../components/Button';
 
 type EditableRole = Exclude<UserRole, 'ADMIN'>;
@@ -50,7 +50,7 @@ export function OnboardingPage() {
   const token = getAccessToken();
 
   const role = useMemo(() => {
-    if (!token || isTokenExpired(token)) {
+    if (!token) {
       return null;
     }
     return getRoleFromAccessToken(token);
