@@ -10,6 +10,10 @@ import { ThreadsPage } from './pages/Threads';
 import { ThreadDetailPage } from './pages/ThreadDetailPage';
 import { StudyGroupsPage } from './pages/StudyGroups';
 import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminGeoModerationPage } from './pages/admin/AdminGeoModerationPage';
+import { AdminThreadsModerationPage } from './pages/admin/AdminThreadsModerationPage';
 
 export default function App() {
   return (
@@ -25,6 +29,14 @@ export default function App() {
       <Route path="/threads/:threadId" element={<ThreadDetailPage />} />
       <Route path="/study-groups" element={<StudyGroupsPage />} />
       <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
+
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="/admin/users" replace />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="geo" element={<AdminGeoModerationPage />} />
+        <Route path="threads" element={<AdminThreadsModerationPage />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
