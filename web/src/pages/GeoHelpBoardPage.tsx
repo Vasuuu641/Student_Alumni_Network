@@ -36,6 +36,14 @@ interface Point {
   longitude: number;
 }
 
+interface SearchLocationCandidate {
+  label: string;
+  city?: string;
+  latitude: number;
+  longitude: number;
+  distanceKm?: number;
+}
+
 const DEFAULT_LOCATION = {
   label: 'Pecs campus default',
   city: 'Pecs',
@@ -60,9 +68,18 @@ const CREATE_CATEGORY_OPTIONS: Array<{ value: GeoHelpSpotCategory; label: string
 
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
+const searchCandidateCache = new Map<string, SearchLocationCandidate[]>();
 
 function toCoordKey(point: Point): string {
   return `${point.latitude.toFixed(3)},${point.longitude.toFixed(3)}`;
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 function formatDistance(distanceKm?: number): string {
@@ -202,33 +219,125 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   return resolved;
 }
 
-async function searchLocation(
+type RawSearchResult = {
+  display_name?: string;
+  lat?: string;
+  lon?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+  };
+};
+
+async function searchLocationCandidates(
   query: string,
-  options?: { nearPoint?: Point; cityHint?: string },
-): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+  options?: { nearPoint?: Point; cityHint?: string; strictLocal?: boolean; maxResults?: number },
+): Promise<SearchLocationCandidate[]> {
   const normalizedQuery = query.trim();
-  const cacheKey = `${normalizedQuery.toLowerCase()}::${options?.cityHint?.toLowerCase() ?? ''}`;
-  const cached = searchGeocodeCache.get(cacheKey);
+  const nearKey = options?.nearPoint
+    ? `${options.nearPoint.latitude.toFixed(3)},${options.nearPoint.longitude.toFixed(3)}`
+    : '';
+  const cacheKey = [
+    normalizeSearchText(normalizedQuery),
+    normalizeSearchText(options?.cityHint ?? ''),
+    nearKey,
+    options?.strictLocal ? 'strict' : 'loose',
+  ].join('::');
+
+  const cached = searchCandidateCache.get(cacheKey);
   if (cached) {
-    return cached;
+    return cached.slice(0, options?.maxResults ?? 8);
   }
 
   const candidates = options?.cityHint
     ? [`${normalizedQuery}, ${options.cityHint}`, normalizedQuery]
     : [normalizedQuery];
 
-  let allResults: Array<{
-    display_name?: string;
-    lat?: string;
-    lon?: string;
-    address?: {
-      city?: string;
-      town?: string;
-      village?: string;
-      municipality?: string;
-      county?: string;
-    };
-  }> = [];
+  const normalizedCityHint = options?.cityHint ? normalizeSearchText(options.cityHint) : undefined;
+
+  const extractCity = (item: RawSearchResult): string | undefined => {
+    return (
+      item.address?.city ??
+      item.address?.town ??
+      item.address?.village ??
+      item.address?.municipality ??
+      item.address?.county
+    );
+  };
+
+  const cityMatchesHint = (item: RawSearchResult): boolean => {
+    if (!normalizedCityHint) {
+      return true;
+    }
+
+    const resolvedCityRaw = extractCity(item);
+    if (!resolvedCityRaw) {
+      // In bounded-local mode, Nominatim sometimes omits city fields even for nearby matches.
+      return true;
+    }
+
+    const resolvedCity = normalizeSearchText(resolvedCityRaw);
+    if (!resolvedCity) {
+      return true;
+    }
+
+    return resolvedCity.includes(normalizedCityHint) || normalizedCityHint.includes(resolvedCity);
+  };
+
+  const dedupeByPoint = (results: RawSearchResult[]): RawSearchResult[] => {
+    const seen = new Set<string>();
+    const deduped: RawSearchResult[] = [];
+
+    for (const item of results) {
+      if (!item.lat || !item.lon) {
+        continue;
+      }
+
+      const key = `${Number(item.lat).toFixed(5)}:${Number(item.lon).toFixed(5)}`;
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      deduped.push(item);
+    }
+
+    return deduped;
+  };
+
+  const toCandidates = (results: RawSearchResult[]): SearchLocationCandidate[] => {
+    const candidates: SearchLocationCandidate[] = [];
+
+    for (const item of dedupeByPoint(results)) {
+      if (!item.lat || !item.lon) {
+        continue;
+      }
+
+      const latitude = Number(item.lat);
+      const longitude = Number(item.lon);
+      const city = extractCity(item);
+      const distanceKm = options?.nearPoint
+        ? haversineDistanceKm(options.nearPoint, { latitude, longitude })
+        : undefined;
+
+      candidates.push({
+        label: item.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
+        city,
+        latitude,
+        longitude,
+        distanceKm,
+      });
+    }
+
+    return candidates.sort((a, b) => {
+      const aDistance = a.distanceKm ?? Number.POSITIVE_INFINITY;
+      const bDistance = b.distanceKm ?? Number.POSITIVE_INFINITY;
+      return aDistance - bDistance;
+    });
+  };
 
   const parseResults = async (candidate: string, localOnly: boolean) => {
     const params = new URLSearchParams({
@@ -260,64 +369,79 @@ async function searchLocation(
       throw new Error('Location search failed.');
     }
 
-    return (await response.json()) as Array<{
-      display_name?: string;
-      lat?: string;
-      lon?: string;
-      address?: {
-        city?: string;
-        town?: string;
-        village?: string;
-        municipality?: string;
-        county?: string;
-      };
-    }>;
+    return (await response.json()) as RawSearchResult[];
   };
+
+  const localAggregated: RawSearchResult[] = [];
 
   for (const candidate of candidates) {
     const localResults = await parseResults(candidate, true);
-    if (localResults.length > 0) {
-      allResults = localResults;
-      break;
-    }
+    localAggregated.push(...localResults);
   }
 
-  if (allResults.length === 0) {
-    for (const candidate of candidates) {
-      const globalResults = await parseResults(candidate, false);
-      if (globalResults.length > 0) {
-        allResults = globalResults;
-        break;
-      }
-    }
+  const localPreferred = normalizedCityHint
+    ? localAggregated.filter((item) => cityMatchesHint(item))
+    : localAggregated;
+
+  const localCandidates = toCandidates(localPreferred.length > 0 ? localPreferred : localAggregated);
+  if (localCandidates.length > 0) {
+    searchCandidateCache.set(cacheKey, localCandidates);
+    return localCandidates.slice(0, options?.maxResults ?? 8);
   }
 
-  const first = options?.nearPoint
-    ? allResults
-      .filter((item) => typeof item.lat === 'string' && typeof item.lon === 'string')
-      .sort((a, b) => {
-        const pointA = { latitude: Number(a.lat), longitude: Number(a.lon) };
-        const pointB = { latitude: Number(b.lat), longitude: Number(b.lon) };
-        return haversineDistanceKm(options.nearPoint as Point, pointA) - haversineDistanceKm(options.nearPoint as Point, pointB);
-      })[0]
-    : allResults[0];
+  if (options?.strictLocal) {
+    throw new Error(
+      `No nearby match found${options.cityHint ? ` in ${options.cityHint}` : ' in your area'}. Try a more specific name or full address.`,
+    );
+  }
 
-  if (!first?.lat || !first?.lon) {
+  const globalAggregated: RawSearchResult[] = [];
+  for (const candidate of candidates) {
+    const globalResults = await parseResults(candidate, false);
+    globalAggregated.push(...globalResults);
+  }
+
+  const globalPreferred = normalizedCityHint
+    ? globalAggregated.filter((item) => cityMatchesHint(item))
+    : globalAggregated;
+
+  const globalCandidates = toCandidates(globalPreferred.length > 0 ? globalPreferred : globalAggregated);
+  if (globalCandidates.length === 0) {
     throw new Error('No matching location was found.');
   }
 
-  const city =
-    first.address?.city ??
-    first.address?.town ??
-    first.address?.village ??
-    first.address?.municipality ??
-    first.address?.county;
+  searchCandidateCache.set(cacheKey, globalCandidates);
+  return globalCandidates.slice(0, options?.maxResults ?? 8);
+}
+
+async function searchLocation(
+  query: string,
+  options?: { nearPoint?: Point; cityHint?: string; strictLocal?: boolean },
+): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+  const normalizedQuery = query.trim();
+  const cacheKey = `${normalizeSearchText(normalizedQuery)}::${normalizeSearchText(options?.cityHint ?? '')}`;
+  const cached = searchGeocodeCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const candidates = await searchLocationCandidates(query, {
+    nearPoint: options?.nearPoint,
+    cityHint: options?.cityHint,
+    strictLocal: options?.strictLocal,
+    maxResults: 1,
+  });
+
+  const first = candidates[0];
+  if (!first) {
+    throw new Error('No matching location was found.');
+  }
 
   const resolved = {
-    label: first.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
-    city,
-    latitude: Number(first.lat),
-    longitude: Number(first.lon),
+    label: first.label,
+    city: first.city,
+    latitude: first.latitude,
+    longitude: first.longitude,
   };
 
   searchGeocodeCache.set(cacheKey, resolved);
@@ -556,6 +680,7 @@ export function GeoHelpBoardPage() {
   const [radiusKm, setRadiusKm] = useState(5);
   const [searchText, setSearchText] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [searchCandidates, setSearchCandidates] = useState<SearchLocationCandidate[]>([]);
   const [cityFilter, setCityFilter] = useState(DEFAULT_LOCATION.city);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
@@ -637,6 +762,12 @@ export function GeoHelpBoardPage() {
     },
     [filteredSpots, currentLocationPoint.latitude, currentLocationPoint.longitude, searchDestination],
   );
+
+  useEffect(() => {
+    if (searchText.trim().length === 0) {
+      setSearchCandidates([]);
+    }
+  }, [searchText]);
 
   useEffect(() => {
     if (!selectedSpotId && filteredSpots.length > 0) {
@@ -819,6 +950,7 @@ export function GeoHelpBoardPage() {
       const result = await searchLocation(query, {
         nearPoint: devicePoint ?? point,
         cityHint: cityFilter.trim() || undefined,
+        strictLocal: true,
       });
       const nextPoint = {
         latitude: result.latitude,
@@ -872,18 +1004,32 @@ export function GeoHelpBoardPage() {
     try {
       setIsSearchingLocation(true);
       setErrorMessage('');
+      setSearchCandidates([]);
 
-      const result = await searchLocation(query, {
+      const candidates = await searchLocationCandidates(query, {
         nearPoint: devicePoint ?? point,
         cityHint: cityFilter.trim() || undefined,
+        strictLocal: true,
+        maxResults: 6,
       });
+
+      if (candidates.length === 0) {
+        throw new Error('No nearby match found. Try a fuller place name or address.');
+      }
+
+      if (candidates.length > 1) {
+        setSearchCandidates(candidates);
+        setLocationNote('Multiple nearby matches found. Choose one from the list.');
+        return;
+      }
+
+      const selectedCandidate = candidates[0];
       const nextPoint = {
-        latitude: result.latitude,
-        longitude: result.longitude,
+        latitude: selectedCandidate.latitude,
+        longitude: selectedCandidate.longitude,
       };
 
-      setPoint(nextPoint);
-      setSearchDestination({ label: result.label, point: nextPoint });
+      setSearchDestination({ label: selectedCandidate.label, point: nextPoint });
       const referencePoint = devicePoint ?? point;
       const searchDistanceKm = haversineDistanceKm(referencePoint, nextPoint);
       if (searchDistanceKm > 40) {
@@ -891,15 +1037,24 @@ export function GeoHelpBoardPage() {
       } else {
         setLocationNote('Destination found from search query.');
       }
-      if (result.city) {
-        setCityFilter(result.city);
-      }
       setSearchText('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not find a matching place for this search.');
     } finally {
       setIsSearchingLocation(false);
     }
+  }
+
+  function handleSelectSearchCandidate(candidate: SearchLocationCandidate) {
+    const nextPoint = {
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+    };
+
+    setSearchDestination({ label: candidate.label, point: nextPoint });
+    setSearchCandidates([]);
+    setSearchText('');
+    setLocationNote('Destination selected from nearby matches.');
   }
 
   function openCreateModal() {
@@ -1108,6 +1263,28 @@ export function GeoHelpBoardPage() {
               Destination: <span className="font-semibold text-slate-800">{searchDestination.label}</span>
               {' '}({formatDistance(destinationDistanceKm ?? undefined)} from your location)
             </p>
+          ) : null}
+
+          {searchCandidates.length > 1 ? (
+            <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Select a nearby match</p>
+              <div className="space-y-2">
+                {searchCandidates.map((candidate) => (
+                  <button
+                    key={`${candidate.latitude}:${candidate.longitude}:${candidate.label}`}
+                    type="button"
+                    onClick={() => handleSelectSearchCandidate(candidate)}
+                    className="flex w-full items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50"
+                  >
+                    <span>
+                      <span className="font-semibold text-slate-900">{candidate.label}</span>
+                      {candidate.city ? <span className="block text-xs text-slate-500">{candidate.city}</span> : null}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-600">{formatDistance(candidate.distanceKm)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : null}
         </section>
 
