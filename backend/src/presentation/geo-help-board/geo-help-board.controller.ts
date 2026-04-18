@@ -12,12 +12,14 @@ import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/
 import { EditGeoHelpSpotUseCase } from '../../application/geo-help-board/edit-geo-help-spot.usecase';
 import { DeactivateGeoHelpSpotUseCase } from '../../application/geo-help-board/deactivate-geo-help-spot.usecase';
 import { VerifyGeoHelpSpotUseCase } from '../../application/geo-help-board/verify-geo-help-spot.usecase';
+import { ListReviewGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-review-geo-help-spots.usecase';
 
 import { CreateGeoHelpSpotDto } from './dto/create-geo-help-spot.dto';
 import { UpdateGeoHelpSpotDto } from './dto/update-geo-help-spot.dto';
 import { VerifyGeoHelpSpotDto } from './dto/verify-geo-help-spot.dto';
 import { ListPopularGeoHelpSpotsQueryDto } from './dto/list-popular-geo-help-spots-query.dto';
 import { ListNearbyGeoHelpSpotsQueryDto } from './dto/list-nearby-geo-help-spots-query.dto';
+import { ListReviewGeoHelpSpotsQueryDto } from './dto/list-review-geo-help-spots-query.dto';
 import { GeoHelpBoardError } from '../../application/geo-help-board/geo-help-board.errors';
 
 @Controller('geo-help-board')
@@ -29,10 +31,28 @@ export class GeoHelpBoardController {
     private readonly editGeoHelpSpotUseCase: EditGeoHelpSpotUseCase,
     private readonly deactivateGeoHelpSpotUseCase: DeactivateGeoHelpSpotUseCase,
     private readonly verifyGeoHelpSpotUseCase: VerifyGeoHelpSpotUseCase,
+    private readonly listReviewGeoHelpSpotsUseCase: ListReviewGeoHelpSpotsUseCase,
     private readonly listPopularGeoHelpSpotsUseCase: ListPopularGeoHelpSpotsUseCase,
     private readonly listNearbyGeoHelpSpotsUseCase: ListNearbyGeoHelpSpotsUseCase,
     private readonly recordGeoHelpSpotVisitUseCase: RecordGeoHelpSpotVisitUseCase,
   ) {}
+
+  @Get('spots/review-queue')
+  @Roles('ADMIN')
+  async listReviewQueue(@Query() query: ListReviewGeoHelpSpotsQueryDto) {
+    try {
+      return await this.listReviewGeoHelpSpotsUseCase.execute({
+        city: query.city,
+        category: query.category as any,
+        reviewStatus: query.reviewStatus as any,
+        isActive: query.isActive,
+        limit: query.limit,
+        page: query.page,
+      });
+    } catch (error) {
+      this.rethrowGeoHelpBoardError(error);
+    }
+  }
 
   @Get('spots/popular')
   async listPopular(@Query() query: ListPopularGeoHelpSpotsQueryDto) {
