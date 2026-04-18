@@ -7,11 +7,14 @@ import {
   CircleHelp,
   Clock3,
   Compass,
+  LayoutDashboard,
   FolderOpen,
   MessageSquare,
   MessagesSquare,
   Plus,
   Sparkles,
+  NotebookText,
+  MessageCircle,
   TrendingUp,
   UserPlus,
   Users,
@@ -201,9 +204,9 @@ export function DashboardPage() {
   }
 
   const topNavItems: PlatformTopNavItem[] = [
-    { to: '/dashboard', label: 'Dashboard', icon: CircleHelp },
-    { to: '/notes', label: 'Notes', icon: BookOpen },
-    { to: '/threads', label: 'Discussions', icon: MessageSquare },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/notes', label: 'Notes', icon: NotebookText },
+    { to: '/threads', label: 'Discussions', icon: MessageCircle },
     { to: '/geo-help-board', label: 'Geo Help Board', icon: Compass },
     { label: 'More', icon: Sparkles, onClick: () => openPlaceholder('More') },
   ];

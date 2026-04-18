@@ -33,13 +33,13 @@ export default function App() {
       <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
       <Route path="/profile" element={<ProfilePage isOwnProfile={true} />} />
       <Route path="/profile/:userId" element={<ProfilePage isOwnProfile={false} />} />
+      <Route path="/geo-help-board" element={<GeoHelpBoardPage />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/users" replace />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="geo-moderation" element={<AdminGeoModerationPage />} />
         <Route path="threads-moderation" element={<AdminThreadsModerationPage />} />
       </Route>
-      <Route path="/geo-help-board" element={<GeoHelpBoardPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
