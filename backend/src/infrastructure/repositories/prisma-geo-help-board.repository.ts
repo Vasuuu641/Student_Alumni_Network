@@ -4,6 +4,7 @@ import type {
   CreateGeoHelpSpotInput,
   DuplicateGeoHelpSpotCheckInput,
   GeoHelpBoardRepository,
+  ListGeoHelpSpotsForAdminFilter,
   ListGeoHelpSpotsFilter,
   UpdateGeoHelpSpotInput,
 } from '../../domain/repositories/geo-help-board.repository';
@@ -136,6 +137,25 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
       } as any,
       orderBy: [{ visitCount: 'desc' }, { createdAt: 'desc' }],
+      take,
+      skip,
+    });
+
+    return records.map((record) => this.toDomain(record));
+  }
+
+  async listSpotsForAdmin(filter: ListGeoHelpSpotsForAdminFilter): Promise<GeoHelpSpot[]> {
+    const take = filter.limit ?? 20;
+    const skip = filter.offset ?? 0;
+
+    const records = await this.prisma.geoHelpSpot.findMany({
+      where: {
+        city: filter.city,
+        category: filter.category,
+        isActive: filter.isActive,
+        reviewStatus: filter.reviewStatus,
+      } as any,
+      orderBy: [{ createdAt: 'desc' }],
       take,
       skip,
     });

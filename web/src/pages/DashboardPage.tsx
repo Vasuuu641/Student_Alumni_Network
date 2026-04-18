@@ -1,8 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
+import { getAccessToken, getRoleFromAccessToken } from '../lib/auth';
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const token = getAccessToken();
+  const role = token ? getRoleFromAccessToken(token) : null;
+  const isAdmin = role === 'ADMIN';
 
   function handleLogout() {
     localStorage.removeItem('unibridge.accessToken');
@@ -44,6 +48,15 @@ export function DashboardPage() {
           >
             📍 Geo Help Board
           </Button>
+          {isAdmin ? (
+            <Button
+              type="button"
+              variant="submit-wide"
+              onClick={() => navigate('/admin/users')}
+            >
+              🛡️ Admin Console
+            </Button>
+          ) : null}
           <Button type="button" variant="submit-wide" onClick={handleLogout}>
             Log out
           </Button>

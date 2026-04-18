@@ -45,6 +45,10 @@ export interface ListGeoHelpSpotsFilter {
   offset?: number;
 }
 
+export interface ListGeoHelpSpotsForAdminFilter extends ListGeoHelpSpotsFilter {
+  reviewStatus?: GeoHelpSpotReviewStatus;
+}
+
 export interface GeoHelpBoardRepository {
   createSpot(input: CreateGeoHelpSpotInput): Promise<GeoHelpSpot>;
   findSpotById(spotId: string): Promise<GeoHelpSpot | null>;
@@ -53,6 +57,7 @@ export interface GeoHelpBoardRepository {
   deactivateSpot(spotId: string): Promise<GeoHelpSpot>;
   reviewSpot(input: ReviewGeoHelpSpotInput): Promise<GeoHelpSpot>;
   listPopularSpots(filter: ListGeoHelpSpotsFilter): Promise<GeoHelpSpot[]>;
+  listSpotsForAdmin(filter: ListGeoHelpSpotsForAdminFilter): Promise<GeoHelpSpot[]>;
   listNearbySpots(params: {
     latitude: number;
     longitude: number;
