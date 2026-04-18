@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Circle, CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import {
   AlertTriangle,
   Building2,
   Compass,
+  ExternalLink,
   Loader2,
   LocateFixed,
   MapPinned,
   Navigation,
   RefreshCw,
   Search,
+  X,
 } from 'lucide-react';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import Button from '../components/Button';
@@ -109,17 +112,6 @@ function locationStateText(status: LocationStatus): string {
   return 'Using campus default location. You can switch to live location anytime.';
 }
 
-function buildOpenStreetMapEmbedUrl(point: Point): string {
-  const delta = 0.02;
-  const left = (point.longitude - delta).toFixed(6);
-  const bottom = (point.latitude - delta).toFixed(6);
-  const right = (point.longitude + delta).toFixed(6);
-  const top = (point.latitude + delta).toFixed(6);
-  const marker = `${point.latitude.toFixed(6)}%2C${point.longitude.toFixed(6)}`;
-
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${marker}`;
-}
-
 function buildOpenStreetMapUrl(point: Point): string {
   return `https://www.openstreetmap.org/?mlat=${point.latitude.toFixed(6)}&mlon=${point.longitude.toFixed(6)}#map=16/${point.latitude.toFixed(6)}/${point.longitude.toFixed(6)}`;
 }
@@ -157,7 +149,6 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
       village?: string;
       municipality?: string;
       county?: string;
-      state?: string;
     };
   };
 
@@ -172,6 +163,16 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   const resolved = { label, city };
   reverseGeocodeCache.set(cacheKey, resolved);
   return resolved;
+}
+
+function AutoCenterMap({ center }: { center: [number, number] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+
+  return null;
 }
 
 export function GeoHelpBoardPage() {
@@ -193,10 +194,14 @@ export function GeoHelpBoardPage() {
 
   const [spots, setSpots] = useState<GeoHelpSpot[]>([]);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workingSpotId, setWorkingSpotId] = useState<string | null>(null);
+
+  const visitedOnOpenRef = useRef<Set<string>>(new Set());
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const apiCategory = category === 'ALL' ? undefined : category;
 
@@ -225,6 +230,8 @@ export function GeoHelpBoardPage() {
     ? { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude }
     : point;
 
+  const mapCenter: [number, number] = [mapCenterPoint.latitude, mapCenterPoint.longitude];
+
   useEffect(() => {
     if (!selectedSpotId && filteredSpots.length > 0) {
       setSelectedSpotId(filteredSpots[0].id);
@@ -235,6 +242,17 @@ export function GeoHelpBoardPage() {
       setSelectedSpotId(filteredSpots[0]?.id ?? null);
     }
   }, [filteredSpots, selectedSpotId]);
+
+  useEffect(() => {
+    if (!selectedSpotId) {
+      return;
+    }
+
+    const node = cardRefs.current[selectedSpotId];
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedSpotId]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -279,6 +297,26 @@ export function GeoHelpBoardPage() {
 
     void loadResources();
   }, [apiCategory, cityFilter, isAuthenticated, point.latitude, point.longitude, radiusKm, tab]);
+
+  useEffect(() => {
+    if (!isDrawerOpen || !selectedSpotId) {
+      return;
+    }
+
+    if (visitedOnOpenRef.current.has(selectedSpotId)) {
+      return;
+    }
+
+    visitedOnOpenRef.current.add(selectedSpotId);
+    void handleRecordVisit(selectedSpotId, { silentError: true });
+  }, [isDrawerOpen, selectedSpotId]);
+
+  function selectSpot(spotId: string, openDrawer = false) {
+    setSelectedSpotId(spotId);
+    if (openDrawer) {
+      setIsDrawerOpen(true);
+    }
+  }
 
   async function handleRefresh() {
     if (!isAuthenticated) {
@@ -363,7 +401,7 @@ export function GeoHelpBoardPage() {
     );
   }
 
-  async function handleRecordVisit(spotId: string) {
+  async function handleRecordVisit(spotId: string, options?: { silentError?: boolean }) {
     try {
       setWorkingSpotId(spotId);
       await recordGeoHelpSpotVisit(spotId);
@@ -376,7 +414,9 @@ export function GeoHelpBoardPage() {
           : spot
       )));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to record visit.');
+      if (!options?.silentError) {
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to record visit.');
+      }
     } finally {
       setWorkingSpotId(null);
     }
@@ -415,7 +455,7 @@ export function GeoHelpBoardPage() {
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Campus Resources</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Permission-safe web location with free OpenStreetMap services. Use live location or keep browsing with your campus default.
+              Interactive map markers + detail drawer. Pick a resource from map or list, then open full details.
             </p>
           </div>
           <button
@@ -540,24 +580,73 @@ export function GeoHelpBoardPage() {
             <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div className="inline-flex items-center gap-2">
                 <Compass size={16} className="text-sky-700" />
-                <p className="text-sm font-semibold text-slate-700">Map preview</p>
+                <p className="text-sm font-semibold text-slate-700">Interactive map</p>
               </div>
               <a
                 href={buildOpenStreetMapUrl(mapCenterPoint)}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-semibold text-sky-700 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
               >
-                Open full map
+                Open full map <ExternalLink size={12} />
               </a>
             </header>
-            <iframe
-              src={buildOpenStreetMapEmbedUrl(mapCenterPoint)}
-              title="Campus resources map"
-              className="h-[420px] w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
+
+            <MapContainer
+              center={mapCenter}
+              zoom={15}
+              className="h-[420px] w-full"
+              scrollWheelZoom
+            >
+              <AutoCenterMap center={mapCenter} />
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+              <Circle
+                center={[point.latitude, point.longitude]}
+                radius={Math.max(80, radiusKm * 120)}
+                pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
+              />
+
+              <CircleMarker
+                center={[point.latitude, point.longitude]}
+                radius={8}
+                pathOptions={{ color: '#0284c7', fillColor: '#0284c7', fillOpacity: 0.9 }}
+              >
+                <Popup>Your current center point</Popup>
+              </CircleMarker>
+
+              {filteredSpots.map((spot) => {
+                const isSelected = selectedSpotId === spot.id;
+                return (
+                  <CircleMarker
+                    key={spot.id}
+                    center={[spot.latitude, spot.longitude]}
+                    radius={isSelected ? 11 : 8}
+                    pathOptions={{
+                      color: isSelected ? '#1d4ed8' : '#0f766e',
+                      fillColor: isSelected ? '#3b82f6' : '#14b8a6',
+                      fillOpacity: 0.85,
+                    }}
+                    eventHandlers={{
+                      click: () => {
+                        selectSpot(spot.id, true);
+                      },
+                    }}
+                  >
+                    <Popup>
+                      <div className="min-w-[170px]">
+                        <p className="text-sm font-bold text-slate-900">{spot.title}</p>
+                        <p className="mt-1 text-xs text-slate-600">{spot.city}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(spot.distanceKm)}</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </MapContainer>
           </article>
 
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -592,6 +681,9 @@ export function GeoHelpBoardPage() {
                   return (
                     <article
                       key={spot.id}
+                      ref={(node) => {
+                        cardRefs.current[spot.id] = node;
+                      }}
                       className={`rounded-xl border p-3 transition ${
                         isSelected
                           ? 'border-sky-300 bg-sky-50/50'
@@ -600,7 +692,7 @@ export function GeoHelpBoardPage() {
                     >
                       <button
                         type="button"
-                        onClick={() => setSelectedSpotId(spot.id)}
+                        onClick={() => selectSpot(spot.id, true)}
                         className="w-full text-left"
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -629,14 +721,13 @@ export function GeoHelpBoardPage() {
                       </button>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <a
-                          href={buildOpenStreetMapUrl({ latitude: spot.latitude, longitude: spot.longitude })}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => selectSpot(spot.id, true)}
                           className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                         >
-                          Open map
-                        </a>
+                          View details
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -656,6 +747,82 @@ export function GeoHelpBoardPage() {
           </article>
         </section>
       </section>
+
+      {isDrawerOpen && selectedSpot ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close resource drawer"
+            onClick={() => setIsDrawerOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-900/35"
+          />
+          <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resource details</p>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">{selectedSpot.title}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                {categoryLabel(selectedSpot.category)}
+              </span>
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${reviewBadgeClass(selectedSpot.reviewStatus)}`}>
+                {selectedSpot.reviewStatus}
+              </span>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                {formatDistance(selectedSpot.distanceKm)}
+              </span>
+            </div>
+
+            <div className="mt-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</p>
+              <p className="text-sm text-slate-700">
+                {selectedSpot.address ? `${selectedSpot.address}, ${selectedSpot.city}` : selectedSpot.city}
+              </p>
+
+              {selectedSpot.description ? (
+                <>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
+                  <p className="text-sm leading-6 text-slate-700">{selectedSpot.description}</p>
+                </>
+              ) : null}
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visits</p>
+              <p className="text-sm text-slate-700">{selectedSpot.visitCount} total visits</p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <a
+                href={buildOpenStreetMapUrl({ latitude: selectedSpot.latitude, longitude: selectedSpot.longitude })}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Open in map <ExternalLink size={13} />
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRecordVisit(selectedSpot.id);
+                }}
+                disabled={workingSpotId === selectedSpot.id}
+                className="inline-flex items-center rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {workingSpotId === selectedSpot.id ? 'Saving...' : 'Mark visited'}
+              </button>
+            </div>
+          </aside>
+        </>
+      ) : null}
     </main>
   );
 }
