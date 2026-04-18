@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { divIcon, latLngBounds, type LatLngBoundsExpression } from 'leaflet';
@@ -27,7 +27,7 @@ import {
   type GeoHelpSpotReviewStatus,
 } from '../api/geo-help-board.api';
 
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'error';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'insecure' | 'error';
 type ResourceTab = 'NEARBY' | 'POPULAR';
 type CategoryFilter = 'ALL' | GeoHelpSpotCategory;
 
@@ -56,6 +56,7 @@ const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; label: string }> = [
 ];
 
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
+const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
 
 function toCoordKey(point: Point): string {
   return `${point.latitude.toFixed(3)},${point.longitude.toFixed(3)}`;
@@ -71,6 +72,18 @@ function formatDistance(distanceKm?: number): string {
   }
 
   return `${distanceKm.toFixed(1)} km away`;
+}
+
+function formatAccuracy(accuracyMeters?: number): string {
+  if (typeof accuracyMeters !== 'number' || Number.isNaN(accuracyMeters)) {
+    return 'Location accuracy unavailable';
+  }
+
+  if (accuracyMeters < 1000) {
+    return `Approx. ${Math.round(accuracyMeters)} m accuracy`;
+  }
+
+  return `Approx. ${(accuracyMeters / 1000).toFixed(1)} km accuracy`;
 }
 
 function categoryLabel(category: GeoHelpSpotCategory): string {
@@ -104,6 +117,10 @@ function locationStateText(status: LocationStatus): string {
 
   if (status === 'unsupported') {
     return 'This browser does not support geolocation. Using campus default location.';
+  }
+
+  if (status === 'insecure') {
+    return 'Browser location requires HTTPS or localhost. Using campus default location.';
   }
 
   if (status === 'error') {
@@ -163,6 +180,66 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   const label = city ?? data.display_name?.split(',').slice(0, 2).join(',').trim() ?? 'Detected location';
   const resolved = { label, city };
   reverseGeocodeCache.set(cacheKey, resolved);
+  return resolved;
+}
+
+async function searchLocation(query: string): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+  const normalizedQuery = query.trim();
+  const cached = searchGeocodeCache.get(normalizedQuery.toLowerCase());
+  if (cached) {
+    return cached;
+  }
+
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    q: normalizedQuery,
+    addressdetails: '1',
+    limit: '1',
+  });
+
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    headers: {
+      'Accept-Language': 'en',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Location search failed.');
+  }
+
+  const results = (await response.json()) as Array<{
+    display_name?: string;
+    lat?: string;
+    lon?: string;
+    address?: {
+      city?: string;
+      town?: string;
+      village?: string;
+      municipality?: string;
+      county?: string;
+    };
+  }>;
+
+  const first = results[0];
+  if (!first?.lat || !first?.lon) {
+    throw new Error('No matching location was found.');
+  }
+
+  const city =
+    first.address?.city ??
+    first.address?.town ??
+    first.address?.village ??
+    first.address?.municipality ??
+    first.address?.county;
+
+  const resolved = {
+    label: first.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
+    city,
+    latitude: Number(first.lat),
+    longitude: Number(first.lon),
+  };
+
+  searchGeocodeCache.set(normalizedQuery.toLowerCase(), resolved);
   return resolved;
 }
 
@@ -383,6 +460,9 @@ export function GeoHelpBoardPage() {
   const [cityFilter, setCityFilter] = useState(DEFAULT_LOCATION.city);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
+  const [locationNote, setLocationNote] = useState('');
+  const [locationAccuracyM, setLocationAccuracyM] = useState<number | null>(null);
+  const [locationQuery, setLocationQuery] = useState('');
   const [point, setPoint] = useState<Point>({
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
@@ -562,10 +642,18 @@ export function GeoHelpBoardPage() {
   function handleUseMyLocation() {
     if (!navigator.geolocation) {
       setLocationStatus('unsupported');
+      setLocationNote('Your browser does not expose the geolocation API on this device.');
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setLocationStatus('insecure');
+      setLocationNote('Browser location is blocked on insecure origins. Open the web app on HTTPS or localhost, then try again.');
       return;
     }
 
     setLocationStatus('requesting');
+    setLocationNote('');
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -575,6 +663,7 @@ export function GeoHelpBoardPage() {
         };
 
         setPoint(nextPoint);
+        setLocationAccuracyM(position.coords.accuracy);
         setLocationStatus('granted');
 
         try {
@@ -590,7 +679,16 @@ export function GeoHelpBoardPage() {
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
           setLocationStatus('denied');
+          setLocationNote('Browser permission was denied or disabled. Allow location access in the site settings and try again.');
           return;
+        }
+
+        if (error.code === error.POSITION_UNAVAILABLE) {
+          setLocationNote('The browser could not resolve a usable location from GPS, Wi-Fi, or network signals.');
+        } else if (error.code === error.TIMEOUT) {
+          setLocationNote('Location lookup timed out. Try again or move to a place with a stronger signal.');
+        } else {
+          setLocationNote(error.message || 'The browser returned an unexpected geolocation error.');
         }
 
         setLocationStatus('error');
@@ -601,6 +699,40 @@ export function GeoHelpBoardPage() {
         maximumAge: 120_000,
       },
     );
+  }
+
+  async function handleRefineLocation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const query = locationQuery.trim();
+    if (!query) {
+      setErrorMessage('Enter an address or place name to refine the location.');
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+      setErrorMessage('');
+
+      const result = await searchLocation(query);
+      const nextPoint = {
+        latitude: result.latitude,
+        longitude: result.longitude,
+      };
+
+      setPoint(nextPoint);
+      setLocationStatus('granted');
+      setLocationLabel(result.label);
+      setLocationNote('Refined from the typed location query.');
+      setLocationAccuracyM(35);
+      if (result.city) {
+        setCityFilter(result.city);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to refine location.');
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   async function handleRecordVisit(spotId: string, options?: { silentError?: boolean }) {
@@ -683,6 +815,8 @@ export function GeoHelpBoardPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current Location</p>
                 <p className="text-lg font-bold text-slate-900">{locationLabel}</p>
                 <p className="text-xs text-slate-600">{locationStateText(locationStatus)}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">{formatAccuracy(locationAccuracyM ?? undefined)}</p>
+                {locationNote ? <p className="mt-1 text-xs text-slate-500">{locationNote}</p> : null}
               </div>
             </div>
 
@@ -696,6 +830,28 @@ export function GeoHelpBoardPage() {
               Use my location
             </button>
           </div>
+
+          <form
+            onSubmit={(event) => {
+              void handleRefineLocation(event);
+            }}
+            className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]"
+          >
+            <input
+              value={locationQuery}
+              onChange={(event) => setLocationQuery(event.target.value)}
+              placeholder="Refine location with an address or place name, e.g. Hungaria utca 49/c"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+            />
+            <button
+              type="submit"
+              disabled={isRefreshing || locationQuery.trim().length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Search size={16} />
+              Set exact location
+            </button>
+          </form>
         </section>
 
         <section className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
@@ -809,7 +965,7 @@ export function GeoHelpBoardPage() {
 
               <Circle
                 center={[point.latitude, point.longitude]}
-                radius={Math.max(80, radiusKm * 120)}
+                radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
                 pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
               />
 
