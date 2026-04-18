@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Circle, CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { divIcon, latLngBounds, type LatLngBoundsExpression } from 'leaflet';
 import {
   AlertTriangle,
   Building2,
@@ -165,14 +166,209 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   return resolved;
 }
 
-function AutoCenterMap({ center }: { center: [number, number] }) {
+function MapViewportController({ points }: { points: Array<[number, number]> }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(center, map.getZoom(), { animate: true });
-  }, [center, map]);
+    if (points.length === 0) {
+      return;
+    }
+
+    if (points.length === 1) {
+      map.setView(points[0], Math.max(map.getZoom(), 15), { animate: true });
+      return;
+    }
+
+    const bounds: LatLngBoundsExpression = latLngBounds(points);
+    map.fitBounds(bounds, {
+      animate: true,
+      padding: [48, 48],
+      maxZoom: 16,
+    });
+  }, [map, points]);
 
   return null;
+}
+
+function MapZoomBridge({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  useMapEvents({
+    zoomend(event) {
+      onZoomChange(event.target.getZoom());
+    },
+  });
+
+  return null;
+}
+
+interface ClusterItem {
+  key: string;
+  latitude: number;
+  longitude: number;
+  spots: GeoHelpSpot[];
+}
+
+function getClusterPrecision(zoom: number): number | null {
+  if (zoom >= 16) {
+    return null;
+  }
+
+  if (zoom >= 14) {
+    return 3;
+  }
+
+  if (zoom >= 12) {
+    return 2;
+  }
+
+  return 1;
+}
+
+function clusterSpots(spots: GeoHelpSpot[], zoom: number): ClusterItem[] {
+  const precision = getClusterPrecision(zoom);
+  if (precision === null) {
+    return spots.map((spot) => ({
+      key: spot.id,
+      latitude: spot.latitude,
+      longitude: spot.longitude,
+      spots: [spot],
+    }));
+  }
+
+  const grouped = new Map<string, GeoHelpSpot[]>();
+
+  spots.forEach((spot) => {
+    const key = `${spot.latitude.toFixed(precision)}:${spot.longitude.toFixed(precision)}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.push(spot);
+      return;
+    }
+
+    grouped.set(key, [spot]);
+  });
+
+  return Array.from(grouped.entries()).map(([key, bucket]) => {
+    const latitude = bucket.reduce((sum, spot) => sum + spot.latitude, 0) / bucket.length;
+    const longitude = bucket.reduce((sum, spot) => sum + spot.longitude, 0) / bucket.length;
+
+    return {
+      key,
+      latitude,
+      longitude,
+      spots: bucket,
+    };
+  });
+}
+
+function buildSpotIcon(isSelected: boolean) {
+  return divIcon({
+    className: '',
+    html: `
+      <div style="
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        border: 2px solid ${isSelected ? '#1d4ed8' : '#ffffff'};
+        background: ${isSelected ? '#2563eb' : '#0f766e'};
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+      "></div>
+    `,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
+function buildClusterIcon(count: number, isSelected: boolean) {
+  const diameter = Math.min(52, 28 + count * 4);
+
+  return divIcon({
+    className: '',
+    html: `
+      <div style="
+        width: ${diameter}px;
+        height: ${diameter}px;
+        border-radius: 9999px;
+        display: grid;
+        place-items: center;
+        border: 2px solid ${isSelected ? '#1d4ed8' : '#ffffff'};
+        background: linear-gradient(180deg, ${isSelected ? '#60a5fa' : '#14b8a6'} 0%, ${isSelected ? '#2563eb' : '#0f766e'} 100%);
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
+      ">${count}</div>
+    `,
+    iconSize: [diameter, diameter],
+    iconAnchor: [diameter / 2, diameter / 2],
+  });
+}
+
+function MapResourceMarkers({
+  clusters,
+  selectedSpotId,
+  onSelectSpot,
+}: {
+  clusters: ClusterItem[];
+  selectedSpotId: string | null;
+  onSelectSpot: (spotId: string, openDrawer?: boolean) => void;
+}) {
+  const map = useMap();
+
+  return (
+    <>
+      {clusters.map((cluster) => {
+        const selectedInCluster = cluster.spots.some((spot) => spot.id === selectedSpotId);
+
+        if (cluster.spots.length === 1) {
+          const spot = cluster.spots[0];
+          return (
+            <Marker
+              key={cluster.key}
+              position={[spot.latitude, spot.longitude]}
+              icon={buildSpotIcon(spot.id === selectedSpotId)}
+              eventHandlers={{
+                click: () => {
+                  onSelectSpot(spot.id, true);
+                },
+              }}
+            >
+              <Popup>
+                <div className="min-w-[170px]">
+                  <p className="text-sm font-bold text-slate-900">{spot.title}</p>
+                  <p className="mt-1 text-xs text-slate-600">{spot.city}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(spot.distanceKm)}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        }
+
+        return (
+          <Marker
+            key={cluster.key}
+            position={[cluster.latitude, cluster.longitude]}
+            icon={buildClusterIcon(cluster.spots.length, selectedInCluster)}
+            eventHandlers={{
+              click: () => {
+                map.flyTo([cluster.latitude, cluster.longitude], Math.min(map.getZoom() + 2, 17), {
+                  animate: true,
+                });
+                const firstSpot = cluster.spots[0];
+                onSelectSpot(firstSpot.id, false);
+              },
+            }}
+          >
+            <Popup>
+              <div className="min-w-[190px]">
+                <p className="text-sm font-bold text-slate-900">{cluster.spots.length} nearby resources</p>
+                <p className="mt-1 text-xs text-slate-600">Zoom in to see individual markers.</p>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
 }
 
 export function GeoHelpBoardPage() {
@@ -199,6 +395,7 @@ export function GeoHelpBoardPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workingSpotId, setWorkingSpotId] = useState<string | null>(null);
+  const [mapZoom, setMapZoom] = useState(15);
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -231,6 +428,11 @@ export function GeoHelpBoardPage() {
     : point;
 
   const mapCenter: [number, number] = [mapCenterPoint.latitude, mapCenterPoint.longitude];
+  const mapClusters = useMemo(() => clusterSpots(filteredSpots, mapZoom), [filteredSpots, mapZoom]);
+  const mapPoints = useMemo<Array<[number, number]>>(
+    () => filteredSpots.map((spot) => [spot.latitude, spot.longitude]),
+    [filteredSpots],
+  );
 
   useEffect(() => {
     if (!selectedSpotId && filteredSpots.length > 0) {
@@ -598,7 +800,8 @@ export function GeoHelpBoardPage() {
               className="h-[420px] w-full"
               scrollWheelZoom
             >
-              <AutoCenterMap center={mapCenter} />
+              <MapViewportController points={mapPoints} />
+              <MapZoomBridge onZoomChange={setMapZoom} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -618,34 +821,7 @@ export function GeoHelpBoardPage() {
                 <Popup>Your current center point</Popup>
               </CircleMarker>
 
-              {filteredSpots.map((spot) => {
-                const isSelected = selectedSpotId === spot.id;
-                return (
-                  <CircleMarker
-                    key={spot.id}
-                    center={[spot.latitude, spot.longitude]}
-                    radius={isSelected ? 11 : 8}
-                    pathOptions={{
-                      color: isSelected ? '#1d4ed8' : '#0f766e',
-                      fillColor: isSelected ? '#3b82f6' : '#14b8a6',
-                      fillOpacity: 0.85,
-                    }}
-                    eventHandlers={{
-                      click: () => {
-                        selectSpot(spot.id, true);
-                      },
-                    }}
-                  >
-                    <Popup>
-                      <div className="min-w-[170px]">
-                        <p className="text-sm font-bold text-slate-900">{spot.title}</p>
-                        <p className="mt-1 text-xs text-slate-600">{spot.city}</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(spot.distanceKm)}</p>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                );
-              })}
+              <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
             </MapContainer>
           </article>
 
@@ -756,7 +932,7 @@ export function GeoHelpBoardPage() {
             onClick={() => setIsDrawerOpen(false)}
             className="fixed inset-0 z-40 bg-slate-900/35"
           />
-          <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl">
+          <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl max-sm:top-auto max-sm:bottom-0 max-sm:h-[85vh] max-sm:max-w-none max-sm:rounded-t-3xl max-sm:border-l-0 max-sm:border-t max-sm:p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resource details</p>
