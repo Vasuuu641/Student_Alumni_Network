@@ -1,4 +1,5 @@
 import type { UserRole } from '../lib/auth';
+import { authFetch } from './http-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -31,15 +32,12 @@ export interface OnboardingProfileResponse {
 }
 
 export async function getOnboardingProfile(
-	token: string,
+	_token: string,
 	role: Exclude<UserRole, 'ADMIN'>,
 ): Promise<OnboardingProfileResponse> {
 	const endpoint = profileEndpointByRole[role];
-	const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+	const response = await authFetch(`${API_BASE_URL}${endpoint}`, {
 		method: 'GET',
-		headers: {
-			Authorization: `Bearer ${token}`,
-		},
 	});
 
 	const data = await readJsonSafely(response);
@@ -69,13 +67,12 @@ export async function updateOnboardingProfile({
 
 async function sendJsonProfileUpdate(
 	endpoint: string,
-	token: string,
+	_token: string,
 	payload: Record<string, unknown>,
 ): Promise<void> {
-	const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+	const response = await authFetch(`${API_BASE_URL}${endpoint}`, {
 		method: 'PUT',
 		headers: {
-			Authorization: `Bearer ${token}`,
 			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify(payload),
@@ -87,15 +84,12 @@ async function sendJsonProfileUpdate(
 	}
 }
 
-async function sendProfilePictureUpdate(endpoint: string, token: string, file: File): Promise<void> {
+async function sendProfilePictureUpdate(endpoint: string, _token: string, file: File): Promise<void> {
 	const formData = new FormData();
 	formData.append('profilePicture', file);
 
-	const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+	const response = await authFetch(`${API_BASE_URL}${endpoint}`, {
 		method: 'PUT',
-		headers: {
-			Authorization: `Bearer ${token}`,
-		},
 		body: formData,
 	});
 

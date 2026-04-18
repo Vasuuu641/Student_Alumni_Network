@@ -1,22 +1,8 @@
-import axios from 'axios'
 import { io, type Socket } from 'socket.io-client'
-import { getAccessToken } from '../lib/auth'
+import { api } from './http-client'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 const NORMALIZED_API_BASE = API_BASE_URL.replace(/\/$/, '')
-
-const api = axios.create({
-	baseURL: NORMALIZED_API_BASE,
-})
-
-api.interceptors.request.use((config) => {
-	const token = getAccessToken()
-	if (token) {
-		config.headers = config.headers ?? {}
-		config.headers.Authorization = `Bearer ${token}`
-	}
-	return config
-})
 
 export type ThreadPanel = 'ACADEMIC' | 'ALUMNI'
 export type ThreadStatus = 'OPEN' | 'CLOSED' | 'PINNED'
