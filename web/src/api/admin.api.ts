@@ -166,12 +166,13 @@ export async function listThreadsForAdmin(input: {
   take?: number;
 }): Promise<{ threads: AdminThread[]; total: number }> {
   try {
+    const normalizedTake = Math.min(Math.max(input.take ?? 50, 1), 50);
     const { data } = await api.get<{ threads: AdminThread[]; total: number }>('/threads', {
       params: {
         panel: input.panel,
         sortBy: input.sortBy ?? 'newest',
         skip: input.skip ?? 0,
-        take: input.take ?? 50,
+        take: normalizedTake,
       },
     });
     return data;

@@ -42,7 +42,7 @@ export function AdminThreadsModerationPage() {
       const { threads: fetched } = await listThreadsForAdmin({
         panel: panelFilter,
         sortBy: 'newest',
-        take: 100,
+        take: 50,
       });
       setThreads(fetched);
     } catch (err) {
