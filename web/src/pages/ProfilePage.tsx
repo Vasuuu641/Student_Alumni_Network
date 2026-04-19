@@ -12,6 +12,37 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+
+function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
+  if (!profilePictureUrl) {
+    return null;
+  }
+
+  const normalizedUrl = profilePictureUrl.replace(/\\/g, '/');
+
+  if (
+    normalizedUrl.startsWith('http://') ||
+    normalizedUrl.startsWith('https://') ||
+    normalizedUrl.startsWith('data:')
+  ) {
+    return normalizedUrl;
+  }
+
+  const uploadsSegment = '/uploads/';
+  const uploadsIndex = normalizedUrl.indexOf(uploadsSegment);
+
+  const normalizedPath = uploadsIndex >= 0
+    ? normalizedUrl.slice(uploadsIndex)
+    : normalizedUrl.startsWith('uploads/')
+      ? `/${normalizedUrl}`
+      : normalizedUrl.startsWith('/')
+        ? normalizedUrl
+        : `/${normalizedUrl}`;
+
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
 interface ProfilePageProps {
   isOwnProfile?: boolean;
 }
@@ -80,6 +111,7 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
   const fullName = `${profile.firstName} ${profile.lastName}`.trim();
   const isAnonymous = profile.isAnonymous && !isOwnProfile;
   const displayName = isAnonymous ? profile.anonymousName || 'Anonymous User' : fullName;
+  const profilePictureSrc = resolveProfilePictureUrl(profile.profilePictureUrl);
 
   return (
     <main className="profile-page">
@@ -96,9 +128,9 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
         <div className="profile-header">
           <div className="profile-header__content">
             <div className="profile-avatar">
-              {profile.profilePictureUrl ? (
+              {profilePictureSrc ? (
                 <img
-                  src={profile.profilePictureUrl}
+                  src={profilePictureSrc}
                   alt={displayName}
                   className="profile-avatar__image"
                 />
@@ -120,16 +152,6 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
                       ? 'Alumni'
                       : 'User'}
               </p>
-
-              {!isAnonymous && isOwnProfile && (
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate('/onboarding')}
-                  className="profile-edit-button"
-                >
-                  Edit Profile
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -140,8 +162,19 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
           {profile.bio && (
             <section className="profile-card">
               <div className="profile-card__header">
-                <Sparkles size={20} />
-                <h2>About</h2>
+                <div className="profile-card__title-wrap">
+                  <Sparkles size={20} />
+                  <h2>About</h2>
+                </div>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className="profile-card-edit-link"
+                    onClick={() => navigate('/onboarding?mode=edit&step=1')}
+                  >
+                    Edit
+                  </button>
+                ) : null}
               </div>
               <p className="profile-card__text">{profile.bio}</p>
             </section>
@@ -151,8 +184,19 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
           {(profile.major || profile.yearofGraduation || profile.faculty) && (
             <section className="profile-card">
               <div className="profile-card__header">
-                <BookOpen size={20} />
-                <h2>Education</h2>
+                <div className="profile-card__title-wrap">
+                  <BookOpen size={20} />
+                  <h2>Education</h2>
+                </div>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className="profile-card-edit-link"
+                    onClick={() => navigate('/onboarding?mode=edit&step=2')}
+                  >
+                    Edit
+                  </button>
+                ) : null}
               </div>
               <div className="profile-card__content">
                 {profile.faculty && (
@@ -181,8 +225,19 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
           {(profile.company || profile.jobTitle) && (
             <section className="profile-card">
               <div className="profile-card__header">
-                <Briefcase size={20} />
-                <h2>Work Experience</h2>
+                <div className="profile-card__title-wrap">
+                  <Briefcase size={20} />
+                  <h2>Work Experience</h2>
+                </div>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className="profile-card-edit-link"
+                    onClick={() => navigate('/onboarding?mode=edit&step=2')}
+                  >
+                    Edit
+                  </button>
+                ) : null}
               </div>
               <div className="profile-card__content">
                 {profile.jobTitle && (
@@ -205,8 +260,19 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
           {profile.interests && profile.interests.length > 0 && (
             <section className="profile-card profile-card--full-width">
               <div className="profile-card__header">
-                <GraduationCap size={20} />
-                <h2>Interests & Skills</h2>
+                <div className="profile-card__title-wrap">
+                  <GraduationCap size={20} />
+                  <h2>Interests & Skills</h2>
+                </div>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className="profile-card-edit-link"
+                    onClick={() => navigate('/onboarding?mode=edit&step=3')}
+                  >
+                    Edit
+                  </button>
+                ) : null}
               </div>
               <div className="profile-tags">
                 {profile.interests.map((interest, index) => (
@@ -222,8 +288,17 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
           {isOwnProfile && (
             <section className="profile-card profile-card--full-width">
               <div className="profile-card__header">
-                <Mail size={20} />
-                <h2>Contact</h2>
+                <div className="profile-card__title-wrap">
+                  <Mail size={20} />
+                  <h2>Contact</h2>
+                </div>
+                <button
+                  type="button"
+                  className="profile-card-edit-link"
+                  onClick={() => navigate('/onboarding?mode=edit&step=1')}
+                >
+                  Edit
+                </button>
               </div>
               <div className="profile-card__content">
                 <div className="profile-info-row">
