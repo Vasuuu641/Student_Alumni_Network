@@ -217,12 +217,16 @@ export function DashboardPage() {
   const roleBadge = role.charAt(0) + role.slice(1).toLowerCase();
 
   const recentDiscussionsByUser = useMemo(() => {
-    if (!userId) {
-      return recentDiscussions;
+    let baseThreads = recentDiscussions;
+
+    if (userId) {
+      const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
+      if (mine.length > 0) {
+        baseThreads = mine;
+      }
     }
 
-    const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
-    return mine.length > 0 ? mine : recentDiscussions;
+    return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
 
   return (
@@ -240,8 +244,8 @@ export function DashboardPage() {
             <Link className="dashboard-v2__nav-item dashboard-v2__nav-item--active" to="/dashboard">Dashboard</Link>
             <Link className="dashboard-v2__nav-item" to="/notes">Notes</Link>
             <Link className="dashboard-v2__nav-item" to="/threads">Discussions</Link>
-            <button className="dashboard-v2__nav-item" type="button" onClick={() => openPlaceholder('Ask a Doubt')}>
-              Ask a Doubt
+            <button className="dashboard-v2__nav-item" type="button" onClick={() => openPlaceholder('Geo Board')}>
+              Geo Board
             </button>
             <button className="dashboard-v2__nav-item" type="button" onClick={() => openPlaceholder('More')}>More</button>
           </nav>
