@@ -15,6 +15,7 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminGeoModerationPage } from './pages/admin/AdminGeoModerationPage';
 import { AdminThreadsModerationPage } from './pages/admin/AdminThreadsModerationPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
   return (
@@ -30,8 +31,8 @@ export default function App() {
       <Route path="/threads/:threadId" element={<ThreadDetailPage />} />
       <Route path="/study-groups" element={<StudyGroupsPage />} />
       <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
-      <Route path="/geo-help-board" element={<GeoHelpBoardPage />} />
-
+      <Route path="/profile" element={<ProfilePage isOwnProfile={true} />} />
+      <Route path="/profile/:userId" element={<ProfilePage isOwnProfile={false} />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/users" replace />} />
         <Route path="users" element={<AdminUsersPage />} />
