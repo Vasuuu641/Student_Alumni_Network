@@ -16,6 +16,7 @@ import { GeoHelpBoardModule } from './presentation/geo-help-board/geo-help-board
 @Module({
   imports: [
     ServeStaticModule.forRoot({
+      // Resolve to backend/uploads in both src and dist runtime layouts.
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
