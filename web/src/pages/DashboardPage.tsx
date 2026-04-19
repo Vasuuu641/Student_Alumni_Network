@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
@@ -6,13 +6,16 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
+  ChevronDown,
   Clock3,
   Compass,
   FolderOpen,
+  LogOut,
   MessageSquare,
   MessagesSquare,
   Plus,
   Sparkles,
+  User,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -64,6 +67,8 @@ export function DashboardPage() {
   const [recentDiscussions, setRecentDiscussions] = useState<Thread[]>([]);
   const [statsLoading, setStatsLoading] = useState(Boolean(token));
   const [placeholderNotice, setPlaceholderNotice] = useState<string | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!token || !role || isAdmin) {
@@ -163,6 +168,26 @@ export function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [placeholderNotice]);
 
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    function handleDocumentClick(event: MouseEvent) {
+      if (!profileMenuRef.current) {
+        return;
+      }
+
+      const target = event.target as Node;
+      if (!profileMenuRef.current.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, [isProfileMenuOpen]);
+
   function handleLogout() {
     localStorage.removeItem('unibridge.accessToken');
     localStorage.removeItem('unibridge.refreshToken');
@@ -228,10 +253,50 @@ export function DashboardPage() {
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Notifications')}>
               <Bell size={14} />
             </button>
-            <button type="button" className="dashboard-v2__profile-chip" onClick={() => navigate('/profile')}>
-              <span>{profileInitials || 'JD'}</span>
-              {firstName}
-            </button>
+            <div className="dashboard-v2__profile-menu-wrap" ref={profileMenuRef}>
+              <button
+                type="button"
+                className="dashboard-v2__profile-chip"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span>{profileInitials || 'JD'}</span>
+                {firstName}
+                <ChevronDown size={14} className={isProfileMenuOpen ? 'dashboard-v2__profile-chevron dashboard-v2__profile-chevron--open' : 'dashboard-v2__profile-chevron'} />
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div className="dashboard-v2__profile-menu" role="menu" aria-label="Profile menu">
+                  <div className="dashboard-v2__profile-menu-header">
+                    <strong>{displayName}</strong>
+                    {profile?.email ? <span>{profile.email}</span> : null}
+                    <small>{roleBadge}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="dashboard-v2__profile-menu-item"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    role="menuitem"
+                  >
+                    <User size={15} />
+                    View Profile
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-v2__profile-menu-item dashboard-v2__profile-menu-item--danger"
+                    onClick={handleLogout}
+                    role="menuitem"
+                  >
+                    <LogOut size={15} />
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
@@ -377,8 +442,6 @@ export function DashboardPage() {
                 Resources & FAQs
               </button>
             </section>
-
-            <button type="button" className="dashboard-v2__logout" onClick={handleLogout}>Log out</button>
           </aside>
         </section>
       </div>

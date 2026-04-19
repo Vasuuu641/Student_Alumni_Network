@@ -2109,6 +2109,10 @@
     gap: 0.45rem;
   }
 
+  .dashboard-v2__profile-menu-wrap {
+    position: relative;
+  }
+
   .dashboard-v2__icon-btn {
     width: 1.95rem;
     height: 1.95rem;
@@ -2131,6 +2135,12 @@
     align-items: center;
     gap: 0.4rem;
     cursor: pointer;
+    border-radius: 0.55rem;
+    padding: 0.2rem 0.25rem;
+  }
+
+  .dashboard-v2__profile-chip:hover {
+    background: #eef3ff;
   }
 
   .dashboard-v2__profile-chip span {
@@ -2143,6 +2153,91 @@
     place-items: center;
     font-size: 0.72rem;
     font-weight: 800;
+  }
+
+  .dashboard-v2__profile-chevron {
+    color: #6a7b98;
+    transition: transform 0.16s ease;
+  }
+
+  .dashboard-v2__profile-chevron--open {
+    transform: rotate(180deg);
+  }
+
+  .dashboard-v2__profile-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.45rem);
+    width: 13.8rem;
+    border: 1px solid #dbe4f2;
+    background: #ffffff;
+    border-radius: 0.8rem;
+    box-shadow: 0 16px 30px rgba(26, 40, 70, 0.15);
+    overflow: hidden;
+    z-index: 30;
+  }
+
+  .dashboard-v2__profile-menu-header {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid #e8edf7;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .dashboard-v2__profile-menu-header strong {
+    font-size: 0.96rem;
+    color: #111f39;
+    line-height: 1.2;
+  }
+
+  .dashboard-v2__profile-menu-header span {
+    font-size: 0.8rem;
+    color: #5f7090;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .dashboard-v2__profile-menu-header small {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 0.18rem;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    background: #eaf1ff;
+    color: #2f64f6;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+
+  .dashboard-v2__profile-menu-item {
+    width: 100%;
+    border: 0;
+    background: #ffffff;
+    color: #1f3258;
+    min-height: 2.25rem;
+    padding: 0.55rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-align: left;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .dashboard-v2__profile-menu-item:hover {
+    background: #f2f6ff;
+  }
+
+  .dashboard-v2__profile-menu-item--danger {
+    color: #d42a2a;
+    border-top: 1px solid #e8edf7;
+  }
+
+  .dashboard-v2__profile-menu-item--danger:hover {
+    background: #fff2f2;
   }
 
   .dashboard-v2__body {
@@ -2618,16 +2713,6 @@
 
   .dashboard-v2__quick-link:hover svg {
     color: #111827;
-  }
-
-  .dashboard-v2__logout {
-    border: 1px solid #dbe3f1;
-    background: #ffffff;
-    color: #374967;
-    border-radius: 0.6rem;
-    min-height: 2.2rem;
-    font-weight: 700;
-    cursor: pointer;
   }
 
   @media (max-width: 980px) {
