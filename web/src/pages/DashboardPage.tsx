@@ -14,7 +14,6 @@ import {
   MessagesSquare,
   Plus,
   Sparkles,
-  TrendingUp,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -274,15 +273,6 @@ export function DashboardPage() {
             <strong>{statsLoading ? '...' : discussionCount}</strong>
             <Link to="/threads">Join discussions</Link>
           </article>
-
-          <article className="dashboard-v2__stat-card">
-            <div className="dashboard-v2__stat-head">
-              <span>Profile Views</span>
-              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><TrendingUp size={16} /></div>
-            </div>
-            <strong>--</strong>
-            <button type="button" onClick={() => openPlaceholder('Profile analytics')}>View profile</button>
-          </article>
         </section>
 
         <section className="dashboard-v2__content-grid">
@@ -352,8 +342,8 @@ export function DashboardPage() {
                 <div className="dashboard-v2__profile-avatar">
                   {profileLoading ? (
                     <span>...</span>
-                  ) : profilePictureSrc ? (
-                    <img src={profilePictureSrc} alt={displayName} />
+                        ) : profilePictureSrc ? (
+                          <img src={profilePictureSrc ?? undefined} alt={displayName} />
                   ) : (
                     <span>{profileInitials || 'JD'}</span>
                   )}
@@ -375,7 +365,7 @@ export function DashboardPage() {
 
             <section className="dashboard-v2__side-card dashboard-v2__side-card--links">
               <h3>Quick Links</h3>
-              <button type="button" className="dashboard-v2__quick-link dashboard-v2__quick-link--highlight" onClick={() => openPlaceholder('Find a Mentor')}>
+              <button type="button" className="dashboard-v2__quick-link" onClick={() => openPlaceholder('Find a Mentor')}>
                 <UserPlus size={14} />
                 Find a Mentor
               </button>
