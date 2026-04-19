@@ -183,12 +183,16 @@ export function DashboardPage() {
   const roleBadge = role.charAt(0) + role.slice(1).toLowerCase();
 
   const recentDiscussionsByUser = useMemo(() => {
-    if (!userId) {
-      return recentDiscussions;
+    let baseThreads = recentDiscussions;
+
+    if (userId) {
+      const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
+      if (mine.length > 0) {
+        baseThreads = mine;
+      }
     }
 
-    const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
-    return mine.length > 0 ? mine : recentDiscussions;
+    return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
 
   function handleLogout() {
