@@ -16,7 +16,8 @@ import { GeoHelpBoardModule } from './presentation/geo-help-board/geo-help-board
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      // Keep static serving aligned with LocalFileStorageService uploadsDir.
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     AuthModule,

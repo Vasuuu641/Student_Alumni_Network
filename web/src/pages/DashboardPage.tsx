@@ -23,6 +23,13 @@ export function DashboardPage() {
           <Button
             type="button"
             variant="submit-wide"
+            onClick={() => navigate('/profile')}
+          >
+            👤 My Profile
+          </Button>
+          <Button
+            type="button"
+            variant="submit-wide"
             onClick={() => navigate('/notes')}
           >
             📝 My Notes

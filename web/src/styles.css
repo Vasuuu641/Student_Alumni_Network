@@ -3239,10 +3239,6 @@
     font-weight: 500;
   }
 
-  .profile-edit-button {
-    display: inline-block;
-  }
-
   /* Grid Layout */
   .profile-grid {
     display: grid;
@@ -3272,10 +3268,16 @@
   .profile-card__header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: space-between;
     margin-bottom: 1.25rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #f1f5f9;
+  }
+
+  .profile-card__title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .profile-card__header svg {
@@ -3288,6 +3290,23 @@
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--gray-900);
+  }
+
+  .profile-card-edit-link {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #1d4ed8;
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .profile-card-edit-link:hover {
+    background: #eaf3ff;
+    border-color: #93c5fd;
   }
 
   .profile-card__text {
@@ -3497,6 +3516,11 @@
 
     .profile-container {
       gap: 1.5rem;
+    }
+
+    .profile-card-edit-link {
+      padding: 0.25rem 0.65rem;
+      font-size: 0.74rem;
     }
   }
 }
