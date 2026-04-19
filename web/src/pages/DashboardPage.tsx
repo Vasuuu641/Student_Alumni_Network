@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import {
   Bell,
   BookOpen,
@@ -9,6 +7,9 @@ import {
   ChevronDown,
   Clock3,
   Compass,
+  LayoutDashboard,
+  MessageCircle,
+  NotebookText,
   FolderOpen,
   LogOut,
   MessageSquare,
@@ -23,6 +24,7 @@ import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken, type 
 import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api';
 import { listUserNotes } from '../api/notes.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
+import { PlatformTopNav, type PlatformTopNavItem } from '../components/PlatformTopNav';
 
 function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
   if (!profilePictureUrl) {
@@ -229,27 +231,19 @@ export function DashboardPage() {
     return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
 
+  const topNavItems: PlatformTopNavItem[] = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/notes', label: 'Notes', icon: NotebookText },
+    { to: '/threads', label: 'Discussions', icon: MessageCircle },
+    { label: 'Geo Board', icon: Compass, onClick: () => openPlaceholder('Geo Board') },
+    { label: 'More', icon: Sparkles, onClick: () => openPlaceholder('More') },
+  ];
+
   return (
     <main className="dashboard-v2">
-      <header className="dashboard-v2__topbar">
-        <div className="dashboard-v2__topbar-inner">
-          <Link to="/dashboard" className="dashboard-v2__brand" aria-label="UniBridge dashboard">
-            <div className="dashboard-v2__brand-icon" aria-hidden="true">
-              <FontAwesomeIcon icon={faBridge} />
-            </div>
-            <span>UniBridge</span>
-          </Link>
-
-          <nav className="dashboard-v2__nav" aria-label="Primary">
-            <Link className="dashboard-v2__nav-item dashboard-v2__nav-item--active" to="/dashboard">Dashboard</Link>
-            <Link className="dashboard-v2__nav-item" to="/notes">Notes</Link>
-            <Link className="dashboard-v2__nav-item" to="/threads">Discussions</Link>
-            <button className="dashboard-v2__nav-item" type="button" onClick={() => openPlaceholder('Geo Board')}>
-              Geo Board
-            </button>
-            <button className="dashboard-v2__nav-item" type="button" onClick={() => openPlaceholder('More')}>More</button>
-          </nav>
-
+      <PlatformTopNav
+        items={topNavItems}
+        rightContent={(
           <div className="dashboard-v2__topbar-actions">
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Theme settings')}>
               <Sparkles size={14} />
@@ -302,8 +296,8 @@ export function DashboardPage() {
               ) : null}
             </div>
           </div>
-        </div>
-      </header>
+        )}
+      />
 
       <div className="dashboard-v2__body">
         {placeholderNotice ? <div className="dashboard-v2__notice">{placeholderNotice}</div> : null}
