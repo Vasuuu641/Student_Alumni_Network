@@ -2081,6 +2081,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.35rem;
     min-height: 2rem;
     padding: 0.38rem 0.72rem;
     border: 0;
@@ -2091,6 +2092,11 @@
     font-size: 0.86rem;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .dashboard-v2__nav-item-icon {
+    flex-shrink: 0;
+    opacity: 0.92;
   }
 
   .dashboard-v2__nav-item:hover {
