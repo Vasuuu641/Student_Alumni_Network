@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { GeoHelpSpotCategory, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpotCategory, GeoHelpSpotSection, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpBoardValidationError } from './geo-help-board.errors';
 
@@ -8,6 +8,7 @@ export interface ListNearbyGeoHelpSpotsRequest {
   longitude: number;
   radiusKm: number;
   city?: string;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
@@ -55,6 +56,7 @@ export class ListNearbyGeoHelpSpotsUseCase {
       longitude: request.longitude,
       radiusKm: request.radiusKm,
       city: request.city?.trim(),
+      section: request.section,
       category: request.category,
       limit,
       offset: (page - 1) * limit,

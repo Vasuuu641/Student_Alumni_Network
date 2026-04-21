@@ -17,17 +17,20 @@ import {
 } from 'lucide-react';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import Button from '../components/Button';
-import { getAccessToken } from '../lib/auth';
+import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import {
+  createGeoHelpSpot,
+  deactivateGeoHelpSpot,
   listNearbyGeoHelpSpots,
   listPopularGeoHelpSpots,
   recordGeoHelpSpotVisit,
   type GeoHelpSpot,
   type GeoHelpSpotCategory,
   type GeoHelpSpotReviewStatus,
+  type GeoHelpSpotSection,
 } from '../api/geo-help-board.api';
 
-type ResourceTab = 'NEARBY' | 'POPULAR';
+type ResourceTab = 'OFFICIAL' | 'COMMUNITY';
 type CategoryFilter = 'ALL' | GeoHelpSpotCategory;
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'insecure' | 'error';
 
@@ -46,20 +49,47 @@ const DEFAULT_LOCATION = {
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
 
-const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; label: string }> = [
-  { value: 'ALL', label: 'All' },
-  { value: 'STUDY_SPACE', label: 'Study Space' },
-  { value: 'LIBRARY', label: 'Library' },
-  { value: 'FOOD', label: 'Food' },
-  { value: 'HOUSING', label: 'Housing' },
-  { value: 'TRANSPORT', label: 'Transport' },
-  { value: 'HEALTH', label: 'Health' },
-  { value: 'GYM', label: 'Gym' },
+const TAB_SECTION_MAP: Record<ResourceTab, GeoHelpSpotSection> = {
+  OFFICIAL: 'OFFICIAL_RESOURCE',
+  COMMUNITY: 'COMMUNITY_PICK',
+};
+
+const OFFICIAL_CATEGORY_OPTIONS: Array<{ value: GeoHelpSpotCategory; label: string }> = [
+  { value: 'UNIVERSITY_SERVICE', label: 'University Service' },
+  { value: 'ACADEMIC_DEPARTMENT', label: 'Academic Department' },
+  { value: 'ADMIN_OFFICE', label: 'Administrative Office' },
+  { value: 'STUDENT_SUPPORT', label: 'Student Support' },
+  { value: 'CAMPUS_FACILITY', label: 'Campus Facility' },
   { value: 'OTHER', label: 'Other' },
 ];
 
+const COMMUNITY_CATEGORY_OPTIONS: Array<{ value: GeoHelpSpotCategory; label: string }> = [
+  { value: 'RESTAURANT', label: 'Restaurant' },
+  { value: 'CAFE', label: 'Cafe' },
+  { value: 'STUDY_SPOT', label: 'Study Spot' },
+  { value: 'SOCIAL_HANGOUT', label: 'Social Hangout' },
+  { value: 'FITNESS_WELLNESS', label: 'Fitness & Wellness' },
+  { value: 'SHOPPING', label: 'Shopping' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const CATEGORY_LABELS: Record<GeoHelpSpotCategory, string> = {
+  UNIVERSITY_SERVICE: 'University Service',
+  ACADEMIC_DEPARTMENT: 'Academic Department',
+  ADMIN_OFFICE: 'Administrative Office',
+  STUDENT_SUPPORT: 'Student Support',
+  CAMPUS_FACILITY: 'Campus Facility',
+  RESTAURANT: 'Restaurant',
+  CAFE: 'Cafe',
+  STUDY_SPOT: 'Study Spot',
+  SOCIAL_HANGOUT: 'Social Hangout',
+  FITNESS_WELLNESS: 'Fitness & Wellness',
+  SHOPPING: 'Shopping',
+  OTHER: 'Other',
+};
+
 function categoryLabel(value: GeoHelpSpotCategory): string {
-  return value.replace('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  return CATEGORY_LABELS[value] ?? 'Other';
 }
 
 function reviewBadgeClass(reviewStatus: GeoHelpSpotReviewStatus): string {
@@ -452,8 +482,10 @@ export function GeoHelpBoardPage() {
   const navigate = useNavigate();
   const token = getAccessToken();
   const isAuthenticated = Boolean(token);
+  const userRole = token ? getRoleFromAccessToken(token) : null;
+  const userId = token ? getUserIdFromAccessToken(token) : null;
 
-  const [activeTab, setActiveTab] = useState<ResourceTab>('NEARBY');
+  const [activeTab, setActiveTab] = useState<ResourceTab>('OFFICIAL');
   const [category, setCategory] = useState<CategoryFilter>('ALL');
   const [radiusKm, setRadiusKm] = useState(5);
   const [searchText, setSearchText] = useState('');
@@ -473,14 +505,40 @@ export function GeoHelpBoardPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [noticeMessage, setNoticeMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workingSpotId, setWorkingSpotId] = useState<string | null>(null);
   const [mapZoom, setMapZoom] = useState(15);
+  const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+  const [suggestTitle, setSuggestTitle] = useState('');
+  const [suggestCategory, setSuggestCategory] = useState<GeoHelpSpotCategory>('UNIVERSITY_SERVICE');
+  const [suggestAddress, setSuggestAddress] = useState('');
+  const [suggestDescription, setSuggestDescription] = useState('');
+  const [suggestLatitude, setSuggestLatitude] = useState(String(DEFAULT_LOCATION.latitude));
+  const [suggestLongitude, setSuggestLongitude] = useState(String(DEFAULT_LOCATION.longitude));
+  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
+  const currentSection = TAB_SECTION_MAP[activeTab];
+  const categoryOptions = activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS;
   const apiCategory = category === 'ALL' ? undefined : category;
+
+  useEffect(() => {
+    setCategory('ALL');
+    const defaultCategory = (activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS)[0].value;
+    setSuggestCategory(defaultCategory);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!noticeMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setNoticeMessage(''), 3200);
+    return () => window.clearTimeout(timer);
+  }, [noticeMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -490,18 +548,20 @@ export function GeoHelpBoardPage() {
         setErrorMessage('');
         setIsLoading(true);
 
-        const nearby = activeTab === 'NEARBY'
+        const nearby = activeTab === 'OFFICIAL'
           ? await listNearbyGeoHelpSpots({
               latitude: point.latitude,
               longitude: point.longitude,
               radiusKm,
               city: cityFilter.trim() || undefined,
+              section: currentSection,
               category: apiCategory,
               limit: 30,
               page: 1,
             })
           : await listPopularGeoHelpSpots({
               city: cityFilter.trim() || undefined,
+              section: currentSection,
               category: apiCategory,
               limit: 30,
               page: 1,
@@ -527,7 +587,7 @@ export function GeoHelpBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, apiCategory, cityFilter, point.latitude, point.longitude, radiusKm]);
+  }, [activeTab, apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm]);
 
   const filteredSpots = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -604,18 +664,20 @@ export function GeoHelpBoardPage() {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const refreshed = activeTab === 'NEARBY'
+      const refreshed = activeTab === 'OFFICIAL'
         ? await listNearbyGeoHelpSpots({
             latitude: point.latitude,
             longitude: point.longitude,
             radiusKm,
             city: cityFilter.trim() || undefined,
+            section: currentSection,
             category: apiCategory,
             limit: 30,
             page: 1,
           })
         : await listPopularGeoHelpSpots({
             city: cityFilter.trim() || undefined,
+            section: currentSection,
             category: apiCategory,
             limit: 30,
             page: 1,
@@ -746,6 +808,84 @@ export function GeoHelpBoardPage() {
     }
   }
 
+  function canDeleteSpot(spot: GeoHelpSpot): boolean {
+    if (userRole === 'ADMIN' || userRole === 'STUDENT') {
+      return true;
+    }
+
+    return Boolean(userId && spot.createdById === userId);
+  }
+
+  async function handleDeleteSpot(spotId: string) {
+    const confirmed = window.confirm('Delete this place? This action hides it from all users.');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setWorkingSpotId(spotId);
+      setErrorMessage('');
+      await deactivateGeoHelpSpot(spotId);
+      setSpots((prev) => prev.filter((spot) => spot.id !== spotId));
+      if (selectedSpotId === spotId) {
+        setIsDrawerOpen(false);
+        setSelectedSpotId(null);
+      }
+      setNoticeMessage('Location deleted successfully.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete the location.');
+    } finally {
+      setWorkingSpotId(null);
+    }
+  }
+
+  async function handleSubmitSuggestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = suggestTitle.trim();
+    const latitude = Number(suggestLatitude);
+    const longitude = Number(suggestLongitude);
+
+    if (!title) {
+      setErrorMessage('Place name is required.');
+      return;
+    }
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setErrorMessage('Latitude and longitude must be valid numbers.');
+      return;
+    }
+
+    try {
+      setIsSubmittingSuggestion(true);
+      setErrorMessage('');
+
+      await createGeoHelpSpot({
+        title,
+        description: suggestDescription.trim() || undefined,
+        city: cityFilter.trim() || DEFAULT_LOCATION.city,
+        address: suggestAddress.trim() || undefined,
+        latitude,
+        longitude,
+        section: currentSection,
+        category: suggestCategory,
+      });
+
+      setSuggestTitle('');
+      setSuggestAddress('');
+      setSuggestDescription('');
+      setSuggestLatitude(String(point.latitude));
+      setSuggestLongitude(String(point.longitude));
+      setIsSuggestModalOpen(false);
+      setNoticeMessage('Suggestion sent for admin review.');
+      await handleRefresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to submit suggestion.');
+    } finally {
+      setIsSubmittingSuggestion(false);
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center text-slate-900">
@@ -779,20 +919,33 @@ export function GeoHelpBoardPage() {
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Campus Resources</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Find nearby study spaces, labs, housing options, and other campus support services.
+              Browse official university resources and student-loved community picks around campus.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void handleRefresh();
-            }}
-            disabled={isRefreshing || isLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSuggestLatitude(String(mapCenterPoint.latitude));
+                setSuggestLongitude(String(mapCenterPoint.longitude));
+                setIsSuggestModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-50"
+            >
+              Suggest a Place
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void handleRefresh();
+              }}
+              disabled={isRefreshing || isLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Refresh
+            </button>
+          </div>
         </div>
 
         <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -869,6 +1022,12 @@ export function GeoHelpBoardPage() {
           </section>
         ) : null}
 
+        {noticeMessage ? (
+          <section className="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+            {noticeMessage}
+          </section>
+        ) : null}
+
         <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <div className="inline-flex items-center gap-2">
@@ -920,25 +1079,25 @@ export function GeoHelpBoardPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab('NEARBY')}
+              onClick={() => setActiveTab('OFFICIAL')}
               className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
-                activeTab === 'NEARBY'
+                activeTab === 'OFFICIAL'
                   ? 'border-sky-300 bg-sky-100 text-sky-800'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
-              Nearby Resources
+              Official Resources
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('POPULAR')}
+              onClick={() => setActiveTab('COMMUNITY')}
               className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
-                activeTab === 'POPULAR'
+                activeTab === 'COMMUNITY'
                   ? 'border-sky-300 bg-sky-100 text-sky-800'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
-              Housing / Popular
+              Community Picks
             </button>
 
             <div className="ml-auto flex items-center gap-2">
@@ -960,7 +1119,18 @@ export function GeoHelpBoardPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((item) => (
+            <button
+              type="button"
+              onClick={() => setCategory('ALL')}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                category === 'ALL'
+                  ? 'border-sky-300 bg-sky-100 text-sky-800'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
+              }`}
+            >
+              All
+            </button>
+            {categoryOptions.map((item) => (
               <button
                 key={item.value}
                 type="button"
@@ -1066,6 +1236,18 @@ export function GeoHelpBoardPage() {
                       >
                         {workingSpotId === spot.id ? 'Saving...' : 'Mark visited'}
                       </button>
+                      {canDeleteSpot(spot) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDeleteSpot(spot.id);
+                          }}
+                          disabled={workingSpotId === spot.id}
+                          className="inline-flex items-center rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {workingSpotId === spot.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      ) : null}
                     </div>
                   </article>
                 );
@@ -1146,7 +1328,134 @@ export function GeoHelpBoardPage() {
               >
                 {workingSpotId === selectedSpot.id ? 'Saving...' : 'Mark visited'}
               </button>
+              {canDeleteSpot(selectedSpot) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeleteSpot(selectedSpot.id);
+                  }}
+                  disabled={workingSpotId === selectedSpot.id}
+                  className="inline-flex items-center rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {workingSpotId === selectedSpot.id ? 'Deleting...' : 'Delete place'}
+                </button>
+              ) : null}
             </div>
+          </aside>
+        </>
+      ) : null}
+
+      {isSuggestModalOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close suggest place dialog"
+            onClick={() => setIsSuggestModalOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-900/35"
+          />
+          <aside className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl max-sm:max-w-[95vw]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Suggest a place</p>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">
+                  {activeTab === 'OFFICIAL' ? 'Suggest Official Resource' : 'Suggest Community Pick'}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">Your suggestion will go to admins for review before appearing publicly.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSuggestModalOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form className="mt-4 grid gap-3" onSubmit={(event) => void handleSubmitSuggestion(event)}>
+              <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                Place name
+                <input
+                  value={suggestTitle}
+                  onChange={(event) => setSuggestTitle(event.target.value)}
+                  placeholder="e.g. Registrar Office, Faculty of Engineering, or Quiet Bean Cafe"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                Category tag
+                <select
+                  value={suggestCategory}
+                  onChange={(event) => setSuggestCategory(event.target.value as GeoHelpSpotCategory)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                >
+                  {categoryOptions.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                Address / location note
+                <input
+                  value={suggestAddress}
+                  onChange={(event) => setSuggestAddress(event.target.value)}
+                  placeholder="Street, building, floor, or landmark"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                Why should students visit this place? (optional)
+                <textarea
+                  value={suggestDescription}
+                  onChange={(event) => setSuggestDescription(event.target.value)}
+                  rows={3}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Latitude
+                  <input
+                    value={suggestLatitude}
+                    onChange={(event) => setSuggestLatitude(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Longitude
+                  <input
+                    value={suggestLongitude}
+                    onChange={(event) => setSuggestLongitude(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  />
+                </label>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Tip: coordinates are prefilled from your current map center so others can open directions directly.
+              </p>
+
+              <div className="mt-1 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSuggestModalOpen(false)}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSuggestion}
+                  className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}
+                </button>
+              </div>
+            </form>
           </aside>
         </>
       ) : null}

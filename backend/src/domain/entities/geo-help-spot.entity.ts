@@ -1,12 +1,21 @@
 export enum GeoHelpSpotCategory {
-  STUDY_SPACE = 'STUDY_SPACE',
-  FOOD = 'FOOD',
-  TRANSPORT = 'TRANSPORT',
-  HOUSING = 'HOUSING',
-  HEALTH = 'HEALTH',
-  GYM = 'GYM',
-  LIBRARY = 'LIBRARY',
+  UNIVERSITY_SERVICE = 'UNIVERSITY_SERVICE',
+  ACADEMIC_DEPARTMENT = 'ACADEMIC_DEPARTMENT',
+  ADMIN_OFFICE = 'ADMIN_OFFICE',
+  STUDENT_SUPPORT = 'STUDENT_SUPPORT',
+  CAMPUS_FACILITY = 'CAMPUS_FACILITY',
+  RESTAURANT = 'RESTAURANT',
+  CAFE = 'CAFE',
+  STUDY_SPOT = 'STUDY_SPOT',
+  SOCIAL_HANGOUT = 'SOCIAL_HANGOUT',
+  FITNESS_WELLNESS = 'FITNESS_WELLNESS',
+  SHOPPING = 'SHOPPING',
   OTHER = 'OTHER',
+}
+
+export enum GeoHelpSpotSection {
+  OFFICIAL_RESOURCE = 'OFFICIAL_RESOURCE',
+  COMMUNITY_PICK = 'COMMUNITY_PICK',
 }
 
 export enum GeoHelpSpotReviewStatus {
@@ -24,6 +33,7 @@ export class GeoHelpSpot {
     public address: string | null,
     public latitude: number,
     public longitude: number,
+    public section: GeoHelpSpotSection,
     public category: GeoHelpSpotCategory,
     public readonly createdById: string,
     public isActive: boolean,

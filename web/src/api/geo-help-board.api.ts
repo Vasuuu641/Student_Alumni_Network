@@ -19,14 +19,20 @@ api.interceptors.request.use((config) => {
 });
 
 export type GeoHelpSpotCategory =
-  | 'STUDY_SPACE'
-  | 'FOOD'
-  | 'TRANSPORT'
-  | 'HOUSING'
-  | 'HEALTH'
-  | 'GYM'
-  | 'LIBRARY'
+  | 'UNIVERSITY_SERVICE'
+  | 'ACADEMIC_DEPARTMENT'
+  | 'ADMIN_OFFICE'
+  | 'STUDENT_SUPPORT'
+  | 'CAMPUS_FACILITY'
+  | 'RESTAURANT'
+  | 'CAFE'
+  | 'STUDY_SPOT'
+  | 'SOCIAL_HANGOUT'
+  | 'FITNESS_WELLNESS'
+  | 'SHOPPING'
   | 'OTHER';
+
+export type GeoHelpSpotSection = 'OFFICIAL_RESOURCE' | 'COMMUNITY_PICK';
 
 export type GeoHelpSpotReviewStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 
@@ -38,6 +44,7 @@ export interface GeoHelpSpot {
   address: string | null;
   latitude: number;
   longitude: number;
+  section: GeoHelpSpotSection;
   category: GeoHelpSpotCategory;
   createdById: string;
   isActive: boolean;
@@ -50,21 +57,28 @@ export interface GeoHelpSpot {
   distanceKm?: number;
 }
 
-type RawGeoHelpSpot = Omit<GeoHelpSpot, 'category' | 'reviewStatus'> & {
+type RawGeoHelpSpot = Omit<GeoHelpSpot, 'section' | 'category' | 'reviewStatus'> & {
+  section: GeoHelpSpotSection | string;
   category: GeoHelpSpotCategory | string | number;
   reviewStatus: GeoHelpSpotReviewStatus | string | number;
 };
 
 const CATEGORY_VALUES: GeoHelpSpotCategory[] = [
-  'STUDY_SPACE',
-  'FOOD',
-  'TRANSPORT',
-  'HOUSING',
-  'HEALTH',
-  'GYM',
-  'LIBRARY',
+  'UNIVERSITY_SERVICE',
+  'ACADEMIC_DEPARTMENT',
+  'ADMIN_OFFICE',
+  'STUDENT_SUPPORT',
+  'CAMPUS_FACILITY',
+  'RESTAURANT',
+  'CAFE',
+  'STUDY_SPOT',
+  'SOCIAL_HANGOUT',
+  'FITNESS_WELLNESS',
+  'SHOPPING',
   'OTHER',
 ];
+
+const SECTION_VALUES: GeoHelpSpotSection[] = ['OFFICIAL_RESOURCE', 'COMMUNITY_PICK'];
 
 const REVIEW_STATUS_VALUES: GeoHelpSpotReviewStatus[] = ['PENDING', 'VERIFIED', 'REJECTED'];
 
@@ -79,6 +93,15 @@ function normalizeCategory(value: GeoHelpSpotCategory | string | number): GeoHel
   }
 
   return 'OTHER';
+}
+
+function normalizeSection(value: GeoHelpSpotSection | string): GeoHelpSpotSection {
+  const normalized = String(value).toUpperCase();
+  if (SECTION_VALUES.includes(normalized as GeoHelpSpotSection)) {
+    return normalized as GeoHelpSpotSection;
+  }
+
+  return 'COMMUNITY_PICK';
 }
 
 function normalizeReviewStatus(value: GeoHelpSpotReviewStatus | string | number): GeoHelpSpotReviewStatus {
@@ -97,6 +120,7 @@ function normalizeReviewStatus(value: GeoHelpSpotReviewStatus | string | number)
 function toGeoHelpSpot(raw: RawGeoHelpSpot): GeoHelpSpot {
   return {
     ...raw,
+    section: normalizeSection(raw.section),
     category: normalizeCategory(raw.category),
     reviewStatus: normalizeReviewStatus(raw.reviewStatus),
     distanceKm: typeof raw.distanceKm === 'number' ? raw.distanceKm : undefined,
@@ -123,6 +147,7 @@ export async function listNearbyGeoHelpSpots(input: {
   longitude: number;
   radiusKm: number;
   city?: string;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
@@ -134,6 +159,7 @@ export async function listNearbyGeoHelpSpots(input: {
         longitude: input.longitude,
         radiusKm: input.radiusKm,
         city: input.city,
+        section: input.section,
         category: input.category,
         limit: input.limit ?? 30,
         page: input.page ?? 1,
@@ -148,6 +174,7 @@ export async function listNearbyGeoHelpSpots(input: {
 
 export async function listPopularGeoHelpSpots(input: {
   city?: string;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
@@ -156,6 +183,7 @@ export async function listPopularGeoHelpSpots(input: {
     const { data } = await api.get<RawGeoHelpSpot[]>('/geo-help-board/spots/popular', {
       params: {
         city: input.city,
+        section: input.section,
         category: input.category,
         limit: input.limit ?? 30,
         page: input.page ?? 1,
@@ -183,6 +211,7 @@ export async function createGeoHelpSpot(payload: {
   address?: string;
   latitude: number;
   longitude: number;
+  section: GeoHelpSpotSection;
   category: GeoHelpSpotCategory;
 }): Promise<GeoHelpSpot> {
   try {
@@ -190,5 +219,14 @@ export async function createGeoHelpSpot(payload: {
     return toGeoHelpSpot(data);
   } catch (error) {
     throw new Error(toApiErrorMessage(error, 'Failed to create the location.'));
+  }
+}
+
+export async function deactivateGeoHelpSpot(spotId: string): Promise<GeoHelpSpot> {
+  try {
+    const { data } = await api.patch<RawGeoHelpSpot>(`/geo-help-board/spots/${spotId}/deactivate`);
+    return toGeoHelpSpot(data);
+  } catch (error) {
+    throw new Error(toApiErrorMessage(error, 'Failed to delete the location.'));
   }
 }

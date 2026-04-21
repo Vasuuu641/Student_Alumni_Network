@@ -1,24 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Loader2, MapPinned, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, MapPinned, Search, Trash2, XCircle } from 'lucide-react';
 import {
+  deactivateGeoSpot,
   listGeoReviewQueue,
   reviewGeoSpot,
   type GeoCategory,
   type GeoReviewStatus,
+  type GeoSection,
   type GeoSpotForReview,
 } from '../../api/admin.api';
 
 const GEO_CATEGORIES: Array<'ALL' | GeoCategory> = [
   'ALL',
-  'STUDY_SPACE',
-  'FOOD',
-  'TRANSPORT',
-  'HOUSING',
-  'HEALTH',
-  'GYM',
-  'LIBRARY',
+  'UNIVERSITY_SERVICE',
+  'ACADEMIC_DEPARTMENT',
+  'ADMIN_OFFICE',
+  'STUDENT_SUPPORT',
+  'CAMPUS_FACILITY',
+  'RESTAURANT',
+  'CAFE',
+  'STUDY_SPOT',
+  'SOCIAL_HANGOUT',
+  'FITNESS_WELLNESS',
+  'SHOPPING',
   'OTHER',
 ];
+
+const GEO_SECTIONS: Array<'ALL' | GeoSection> = ['ALL', 'OFFICIAL_RESOURCE', 'COMMUNITY_PICK'];
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -38,12 +46,13 @@ export function AdminGeoModerationPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<'ALL' | GeoReviewStatus>('PENDING');
+  const [sectionFilter, setSectionFilter] = useState<'ALL' | GeoSection>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | GeoCategory>('ALL');
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     void loadQueue();
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, sectionFilter, categoryFilter]);
 
   useEffect(() => {
     if (!notice) return;
@@ -57,6 +66,7 @@ export function AdminGeoModerationPage() {
       setError(null);
       const data = await listGeoReviewQueue({
         reviewStatus: statusFilter === 'ALL' ? undefined : statusFilter,
+        section: sectionFilter === 'ALL' ? undefined : sectionFilter,
         category: categoryFilter === 'ALL' ? undefined : categoryFilter,
         isActive: true,
         limit: 100,
@@ -95,6 +105,25 @@ export function AdminGeoModerationPage() {
     }
   }
 
+  async function handleDelete(spotId: string) {
+    const confirmed = window.confirm('Delete this place? It will be hidden from all users.');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setActingId(spotId);
+      setError(null);
+      await deactivateGeoSpot(spotId);
+      setSpots((prev) => prev.filter((spot) => spot.id !== spotId));
+      setNotice('Spot deleted successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete geo spot.');
+    } finally {
+      setActingId(null);
+    }
+  }
+
   return (
     <section className="admin-card-stack">
       <header className="admin-page-header">
@@ -124,6 +153,18 @@ export function AdminGeoModerationPage() {
             <option value="PENDING">Pending</option>
             <option value="VERIFIED">Verified</option>
             <option value="REJECTED">Rejected</option>
+          </select>
+
+          <select
+            className="admin-filter-select"
+            value={sectionFilter}
+            onChange={(event) => setSectionFilter(event.target.value as 'ALL' | GeoSection)}
+          >
+            {GEO_SECTIONS.map((section) => (
+              <option key={section} value={section}>
+                {section === 'ALL' ? 'All Sections' : section === 'OFFICIAL_RESOURCE' ? 'Official Resources' : 'Community Picks'}
+              </option>
+            ))}
           </select>
 
           <select
@@ -170,6 +211,7 @@ export function AdminGeoModerationPage() {
                   {spot.description ? <p className="admin-geo-description">{spot.description}</p> : null}
 
                   <div className="admin-geo-foot">
+                    <p>Section: {spot.section === 'OFFICIAL_RESOURCE' ? 'Official Resources' : 'Community Picks'}</p>
                     <p>Category: {spot.category}</p>
                     <p>Submitted: {formatDateTime(spot.createdAt)}</p>
                     <p>Visits: {spot.visitCount}</p>
@@ -191,6 +233,14 @@ export function AdminGeoModerationPage() {
                     >
                       <XCircle size={14} />
                       Reject
+                    </button>
+                    <button
+                      className="admin-text-btn danger"
+                      onClick={() => void handleDelete(spot.id)}
+                      disabled={isBusy}
+                    >
+                      <Trash2 size={14} />
+                      Delete
                     </button>
                   </div>
                 </article>

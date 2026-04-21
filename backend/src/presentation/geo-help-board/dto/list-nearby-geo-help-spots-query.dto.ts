@@ -21,8 +21,37 @@ export class ListNearbyGeoHelpSpotsQueryDto {
   city?: string;
 
   @IsOptional()
-  @IsIn(['STUDY_SPACE', 'FOOD', 'TRANSPORT', 'HOUSING', 'HEALTH', 'GYM', 'LIBRARY', 'OTHER'])
-  category?: 'STUDY_SPACE' | 'FOOD' | 'TRANSPORT' | 'HOUSING' | 'HEALTH' | 'GYM' | 'LIBRARY' | 'OTHER';
+  @IsIn(['OFFICIAL_RESOURCE', 'COMMUNITY_PICK'])
+  section?: 'OFFICIAL_RESOURCE' | 'COMMUNITY_PICK';
+
+  @IsOptional()
+  @IsIn([
+    'UNIVERSITY_SERVICE',
+    'ACADEMIC_DEPARTMENT',
+    'ADMIN_OFFICE',
+    'STUDENT_SUPPORT',
+    'CAMPUS_FACILITY',
+    'RESTAURANT',
+    'CAFE',
+    'STUDY_SPOT',
+    'SOCIAL_HANGOUT',
+    'FITNESS_WELLNESS',
+    'SHOPPING',
+    'OTHER',
+  ])
+  category?:
+    | 'UNIVERSITY_SERVICE'
+    | 'ACADEMIC_DEPARTMENT'
+    | 'ADMIN_OFFICE'
+    | 'STUDENT_SUPPORT'
+    | 'CAMPUS_FACILITY'
+    | 'RESTAURANT'
+    | 'CAFE'
+    | 'STUDY_SPOT'
+    | 'SOCIAL_HANGOUT'
+    | 'FITNESS_WELLNESS'
+    | 'SHOPPING'
+    | 'OTHER';
 
   @IsOptional()
   @Type(() => Number)

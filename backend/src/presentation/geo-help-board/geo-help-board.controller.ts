@@ -24,7 +24,7 @@ import { GeoHelpBoardError } from '../../application/geo-help-board/geo-help-boa
 
 @Controller('geo-help-board')
 @UseGuards(JwtStrategy, RolesGuard)
-@Roles('STUDENT', 'PROFESSOR')
+@Roles('STUDENT', 'PROFESSOR', 'ADMIN')
 export class GeoHelpBoardController {
   constructor(
     private readonly createGeoHelpSpotUseCase: CreateGeoHelpSpotUseCase,
@@ -43,6 +43,7 @@ export class GeoHelpBoardController {
     try {
       return await this.listReviewGeoHelpSpotsUseCase.execute({
         city: query.city,
+        section: query.section as any,
         category: query.category as any,
         reviewStatus: query.reviewStatus as any,
         isActive: query.isActive,
@@ -59,6 +60,7 @@ export class GeoHelpBoardController {
     try {
       return await this.listPopularGeoHelpSpotsUseCase.execute({
         city: query.city,
+        section: query.section as any,
         category: query.category as any,
         limit: query.limit,
         page: query.page,
@@ -76,6 +78,7 @@ export class GeoHelpBoardController {
         longitude: query.longitude,
         radiusKm: query.radiusKm,
         city: query.city,
+        section: query.section as any,
         category: query.category as any,
         limit: query.limit,
         page: query.page,
@@ -98,6 +101,7 @@ export class GeoHelpBoardController {
         address: body.address,
         latitude: body.latitude,
         longitude: body.longitude,
+        section: body.section as any,
         category: body.category as any,
         createdById,
       });
@@ -121,6 +125,7 @@ export class GeoHelpBoardController {
         address: body.address,
         latitude: body.latitude,
         longitude: body.longitude,
+        section: body.section as any,
         category: body.category as any,
       });
     } catch (error) {
