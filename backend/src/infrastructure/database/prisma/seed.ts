@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { GeoHelpSpotCategory, GeoHelpSpotReviewStatus, PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 
@@ -74,7 +74,8 @@ type GeoSpotSeed = {
 	address: string;
 	latitude: number;
 	longitude: number;
-	category: GeoHelpSpotCategory;
+	section: string;
+	category: string;
 };
 
 const PECS_SPOTS: GeoSpotSeed[] = [
@@ -85,7 +86,8 @@ const PECS_SPOTS: GeoSpotSeed[] = [
 		address: 'Universitas u., Pécs',
 		latitude: 46.074119,
 		longitude: 18.206556,
-		category: GeoHelpSpotCategory.LIBRARY,
+		section: 'OFFICIAL_RESOURCE',
+		category: 'CAMPUS_FACILITY',
 	},
 	{
 		title: 'Széchenyi Square Student Hangout',
@@ -94,7 +96,8 @@ const PECS_SPOTS: GeoSpotSeed[] = [
 		address: 'Széchenyi tér, Pécs',
 		latitude: 46.072734,
 		longitude: 18.232266,
-		category: GeoHelpSpotCategory.STUDY_SPACE,
+		section: 'COMMUNITY_PICK',
+		category: 'SOCIAL_HANGOUT',
 	},
 	{
 		title: 'Árkád Pécs Food Court',
@@ -103,7 +106,8 @@ const PECS_SPOTS: GeoSpotSeed[] = [
 		address: 'Bajcsy-Zsilinszky u. 11, Pécs',
 		latitude: 46.075347,
 		longitude: 18.227004,
-		category: GeoHelpSpotCategory.FOOD,
+		section: 'COMMUNITY_PICK',
+		category: 'RESTAURANT',
 	},
 	{
 		title: 'Pécs Bus Station',
@@ -112,7 +116,8 @@ const PECS_SPOTS: GeoSpotSeed[] = [
 		address: 'Indóház tér, Pécs',
 		latitude: 46.066905,
 		longitude: 18.228342,
-		category: GeoHelpSpotCategory.TRANSPORT,
+		section: 'OFFICIAL_RESOURCE',
+		category: 'UNIVERSITY_SERVICE',
 	},
 	{
 		title: 'University Sports Hall',
@@ -121,7 +126,8 @@ const PECS_SPOTS: GeoSpotSeed[] = [
 		address: 'Ifjúság útja, Pécs',
 		latitude: 46.075892,
 		longitude: 18.206848,
-		category: GeoHelpSpotCategory.GYM,
+		section: 'COMMUNITY_PICK',
+		category: 'FITNESS_WELLNESS',
 	},
 ];
 
@@ -158,10 +164,11 @@ async function seedGeoHelpBoardSpots(): Promise<number> {
 					address: spot.address,
 					latitude: spot.latitude,
 					longitude: spot.longitude,
+					section: spot.section,
 					category: spot.category,
 					isActive: true,
-					reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
-				},
+					reviewStatus: 'VERIFIED',
+				} as any,
 			});
 			continue;
 		}
@@ -174,11 +181,12 @@ async function seedGeoHelpBoardSpots(): Promise<number> {
 				address: spot.address,
 				latitude: spot.latitude,
 				longitude: spot.longitude,
+				section: spot.section,
 				category: spot.category,
 				createdById: creator.id,
 				isActive: true,
-				reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
-			},
+				reviewStatus: 'VERIFIED',
+			} as any,
 		});
 	}
 

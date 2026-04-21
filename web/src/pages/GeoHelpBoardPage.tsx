@@ -541,6 +541,20 @@ export function GeoHelpBoardPage() {
   }, [noticeMessage]);
 
   useEffect(() => {
+    const shouldLockScroll = isDrawerOpen || isSuggestModalOpen;
+    if (!shouldLockScroll) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isDrawerOpen, isSuggestModalOpen]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadSpots() {
@@ -1263,9 +1277,9 @@ export function GeoHelpBoardPage() {
             type="button"
             aria-label="Close resource drawer"
             onClick={() => setIsDrawerOpen(false)}
-            className="fixed inset-0 z-40 bg-slate-900/35"
+            className="fixed inset-0 z-[1200] bg-slate-900/35"
           />
-          <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl max-sm:top-auto max-sm:bottom-0 max-sm:h-[85vh] max-sm:max-w-none max-sm:rounded-t-3xl max-sm:border-l-0 max-sm:border-t max-sm:p-4">
+          <aside className="fixed right-0 top-0 z-[1210] h-full w-full max-w-md overflow-auto border-l border-slate-200 bg-white p-5 shadow-2xl max-sm:top-auto max-sm:bottom-0 max-sm:h-[85vh] max-sm:max-w-none max-sm:rounded-t-3xl max-sm:border-l-0 max-sm:border-t max-sm:p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resource details</p>
@@ -1351,9 +1365,9 @@ export function GeoHelpBoardPage() {
             type="button"
             aria-label="Close suggest place dialog"
             onClick={() => setIsSuggestModalOpen(false)}
-            className="fixed inset-0 z-40 bg-slate-900/35"
+            className="fixed inset-0 z-[1300] bg-slate-900/45"
           />
-          <aside className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl max-sm:max-w-[95vw]">
+          <aside className="fixed left-1/2 top-1/2 z-[1310] max-h-[90vh] w-full max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl max-sm:max-w-[95vw]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Suggest a place</p>
