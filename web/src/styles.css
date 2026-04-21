@@ -4695,10 +4695,382 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
+     GEO HELP BOARD
+  ───────────────────────────────────────────────────────────── */
+
+  .geo-help-board-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #f5f8ff 0%, #eef3fb 100%);
+  }
+
+  .geo-help-board-shell {
+    width: min(1120px, calc(100% - 2rem));
+    margin: 1rem auto 0;
+    padding-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .geo-help-board-hero {
+    border: 1px solid #dbe5f4;
+    border-radius: 0.95rem;
+    background: linear-gradient(140deg, #ffffff 0%, #f4f8ff 100%);
+    box-shadow: 0 10px 28px rgba(17, 35, 77, 0.08);
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.9rem;
+  }
+
+  .geo-help-board-hero h1 {
+    margin: 0.35rem 0 0.45rem;
+    color: #122443;
+    font-size: 1.22rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.28;
+  }
+
+  .geo-help-board-hero p {
+    margin: 0;
+    color: #4d6282;
+    font-size: 0.92rem;
+  }
+
+  .geo-help-board-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .geo-help-board-hero__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    min-width: 11rem;
+  }
+
+  .geo-help-board-hero__status {
+    border: 1px solid #ccdcf6;
+    border-radius: 999px;
+    background: #edf4ff;
+    color: #1f4ea4;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 0.26rem 0.62rem;
+    white-space: nowrap;
+  }
+
+  .geo-help-board-toolbar {
+    border: 1px solid #dbe5f4;
+    border-radius: 0.85rem;
+    background: #ffffff;
+    padding: 0.55rem;
+    display: grid;
+    grid-template-columns: auto auto minmax(12rem, 1fr) 9rem 9rem;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .geo-help-board-toolbar button {
+    height: 2.25rem;
+    border: 1px solid #cfdbef;
+    border-radius: 0.62rem;
+    background: #f7f9fd;
+    color: #385170;
+    font-size: 0.84rem;
+    font-weight: 700;
+    padding: 0 0.85rem;
+    cursor: pointer;
+  }
+
+  .geo-help-board-toolbar button.active {
+    background: #eaf2ff;
+    border-color: #b7cdf5;
+    color: #1d4ed8;
+  }
+
+  .geo-help-board-toolbar__search {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 2.25rem;
+    border: 1px solid #cfdbef;
+    border-radius: 0.62rem;
+    padding: 0 0.62rem;
+    background: #ffffff;
+    color: #5c6f89;
+  }
+
+  .geo-help-board-toolbar__search input,
+  .geo-help-board-toolbar select {
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #21324e;
+    font-size: 0.86rem;
+    width: 100%;
+  }
+
+  .geo-help-board-toolbar select {
+    height: 2.25rem;
+    border: 1px solid #cfdbef;
+    border-radius: 0.62rem;
+    background: #ffffff;
+    padding: 0 0.55rem;
+  }
+
+  .geo-help-board-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19.5rem;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+
+  .geo-help-board-main,
+  .geo-help-board-panel {
+    border: 1px solid #dbe5f4;
+    border-radius: 0.85rem;
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(15, 36, 76, 0.06);
+  }
+
+  .geo-help-board-main {
+    padding: 0.75rem;
+  }
+
+  .geo-help-board-notice,
+  .geo-help-board-error,
+  .geo-help-board-state {
+    border-radius: 0.7rem;
+    padding: 0.62rem 0.72rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .geo-help-board-notice {
+    border: 1px solid #bde5c8;
+    background: #ecfdf3;
+    color: #166534;
+  }
+
+  .geo-help-board-error {
+    border: 1px solid #f8c8cb;
+    background: #fff1f2;
+    color: #991b1b;
+  }
+
+  .geo-help-board-state {
+    border: 1px solid #d5e0f1;
+    background: #f6f9ff;
+    color: #345071;
+  }
+
+  .geo-help-board-list {
+    display: grid;
+    gap: 0.62rem;
+  }
+
+  .geo-help-board-card {
+    border: 1px solid #d8e3f3;
+    border-radius: 0.78rem;
+    background: #fbfdff;
+    padding: 0.72rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.48rem;
+  }
+
+  .geo-help-board-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .geo-help-board-card__head h3 {
+    margin: 0;
+    color: #132848;
+    font-size: 0.99rem;
+    font-weight: 800;
+  }
+
+  .geo-help-board-card p {
+    margin: 0;
+    color: #4d6282;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .geo-help-board-pill {
+    border: 1px solid #e0e7f5;
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.73rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .geo-help-board-pill--verified {
+    border-color: #bdecc8;
+    background: #edfcf2;
+    color: #166534;
+  }
+
+  .geo-help-board-pill--pending {
+    border-color: #fde68a;
+    background: #fffbeb;
+    color: #92400e;
+  }
+
+  .geo-help-board-pill--rejected {
+    border-color: #fecdd3;
+    background: #fff1f2;
+    color: #9f1239;
+  }
+
+  .geo-help-board-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .geo-help-board-card__meta span {
+    border: 1px solid #e2e8f4;
+    border-radius: 999px;
+    background: #f8fafe;
+    color: #51647f;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 0.18rem 0.48rem;
+  }
+
+  .geo-help-board-card__actions button {
+    height: 2rem;
+    border: 1px solid #c6d8f8;
+    border-radius: 0.58rem;
+    background: #edf4ff;
+    color: #1f56bf;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+  }
+
+  .geo-help-board-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .geo-help-board-panel {
+    padding: 0.75rem;
+  }
+
+  .geo-help-board-panel h2 {
+    margin: 0 0 0.55rem;
+    color: #16335f;
+    font-size: 0.96rem;
+    font-weight: 800;
+  }
+
+  .geo-help-board-panel p,
+  .geo-help-board-panel a {
+    margin: 0;
+    color: #4f647f;
+    font-size: 0.84rem;
+  }
+
+  .geo-help-board-panel a {
+    color: #1d4ed8;
+    text-decoration: none;
+  }
+
+  .geo-help-board-panel a:hover {
+    text-decoration: underline;
+  }
+
+  .geo-help-board-form {
+    display: grid;
+    gap: 0.52rem;
+  }
+
+  .geo-help-board-form input,
+  .geo-help-board-form textarea,
+  .geo-help-board-form select {
+    border: 1px solid #cfdbef;
+    border-radius: 0.62rem;
+    background: #ffffff;
+    color: #223457;
+    padding: 0.54rem 0.65rem;
+    font-size: 0.84rem;
+    outline: none;
+  }
+
+  .geo-help-board-form input:focus,
+  .geo-help-board-form textarea:focus,
+  .geo-help-board-form select:focus,
+  .geo-help-board-toolbar__search:focus-within {
+    border-color: #98b9ef;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+  }
+
+  .geo-help-board-form textarea {
+    resize: vertical;
+    min-height: 4.2rem;
+  }
+
+  .geo-help-board-form__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.48rem;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
      RESPONSIVE
   ───────────────────────────────────────────────────────────── */
 
   @media (max-width: 900px) {
+    .geo-help-board-body {
+      grid-template-columns: 1fr;
+    }
+
+    .geo-help-board-hero {
+      flex-direction: column;
+    }
+
+    .geo-help-board-hero__actions {
+      align-items: flex-start;
+      min-width: 0;
+    }
+
+    .geo-help-board-toolbar {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .geo-help-board-toolbar__search {
+      grid-column: 1 / -1;
+    }
+
+    .geo-help-board-toolbar select {
+      width: 100%;
+    }
+
     .landing-page {
       scroll-snap-type: y proximity;
     }
@@ -4741,6 +5113,19 @@
   }
 
   @media (max-width: 640px) {
+    .geo-help-board-shell {
+      width: min(1120px, calc(100% - 1rem));
+      margin-top: 0.7rem;
+    }
+
+    .geo-help-board-toolbar {
+      grid-template-columns: 1fr;
+    }
+
+    .geo-help-board-form__grid {
+      grid-template-columns: 1fr;
+    }
+
     .landing-page {
       scroll-snap-type: y proximity;
     }
