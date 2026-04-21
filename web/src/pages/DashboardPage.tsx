@@ -7,15 +7,16 @@ import {
   ChevronDown,
   Clock3,
   Compass,
-  LayoutDashboard,
-  MessageCircle,
-  NotebookText,
   FolderOpen,
+  LayoutDashboard,
   LogOut,
+  MessageCircle,
   MessageSquare,
   MessagesSquare,
+  NotebookText,
   Plus,
   Sparkles,
+  TrendingUp,
   User,
   UserPlus,
   Users,
@@ -128,7 +129,6 @@ export function DashboardPage() {
         }
 
         setNotesCount(notesResponse.notes.length);
-
         const totalThreads = threadResponses.reduce((sum, response) => sum + response.total, 0);
         setDiscussionCount(totalThreads);
 
@@ -235,7 +235,7 @@ export function DashboardPage() {
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/notes', label: 'Notes', icon: NotebookText },
     { to: '/threads', label: 'Discussions', icon: MessageCircle },
-    { label: 'Geo Board', icon: Compass, onClick: () => openPlaceholder('Geo Board') },
+    { to: '/geo-help-board', label: 'Geo Help Board', icon: Compass },
     { label: 'More', icon: Sparkles, onClick: () => openPlaceholder('More') },
   ];
 
@@ -251,6 +251,11 @@ export function DashboardPage() {
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Notifications')}>
               <Bell size={14} />
             </button>
+            {isAdmin ? (
+              <button type="button" className="dashboard-v2__admin-btn" onClick={() => navigate('/admin/users')}>
+                Admin Console
+              </button>
+            ) : null}
             <div className="dashboard-v2__profile-menu-wrap" ref={profileMenuRef}>
               <button
                 type="button"
@@ -331,6 +336,15 @@ export function DashboardPage() {
             <strong>{statsLoading ? '...' : discussionCount}</strong>
             <Link to="/threads">Join discussions</Link>
           </article>
+
+          <article className="dashboard-v2__stat-card">
+            <div className="dashboard-v2__stat-head">
+              <span>Profile Views</span>
+              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><TrendingUp size={16} /></div>
+            </div>
+            <strong>--</strong>
+            <button type="button" onClick={() => openPlaceholder('Profile analytics')}>View profile</button>
+          </article>
         </section>
 
         <section className="dashboard-v2__content-grid">
@@ -346,13 +360,13 @@ export function DashboardPage() {
                   <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--blue"><MessageSquare size={16} /></span>
                   Academic
                 </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/study-groups')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><Users size={16} /></span>
-                  Study Groups
+                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/geo-help-board')}>
+                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><Compass size={16} /></span>
+                  Geo Help Board
                 </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => openPlaceholder('Campus')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--green"><Compass size={16} /></span>
-                  Campus
+                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/study-groups')}>
+                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--green"><Users size={16} /></span>
+                  Study Groups
                 </button>
               </div>
             </section>
@@ -401,7 +415,7 @@ export function DashboardPage() {
                   {profileLoading ? (
                     <span>...</span>
                   ) : profilePictureSrc ? (
-                    <img src={profilePictureSrc} alt={displayName} />
+                    <img src={profilePictureSrc ?? undefined} alt={displayName} />
                   ) : (
                     <span>{profileInitials || 'JD'}</span>
                   )}
@@ -423,7 +437,7 @@ export function DashboardPage() {
 
             <section className="dashboard-v2__side-card dashboard-v2__side-card--links">
               <h3>Quick Links</h3>
-              <button type="button" className="dashboard-v2__quick-link" onClick={() => openPlaceholder('Find a Mentor')}>
+              <button type="button" className="dashboard-v2__quick-link dashboard-v2__quick-link--highlight" onClick={() => openPlaceholder('Find a Mentor')}>
                 <UserPlus size={14} />
                 Find a Mentor
               </button>

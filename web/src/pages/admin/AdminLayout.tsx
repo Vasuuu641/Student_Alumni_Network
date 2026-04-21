@@ -4,8 +4,8 @@ import { getAccessToken, getRoleFromAccessToken } from '../../lib/auth';
 
 const ADMIN_ITEMS = [
   { to: '/admin/users', label: 'User Access', icon: UserCog },
-  { to: '/admin/geo', label: 'Geo Approvals', icon: MapPinned },
-  { to: '/admin/threads', label: 'Thread Pinning', icon: Pin },
+  { to: '/admin/geo-moderation', label: 'Geo Approvals', icon: MapPinned },
+  { to: '/admin/threads-moderation', label: 'Thread Pinning', icon: Pin },
 ];
 
 export function AdminLayout() {
