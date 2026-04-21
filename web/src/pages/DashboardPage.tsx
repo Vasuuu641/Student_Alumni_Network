@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
   CalendarDays,
-  CircleHelp,
+  ChevronDown,
   Clock3,
   Compass,
-  LayoutDashboard,
   FolderOpen,
+  LayoutDashboard,
+  LogOut,
+  MessageCircle,
   MessageSquare,
   MessagesSquare,
+  NotebookText,
   Plus,
   Sparkles,
-  NotebookText,
-  MessageCircle,
   TrendingUp,
+  User,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -68,6 +70,8 @@ export function DashboardPage() {
   const [recentDiscussions, setRecentDiscussions] = useState<Thread[]>([]);
   const [statsLoading, setStatsLoading] = useState(Boolean(token));
   const [placeholderNotice, setPlaceholderNotice] = useState<string | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!token || !role || isAdmin) {
@@ -166,6 +170,36 @@ export function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [placeholderNotice]);
 
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    function handleDocumentClick(event: MouseEvent) {
+      if (!profileMenuRef.current) {
+        return;
+      }
+
+      const target = event.target as Node;
+      if (!profileMenuRef.current.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, [isProfileMenuOpen]);
+
+  function handleLogout() {
+    localStorage.removeItem('unibridge.accessToken');
+    localStorage.removeItem('unibridge.refreshToken');
+    navigate('/login', { replace: true });
+  }
+
+  function openPlaceholder(featureName: string) {
+    setPlaceholderNotice(`${featureName} is coming soon.`);
+  }
+
   if (!token || !role) {
     return <Navigate to="/login" replace />;
   }
@@ -185,23 +219,17 @@ export function DashboardPage() {
   const roleBadge = role.charAt(0) + role.slice(1).toLowerCase();
 
   const recentDiscussionsByUser = useMemo(() => {
-    if (!userId) {
-      return recentDiscussions;
+    let baseThreads = recentDiscussions;
+
+    if (userId) {
+      const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
+      if (mine.length > 0) {
+        baseThreads = mine;
+      }
     }
 
-    const mine = recentDiscussions.filter((thread) => thread.authorId === userId);
-    return mine.length > 0 ? mine : recentDiscussions;
+    return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
-
-  function handleLogout() {
-    localStorage.removeItem('unibridge.accessToken');
-    localStorage.removeItem('unibridge.refreshToken');
-    navigate('/login', { replace: true });
-  }
-
-  function openPlaceholder(featureName: string) {
-    setPlaceholderNotice(`${featureName} is coming soon.`);
-  }
 
   const topNavItems: PlatformTopNavItem[] = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -228,10 +256,50 @@ export function DashboardPage() {
                 Admin Console
               </button>
             ) : null}
-            <button type="button" className="dashboard-v2__profile-chip" onClick={() => navigate('/profile')}>
-              <span>{profileInitials || 'JD'}</span>
-              {firstName}
-            </button>
+            <div className="dashboard-v2__profile-menu-wrap" ref={profileMenuRef}>
+              <button
+                type="button"
+                className="dashboard-v2__profile-chip"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span>{profileInitials || 'JD'}</span>
+                {firstName}
+                <ChevronDown size={14} className={isProfileMenuOpen ? 'dashboard-v2__profile-chevron dashboard-v2__profile-chevron--open' : 'dashboard-v2__profile-chevron'} />
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div className="dashboard-v2__profile-menu" role="menu" aria-label="Profile menu">
+                  <div className="dashboard-v2__profile-menu-header">
+                    <strong>{displayName}</strong>
+                    {profile?.email ? <span>{profile.email}</span> : null}
+                    <small>{roleBadge}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="dashboard-v2__profile-menu-item"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    role="menuitem"
+                  >
+                    <User size={15} />
+                    View Profile
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-v2__profile-menu-item dashboard-v2__profile-menu-item--danger"
+                    onClick={handleLogout}
+                    role="menuitem"
+                  >
+                    <LogOut size={15} />
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
       />
@@ -293,12 +361,12 @@ export function DashboardPage() {
                   Academic
                 </button>
                 <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/geo-help-board')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><CircleHelp size={16} /></span>
+                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><Compass size={16} /></span>
                   Geo Help Board
                 </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => openPlaceholder('Ask a Doubt')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--green"><Compass size={16} /></span>
-                  Ask Doubt
+                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/study-groups')}>
+                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--green"><Users size={16} /></span>
+                  Study Groups
                 </button>
               </div>
             </section>
@@ -386,8 +454,6 @@ export function DashboardPage() {
                 Resources & FAQs
               </button>
             </section>
-
-            <button type="button" className="dashboard-v2__logout" onClick={handleLogout}>Log out</button>
           </aside>
         </section>
       </div>
