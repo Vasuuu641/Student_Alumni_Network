@@ -32,7 +32,7 @@ import {
 
 type ResourceTab = 'OFFICIAL' | 'COMMUNITY';
 type CategoryFilter = 'ALL' | GeoHelpSpotCategory;
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'insecure' | 'error';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'searched' | 'denied' | 'unsupported' | 'insecure' | 'error';
 
 interface Point {
   latitude: number;
@@ -133,6 +133,21 @@ function formatAccuracy(accuracyMeters?: number): string {
   return `Approx. ${(accuracyMeters / 1000).toFixed(1)} km accuracy`;
 }
 
+function haversineDistanceKm(a: Point, b: Point): number {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(b.latitude - a.latitude);
+  const dLon = toRadians(b.longitude - a.longitude);
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+
+  const sinLat = Math.sin(dLat / 2);
+  const sinLon = Math.sin(dLon / 2);
+  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLon * sinLon;
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 function toCoordKey(point: Point): string {
   return `${point.latitude.toFixed(3)},${point.longitude.toFixed(3)}`;
 }
@@ -167,6 +182,11 @@ function locationStateText(status: LocationStatus): string {
 
 function buildOpenStreetMapUrl(point: Point): string {
   return `https://www.openstreetmap.org/?mlat=${point.latitude.toFixed(6)}&mlon=${point.longitude.toFixed(6)}#map=16/${point.latitude.toFixed(6)}/${point.longitude.toFixed(6)}`;
+}
+
+function buildDirectionsUrl(from: Point, to: Point): string {
+  const route = `${from.latitude.toFixed(6)},${from.longitude.toFixed(6)};${to.latitude.toFixed(6)},${to.longitude.toFixed(6)}`;
+  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(route)}`;
 }
 
 async function reverseGeocode(point: Point): Promise<{ label: string; city?: string }> {
@@ -218,64 +238,111 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   return resolved;
 }
 
-async function searchLocation(query: string): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+async function searchLocation(
+  query: string,
+  options?: { cityHint?: string; bias?: Point },
+): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
   const normalizedQuery = query.trim();
-  const cached = searchGeocodeCache.get(normalizedQuery.toLowerCase());
+  const cacheKey = `${normalizedQuery.toLowerCase()}::${options?.cityHint?.trim().toLowerCase() ?? ''}::${
+    options?.bias ? toCoordKey(options.bias) : ''
+  }`;
+  const cached = searchGeocodeCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const params = new URLSearchParams({
-    format: 'jsonv2',
-    q: normalizedQuery,
-    addressdetails: '1',
-    limit: '1',
-  });
+  const parts = normalizedQuery
+    .split(/[,;]+|\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-    headers: {
-      'Accept-Language': 'en',
-    },
-  });
+  const queryVariants = new Set<string>([normalizedQuery]);
 
-  if (!response.ok) {
-    throw new Error('Location search failed.');
+  for (let index = 0; index < parts.length; index += 1) {
+    const suffix = parts.slice(index).join(' ').trim();
+    if (suffix.length >= 3) {
+      queryVariants.add(suffix);
+    }
   }
 
-  const results = (await response.json()) as Array<{
-    display_name?: string;
-    lat?: string;
-    lon?: string;
-    address?: {
-      city?: string;
-      town?: string;
-      village?: string;
-      municipality?: string;
-      county?: string;
-    };
-  }>;
-
-  const first = results[0];
-  if (!first?.lat || !first?.lon) {
-    throw new Error('No matching location was found.');
+  if (options?.cityHint) {
+    queryVariants.add(`${normalizedQuery}, ${options.cityHint.trim()}`);
+    queryVariants.add(`${parts.slice(-4).join(' ')}, ${options.cityHint.trim()}`);
   }
 
-  const city =
-    first.address?.city ??
-    first.address?.town ??
-    first.address?.village ??
-    first.address?.municipality ??
-    first.address?.county;
+  queryVariants.add(`${normalizedQuery}, Pecs`);
+  queryVariants.add(`${normalizedQuery}, Budapest`);
 
-  const resolved = {
-    label: first.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
-    city,
-    latitude: Number(first.lat),
-    longitude: Number(first.lon),
+  const makeViewboxParams = (bias: Point) => {
+    const deltaLat = 0.12;
+    const deltaLng = 0.18;
+    return `${(bias.longitude - deltaLng).toFixed(6)},${(bias.latitude + deltaLat).toFixed(6)},${(bias.longitude + deltaLng).toFixed(6)},${(bias.latitude - deltaLat).toFixed(6)}`;
   };
 
-  searchGeocodeCache.set(normalizedQuery.toLowerCase(), resolved);
-  return resolved;
+  const candidateQueries = Array.from(queryVariants);
+
+  for (let index = 0; index < candidateQueries.length; index += 1) {
+    const candidateQuery = candidateQueries[index];
+    const params = new URLSearchParams({
+      format: 'jsonv2',
+      q: candidateQuery,
+      addressdetails: '1',
+      limit: '8',
+      countrycodes: 'hu',
+    });
+
+    if (options?.bias && index === 0) {
+      params.set('viewbox', makeViewboxParams(options.bias));
+      params.set('bounded', '1');
+    }
+
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: {
+        'Accept-Language': 'en',
+      },
+    });
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const results = (await response.json()) as Array<{
+      display_name?: string;
+      lat?: string;
+      lon?: string;
+      address?: {
+        city?: string;
+        town?: string;
+        village?: string;
+        municipality?: string;
+        county?: string;
+      };
+    }>;
+
+    const first = results.find((result) => Boolean(result.lat && result.lon));
+    if (!first?.lat || !first?.lon) {
+      continue;
+    }
+
+    const city =
+      first.address?.city ??
+      first.address?.town ??
+      first.address?.village ??
+      first.address?.municipality ??
+      first.address?.county;
+
+    const resolved = {
+      label: first.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
+      city,
+      latitude: Number(first.lat),
+      longitude: Number(first.lon),
+    };
+
+    searchGeocodeCache.set(cacheKey, resolved);
+    return resolved;
+  }
+
+  throw new Error('No matching location was found. Try adding the city or a nearby landmark.');
 }
 
 function MapViewportController({ points }: { points: Array<[number, number]> }) {
@@ -504,7 +571,7 @@ export function GeoHelpBoardPage() {
     const saved = Number(window.localStorage.getItem(GEO_HELP_BOARD_RADIUS_STORAGE_KEY));
     return Number.isFinite(saved) && saved > 0 ? saved : 5;
   });
-  const [searchText, setSearchText] = useState('');
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [cityFilter, setCityFilter] = useState(() => window.localStorage.getItem(GEO_HELP_BOARD_CITY_STORAGE_KEY) ?? DEFAULT_LOCATION.city);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
@@ -515,6 +582,7 @@ export function GeoHelpBoardPage() {
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
   });
+  const [searchedPlace, setSearchedPlace] = useState<{ label: string; point: Point; city?: string } | null>(null);
 
   const [spots, setSpots] = useState<GeoHelpSpot[]>([]);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -528,10 +596,8 @@ export function GeoHelpBoardPage() {
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [suggestTitle, setSuggestTitle] = useState('');
   const [suggestCategory, setSuggestCategory] = useState<GeoHelpSpotCategory>('UNIVERSITY_SERVICE');
-  const [suggestAddress, setSuggestAddress] = useState('');
+  const [suggestLocationHint, setSuggestLocationHint] = useState('');
   const [suggestDescription, setSuggestDescription] = useState('');
-  const [suggestLatitude, setSuggestLatitude] = useState(String(DEFAULT_LOCATION.latitude));
-  const [suggestLongitude, setSuggestLongitude] = useState(String(DEFAULT_LOCATION.longitude));
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
@@ -542,7 +608,6 @@ export function GeoHelpBoardPage() {
   const apiCategory = category === 'ALL' ? undefined : category;
 
   useEffect(() => {
-    setCategory('ALL');
     const defaultCategory = (activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS)[0].value;
     setSuggestCategory(defaultCategory);
   }, [activeTab]);
@@ -656,17 +721,7 @@ export function GeoHelpBoardPage() {
     };
   }, [activeTab, apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm]);
 
-  const filteredSpots = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) {
-      return spots;
-    }
-
-    return spots.filter((spot) => {
-      const values = [spot.title, spot.city, spot.address ?? '', spot.description ?? ''].join(' ').toLowerCase();
-      return values.includes(query);
-    });
-  }, [searchText, spots]);
+  const filteredSpots = spots;
 
   const selectedSpot =
     filteredSpots.find((spot) => spot.id === selectedSpotId) ??
@@ -675,7 +730,11 @@ export function GeoHelpBoardPage() {
 
   const mapCenterPoint: Point = selectedSpot
     ? { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude }
-    : point;
+    : searchedPlace
+      ? searchedPlace.point
+      : point;
+
+  const searchedPlaceDistanceKm = searchedPlace ? haversineDistanceKm(point, searchedPlace.point) : null;
 
   const mapCenter: [number, number] = [mapCenterPoint.latitude, mapCenterPoint.longitude];
   const mapClusters = useMemo(() => clusterSpots(filteredSpots, mapZoom), [filteredSpots, mapZoom]);
@@ -833,7 +892,7 @@ export function GeoHelpBoardPage() {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const result = await searchLocation(query);
+      const result = await searchLocation(query, { cityHint: cityFilter || DEFAULT_LOCATION.city, bias: point });
       const nextPoint = {
         latitude: result.latitude,
         longitude: result.longitude,
@@ -849,6 +908,38 @@ export function GeoHelpBoardPage() {
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to refine location.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  async function handlePlaceSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const query = placeSearchQuery.trim();
+    if (!query) {
+      setErrorMessage('Enter a place name to search for it.');
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+      setErrorMessage('');
+
+      const resolved = await searchLocation(query, {
+        bias: point,
+      });
+      setSearchedPlace({
+        label: resolved.label,
+        point: { latitude: resolved.latitude, longitude: resolved.longitude },
+        city: resolved.city,
+      });
+      setLocationLabel(resolved.label);
+      setSelectedSpotId(null);
+      setIsDrawerOpen(false);
+      setLocationNote('Searching for a place on the map.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to find that place.');
     } finally {
       setIsRefreshing(false);
     }
@@ -873,6 +964,13 @@ export function GeoHelpBoardPage() {
     } finally {
       setWorkingSpotId(null);
     }
+  }
+
+  function clearSearchTarget() {
+    setSearchedPlace(null);
+    setPlaceSearchQuery('');
+    setLocationStatus('granted');
+    setLocationNote('');
   }
 
   function canDeleteSpot(spot: GeoHelpSpot): boolean {
@@ -910,16 +1008,10 @@ export function GeoHelpBoardPage() {
     event.preventDefault();
 
     const title = suggestTitle.trim();
-    const latitude = Number(suggestLatitude);
-    const longitude = Number(suggestLongitude);
+    const cityFallback = cityFilter.trim() || DEFAULT_LOCATION.city;
 
     if (!title) {
       setErrorMessage('Place name is required.');
-      return;
-    }
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      setErrorMessage('Latitude and longitude must be valid numbers.');
       return;
     }
 
@@ -927,22 +1019,25 @@ export function GeoHelpBoardPage() {
       setIsSubmittingSuggestion(true);
       setErrorMessage('');
 
+      const geocodeQuery = [title, suggestLocationHint.trim(), cityFallback]
+        .filter(Boolean)
+        .join(', ');
+      const resolvedLocation = await searchLocation(geocodeQuery, { bias: point, cityHint: cityFallback });
+
       await createGeoHelpSpot({
         title,
         description: suggestDescription.trim() || undefined,
-        city: cityFilter.trim() || DEFAULT_LOCATION.city,
-        address: suggestAddress.trim() || undefined,
-        latitude,
-        longitude,
+        city: resolvedLocation.city ?? cityFallback,
+        address: suggestLocationHint.trim() || resolvedLocation.label,
+        latitude: resolvedLocation.latitude,
+        longitude: resolvedLocation.longitude,
         section: currentSection,
         category: suggestCategory,
       });
 
       setSuggestTitle('');
-      setSuggestAddress('');
+      setSuggestLocationHint('');
       setSuggestDescription('');
-      setSuggestLatitude(String(point.latitude));
-      setSuggestLongitude(String(point.longitude));
       setIsSuggestModalOpen(false);
       setNoticeMessage('Suggestion sent for admin review.');
       await handleRefresh();
@@ -993,8 +1088,6 @@ export function GeoHelpBoardPage() {
             <button
               type="button"
               onClick={() => {
-                setSuggestLatitude(String(mapCenterPoint.latitude));
-                setSuggestLongitude(String(mapCenterPoint.longitude));
                 setIsSuggestModalOpen(true);
               }}
               className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-50"
@@ -1065,15 +1158,15 @@ export function GeoHelpBoardPage() {
         </section>
 
         <section className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
-          <div className="relative">
+          <form className="relative" onSubmit={(event) => void handlePlaceSearch(event)}>
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search title, address, description, city"
+              value={placeSearchQuery}
+              onChange={(event) => setPlaceSearchQuery(event.target.value)}
+              placeholder="Search a place, e.g. Family Market"
               className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
             />
-          </div>
+          </form>
           <input
             value={cityFilter}
             onChange={(event) => setCityFilter(event.target.value)}
@@ -1081,6 +1174,24 @@ export function GeoHelpBoardPage() {
             className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
           />
         </section>
+
+        {searchedPlace ? (
+          <section className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+            <div>
+              <p className="font-semibold">Showing: {searchedPlace.label}</p>
+              <p className="text-xs text-sky-700">
+                {searchedPlaceDistanceKm !== null ? `About ${formatDistance(searchedPlaceDistanceKm)}` : 'Search result centered on the map'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={clearSearchTarget}
+              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+            >
+              Clear search
+            </button>
+          </section>
+        ) : null}
 
         {errorMessage ? (
           <section className="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
@@ -1137,6 +1248,16 @@ export function GeoHelpBoardPage() {
             >
               <Popup>Your current center point</Popup>
             </CircleMarker>
+
+            {searchedPlace ? (
+              <CircleMarker
+                center={[searchedPlace.point.latitude, searchedPlace.point.longitude]}
+                radius={10}
+                pathOptions={{ color: '#f97316', fillColor: '#fb923c', fillOpacity: 0.95 }}
+              >
+                <Popup>{searchedPlace.label}</Popup>
+              </CircleMarker>
+            ) : null}
 
             <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
           </MapContainer>
@@ -1378,12 +1499,12 @@ export function GeoHelpBoardPage() {
 
             <div className="mt-5 flex flex-wrap gap-2">
               <a
-                href={buildOpenStreetMapUrl({ latitude: selectedSpot.latitude, longitude: selectedSpot.longitude })}
+                href={buildDirectionsUrl(point, { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude })}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                Open in map <ExternalLink size={13} />
+                Get directions <ExternalLink size={13} />
               </a>
               <button
                 type="button"
@@ -1444,7 +1565,7 @@ export function GeoHelpBoardPage() {
                 <input
                   value={suggestTitle}
                   onChange={(event) => setSuggestTitle(event.target.value)}
-                  placeholder="e.g. Registrar Office, Faculty of Engineering, or Quiet Bean Cafe"
+                  placeholder="e.g. Family Market, Registrar Office, or Quiet Bean Cafe"
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                   required
                 />
@@ -1464,11 +1585,11 @@ export function GeoHelpBoardPage() {
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-slate-700">
-                Address / location note
+                Location note
                 <input
-                  value={suggestAddress}
-                  onChange={(event) => setSuggestAddress(event.target.value)}
-                  placeholder="Street, building, floor, or landmark"
+                  value={suggestLocationHint}
+                  onChange={(event) => setSuggestLocationHint(event.target.value)}
+                  placeholder="Optional: building, landmark, or nearby street"
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                 />
               </label>
@@ -1483,27 +1604,8 @@ export function GeoHelpBoardPage() {
                 />
               </label>
 
-              <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-                <label className="grid gap-1 text-sm font-semibold text-slate-700">
-                  Latitude
-                  <input
-                    value={suggestLatitude}
-                    onChange={(event) => setSuggestLatitude(event.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
-                  />
-                </label>
-                <label className="grid gap-1 text-sm font-semibold text-slate-700">
-                  Longitude
-                  <input
-                    value={suggestLongitude}
-                    onChange={(event) => setSuggestLongitude(event.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
-                  />
-                </label>
-              </div>
-
               <p className="text-xs text-slate-500">
-                Tip: coordinates are prefilled from your current map center so others can open directions directly.
+                We will look up the place on the map automatically. Add a nearby landmark if the place name is common.
               </p>
 
               <div className="mt-1 flex justify-end gap-2">
