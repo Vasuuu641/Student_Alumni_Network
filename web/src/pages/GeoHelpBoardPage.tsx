@@ -273,69 +273,165 @@ async function searchLocation(
   queryVariants.add(`${normalizedQuery}, Pecs`);
   queryVariants.add(`${normalizedQuery}, Budapest`);
 
-  const makeViewboxParams = (bias: Point) => {
-    const deltaLat = 0.12;
-    const deltaLng = 0.18;
-    return `${(bias.longitude - deltaLng).toFixed(6)},${(bias.latitude + deltaLat).toFixed(6)},${(bias.longitude + deltaLng).toFixed(6)},${(bias.latitude - deltaLat).toFixed(6)}`;
+  const makePhotonQueries = (text: string): string[] => {
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    const compacted = cleaned.replace(/\d+\/?[a-zA-Z]?/g, '').replace(/\s+/g, ' ').trim();
+    if (!compacted || compacted === cleaned) {
+      return [cleaned];
+    }
+    return [cleaned, compacted];
+  };
+
+  const normalizedCityHint = options?.cityHint?.trim().toLowerCase();
+  const GENERIC_TOKENS = new Set([
+    'market',
+    'shop',
+    'store',
+    'cafe',
+    'coffee',
+    'restaurant',
+    'bar',
+    'office',
+    'building',
+    'campus',
+    'university',
+    'street',
+    'utca',
+    'road',
+    'avenue',
+  ]);
+
+  const tokenize = (value: string): string[] =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 1);
+
+  const queryTokens = tokenize(normalizedQuery);
+  const significantQueryTokens = queryTokens.filter((token) => !GENERIC_TOKENS.has(token));
+
+  type PhotonFeature = {
+    geometry?: {
+      coordinates?: [number, number];
+    };
+    properties?: {
+      name?: string;
+      street?: string;
+      housenumber?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+    };
+  };
+
+  const pickBestCandidate = (
+    candidates: PhotonFeature[],
+  ): PhotonFeature | undefined => {
+    const usable = candidates.filter((candidate) => {
+      const coords = candidate.geometry?.coordinates;
+      return Boolean(coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1]));
+    });
+
+    if (usable.length === 0) {
+      return undefined;
+    }
+
+    const scored = usable.map((candidate) => {
+      const coords = candidate.geometry!.coordinates!;
+      const candidateCity = candidate.properties?.city?.toLowerCase();
+      const candidatePoint: Point = {
+        latitude: Number(coords[1]),
+        longitude: Number(coords[0]),
+      };
+
+      const cityBonus = normalizedCityHint && candidateCity === normalizedCityHint ? 10 : 0;
+      const biasPenalty = options?.bias ? haversineDistanceKm(options.bias, candidatePoint) : 0;
+      const label = [
+        candidate.properties?.name,
+        [candidate.properties?.street, candidate.properties?.housenumber].filter(Boolean).join(' '),
+        candidate.properties?.city,
+      ]
+        .filter(Boolean)
+        .join(', ')
+        .toLowerCase();
+
+      const candidateTokens = tokenize(label);
+      const queryOverlap = queryTokens.filter((token) => candidateTokens.includes(token)).length;
+      const significantOverlap = significantQueryTokens.filter((token) => candidateTokens.includes(token)).length;
+      const exactNameBonus = label.includes(normalizedQuery.toLowerCase()) ? 2 : 0;
+      const overlapBonus = significantOverlap * 6 + queryOverlap;
+
+      // Higher score is better: prefer same-city, closer-to-user, and name-containing results.
+      const score = cityBonus + exactNameBonus + overlapBonus - biasPenalty;
+
+      return { candidate, score, queryOverlap, significantOverlap };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+    if (!best) {
+      return undefined;
+    }
+
+    // Prevent generic substitutions like "Tom Market" for "Family Market".
+    if (significantQueryTokens.length > 0 && best.significantOverlap === 0) {
+      return undefined;
+    }
+
+    if (significantQueryTokens.length === 0 && best.queryOverlap === 0) {
+      return undefined;
+    }
+
+    return best.candidate;
   };
 
   const candidateQueries = Array.from(queryVariants);
+  const allResults: PhotonFeature[] = [];
 
   for (let index = 0; index < candidateQueries.length; index += 1) {
     const candidateQuery = candidateQueries[index];
-    const params = new URLSearchParams({
-      format: 'jsonv2',
-      q: candidateQuery,
-      addressdetails: '1',
-      limit: '8',
-      countrycodes: 'hu',
-    });
 
-    if (options?.bias && index === 0) {
-      params.set('viewbox', makeViewboxParams(options.bias));
-      params.set('bounded', '1');
+    for (const q of makePhotonQueries(candidateQuery)) {
+      const params = new URLSearchParams({
+        q,
+        limit: '12',
+        lang: 'en',
+      });
+
+      if (options?.bias) {
+        params.set('lat', String(options.bias.latitude));
+        params.set('lon', String(options.bias.longitude));
+      }
+
+      const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = (await response.json()) as { features?: PhotonFeature[] };
+      const results = payload.features ?? [];
+
+      if (results.length > 0) {
+        allResults.push(...results);
+      }
     }
+  }
 
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-      headers: {
-        'Accept-Language': 'en',
-      },
-    });
-
-    if (!response.ok) {
-      continue;
-    }
-
-    const results = (await response.json()) as Array<{
-      display_name?: string;
-      lat?: string;
-      lon?: string;
-      address?: {
-        city?: string;
-        town?: string;
-        village?: string;
-        municipality?: string;
-        county?: string;
-      };
-    }>;
-
-    const first = results.find((result) => Boolean(result.lat && result.lon));
-    if (!first?.lat || !first?.lon) {
-      continue;
-    }
-
-    const city =
-      first.address?.city ??
-      first.address?.town ??
-      first.address?.village ??
-      first.address?.municipality ??
-      first.address?.county;
+  const first = pickBestCandidate(allResults);
+  const coords = first?.geometry?.coordinates;
+  if (first && coords) {
+    const city = first.properties?.city;
+    const address = [first.properties?.street, first.properties?.housenumber].filter(Boolean).join(' ').trim();
+    const label = [first.properties?.name, address, city].filter(Boolean).join(', ');
 
     const resolved = {
-      label: first.display_name?.split(',').slice(0, 2).join(',').trim() ?? normalizedQuery,
+      label: label || normalizedQuery,
       city,
-      latitude: Number(first.lat),
-      longitude: Number(first.lon),
+      latitude: Number(coords[1]),
+      longitude: Number(coords[0]),
     };
 
     searchGeocodeCache.set(cacheKey, resolved);
