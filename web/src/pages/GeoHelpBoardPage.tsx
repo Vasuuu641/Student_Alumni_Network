@@ -46,6 +46,11 @@ const DEFAULT_LOCATION = {
   longitude: 18.232266,
 };
 
+const GEO_HELP_BOARD_TAB_STORAGE_KEY = 'geo-help-board-active-tab';
+const GEO_HELP_BOARD_CITY_STORAGE_KEY = 'geo-help-board-city-filter';
+const GEO_HELP_BOARD_RADIUS_STORAGE_KEY = 'geo-help-board-radius-km';
+const GEO_HELP_BOARD_CATEGORY_STORAGE_KEY = 'geo-help-board-category-filter';
+
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
 
@@ -485,11 +490,22 @@ export function GeoHelpBoardPage() {
   const userRole = token ? getRoleFromAccessToken(token) : null;
   const userId = token ? getUserIdFromAccessToken(token) : null;
 
-  const [activeTab, setActiveTab] = useState<ResourceTab>('OFFICIAL');
-  const [category, setCategory] = useState<CategoryFilter>('ALL');
-  const [radiusKm, setRadiusKm] = useState(5);
+  const [activeTab, setActiveTab] = useState<ResourceTab>(() => {
+    const saved = window.localStorage.getItem(GEO_HELP_BOARD_TAB_STORAGE_KEY);
+    return saved === 'COMMUNITY' ? 'COMMUNITY' : 'OFFICIAL';
+  });
+  const [category, setCategory] = useState<CategoryFilter>(() => {
+    const saved = window.localStorage.getItem(GEO_HELP_BOARD_CATEGORY_STORAGE_KEY);
+    return saved === 'ALL' || saved === 'UNIVERSITY_SERVICE' || saved === 'ACADEMIC_DEPARTMENT' || saved === 'ADMIN_OFFICE' || saved === 'STUDENT_SUPPORT' || saved === 'CAMPUS_FACILITY' || saved === 'RESTAURANT' || saved === 'CAFE' || saved === 'STUDY_SPOT' || saved === 'SOCIAL_HANGOUT' || saved === 'FITNESS_WELLNESS' || saved === 'SHOPPING' || saved === 'OTHER'
+      ? (saved as CategoryFilter)
+      : 'ALL';
+  });
+  const [radiusKm, setRadiusKm] = useState(() => {
+    const saved = Number(window.localStorage.getItem(GEO_HELP_BOARD_RADIUS_STORAGE_KEY));
+    return Number.isFinite(saved) && saved > 0 ? saved : 5;
+  });
   const [searchText, setSearchText] = useState('');
-  const [cityFilter, setCityFilter] = useState(DEFAULT_LOCATION.city);
+  const [cityFilter, setCityFilter] = useState(() => window.localStorage.getItem(GEO_HELP_BOARD_CITY_STORAGE_KEY) ?? DEFAULT_LOCATION.city);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
   const [locationNote, setLocationNote] = useState('');
@@ -532,6 +548,22 @@ export function GeoHelpBoardPage() {
   }, [activeTab]);
 
   useEffect(() => {
+    window.localStorage.setItem(GEO_HELP_BOARD_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    window.localStorage.setItem(GEO_HELP_BOARD_CATEGORY_STORAGE_KEY, category);
+  }, [category]);
+
+  useEffect(() => {
+    window.localStorage.setItem(GEO_HELP_BOARD_CITY_STORAGE_KEY, cityFilter);
+  }, [cityFilter]);
+
+  useEffect(() => {
+    window.localStorage.setItem(GEO_HELP_BOARD_RADIUS_STORAGE_KEY, String(radiusKm));
+  }, [radiusKm]);
+
+  useEffect(() => {
     if (!noticeMessage) {
       return;
     }
@@ -539,6 +571,27 @@ export function GeoHelpBoardPage() {
     const timer = window.setTimeout(() => setNoticeMessage(''), 3200);
     return () => window.clearTimeout(timer);
   }, [noticeMessage]);
+
+  useEffect(() => {
+    void handleRefresh();
+    // Keep the visible board fresh so moderator approvals appear without a manual reload.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void handleRefresh();
+      }
+    }, 20_000);
+
+    const onFocus = () => {
+      void handleRefresh();
+    };
+
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [activeTab, category, cityFilter, radiusKm]);
 
   useEffect(() => {
     const shouldLockScroll = isDrawerOpen || isSuggestModalOpen;
