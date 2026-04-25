@@ -489,12 +489,12 @@ async function searchLocation(
       return undefined;
     }
 
-    // Prevent generic substitutions like "Tom Market" for "Family Market".
-    if (significantQueryTokens.length > 0 && best.significantOverlap === 0) {
+    // Prevent generic substitutions like "Tom Market" for "Family Market" in generic search.
+    if (intent !== 'exact' && significantQueryTokens.length > 0 && best.significantOverlap === 0) {
       return undefined;
     }
 
-    if (significantQueryTokens.length === 0 && best.queryOverlap === 0) {
+    if (intent !== 'exact' && significantQueryTokens.length === 0 && best.queryOverlap === 0) {
       return undefined;
     }
 
@@ -578,6 +578,33 @@ async function searchLocation(
     return resolved;
   }
 
+  if (intent === 'exact') {
+    const fallbackQuery = options?.cityHint?.trim()
+      ? `${normalizedQuery}, ${options.cityHint.trim()}`
+      : normalizedQuery;
+
+    const exactFallbackResults = await geocodeWithGoogleMaps({
+      address: fallbackQuery,
+      region: 'hu',
+    });
+
+    const fallbackFirst = exactFallbackResults[0];
+    const fallbackLat = toCoordinate(fallbackFirst?.geometry?.location?.lat);
+    const fallbackLng = toCoordinate(fallbackFirst?.geometry?.location?.lng);
+
+    if (fallbackFirst && fallbackLat !== undefined && fallbackLng !== undefined) {
+      const resolved = {
+        label: fallbackFirst.formatted_address || fallbackQuery,
+        city: extractCityFromAddressComponents(fallbackFirst.address_components),
+        latitude: Number(fallbackLat),
+        longitude: Number(fallbackLng),
+      };
+
+      searchGeocodeCache.set(cacheKey, resolved);
+      return resolved;
+    }
+  }
+
   if (intent === 'generic') {
     const placeResult = await searchWithGooglePlaces(normalizedQuery, {
       cityHint: options?.cityHint,
@@ -619,7 +646,7 @@ export function GeoHelpBoardPage() {
     return Number.isFinite(saved) && saved > 0 ? saved : 5;
   });
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
-  const [cityFilter, setCityFilter] = useState(() => window.localStorage.getItem(GEO_HELP_BOARD_CITY_STORAGE_KEY) ?? DEFAULT_LOCATION.city);
+  const [cityFilter, setCityFilter] = useState('');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label);
   const [locationNote, setLocationNote] = useState('');
@@ -679,6 +706,11 @@ export function GeoHelpBoardPage() {
   }, [category]);
 
   useEffect(() => {
+    if (cityFilter.trim().length === 0) {
+      window.localStorage.removeItem(GEO_HELP_BOARD_CITY_STORAGE_KEY);
+      return;
+    }
+
     window.localStorage.setItem(GEO_HELP_BOARD_CITY_STORAGE_KEY, cityFilter);
   }, [cityFilter]);
 
@@ -942,48 +974,10 @@ export function GeoHelpBoardPage() {
     );
 
     const primary = await querySpots({ city, category: apiCategory });
-    if (primary.length > 0) {
-      return primary;
+    // Keep user-selected filters strict: if no results match, return empty.
+    if (primary.length === 0 && !filters?.skipNotice) {
+      setNoticeMessage('No resources match the selected category/city filters.');
     }
-
-    if (apiCategory) {
-      const relaxedCategory = await querySpots({ city, category: undefined });
-      if (relaxedCategory.length > 0) {
-        if (!filters?.skipNotice) {
-          setNoticeMessage(`No results for ${categoryLabel(apiCategory)}. Showing all categories instead.`);
-        }
-        setCategory('ALL');
-        return relaxedCategory;
-      }
-    }
-
-    if (city) {
-      const relaxedCity = await querySpots({ city: undefined, category: apiCategory });
-      if (relaxedCity.length > 0) {
-        if (!filters?.skipNotice) {
-          setNoticeMessage(`No results for city "${city}". Showing suggestions from all cities.`);
-        }
-        setCityFilter('');
-        return relaxedCity;
-      }
-    }
-
-    if (city || apiCategory) {
-      const fullyRelaxed = await querySpots({ city: undefined, category: undefined });
-      if (fullyRelaxed.length > 0) {
-        if (!filters?.skipNotice) {
-          setNoticeMessage('No matches for the current city/category combination. Showing all verified places.');
-        }
-        if (city) {
-          setCityFilter('');
-        }
-        if (apiCategory) {
-          setCategory('ALL');
-        }
-        return fullyRelaxed;
-      }
-    }
-
     return primary;
   }
 
@@ -1032,9 +1026,6 @@ export function GeoHelpBoardPage() {
         try {
           const reversed = await reverseGeocode(nextPoint);
           setLocationLabel(reversed.label);
-          if (reversed.city) {
-            setCityFilter(reversed.city);
-          }
         } catch {
           setLocationLabel('Detected location');
         }
@@ -1092,9 +1083,6 @@ export function GeoHelpBoardPage() {
       setLocationLabel(result.label);
       setLocationNote('Refined from the typed location query.');
       setLocationAccuracyM(35);
-      if (result.city) {
-        setCityFilter(result.city);
-      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to refine location.');
     } finally {
