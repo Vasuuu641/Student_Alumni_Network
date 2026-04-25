@@ -468,7 +468,7 @@
 
   .admin-geo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr));
     gap: 0.7rem;
   }
 
@@ -476,10 +476,15 @@
     border: 1px solid #dde5f1;
     border-radius: 0.75rem;
     background: #fff;
-    padding: 0.72rem;
+    padding: 0.9rem;
     display: flex;
     flex-direction: column;
-    gap: 0.48rem;
+    gap: 0.6rem;
+    min-height: 19rem;
+  }
+
+  .admin-geo-card--expanded {
+    min-height: 31rem;
   }
 
   .admin-geo-card__head {
@@ -515,7 +520,51 @@
     margin-top: 0.32rem;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.4rem;
+  }
+
+  .admin-geo-expand-btn {
+    margin-top: 0.2rem;
+    height: 2rem;
+    width: fit-content;
+    padding: 0 0.7rem;
+    border: 1px solid #d8e2f0;
+    border-radius: 0.62rem;
+    background: #f8fbff;
+    color: #335684;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: 0.16s;
+  }
+
+  .admin-geo-expand-btn:hover {
+    border-color: #bfd2ee;
+    background: #eef4ff;
+  }
+
+  .admin-geo-mini-map-wrap {
+    border: 1px solid #dce5f2;
+    border-radius: 0.68rem;
+    overflow: hidden;
+    background: #f8fbff;
+  }
+
+  .admin-geo-mini-map-empty {
+    min-height: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    text-align: center;
+    padding: 0.9rem;
+    color: #5f7696;
+    font-size: 0.82rem;
+    font-weight: 600;
   }
 
   .admin-panel-tabs {
