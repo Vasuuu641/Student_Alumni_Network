@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { divIcon, latLngBounds, type LatLngBoundsExpression } from 'leaflet';
+import { CircleF, GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from '@react-google-maps/api';
 import {
   AlertTriangle,
   Building2,
@@ -53,6 +52,7 @@ const GEO_HELP_BOARD_CATEGORY_STORAGE_KEY = 'geo-help-board-category-filter';
 
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
+const GOOGLE_MAPS_API_KEY = String((import.meta.env as Record<string, string | undefined>).VITE_GOOGLE_MAPS_API ?? '').trim();
 
 const TAB_SECTION_MAP: Record<ResourceTab, GeoHelpSpotSection> = {
   OFFICIAL: 'OFFICIAL_RESOURCE',
@@ -180,16 +180,35 @@ function locationStateText(status: LocationStatus): string {
   return 'Using campus default location. You can switch to live location anytime.';
 }
 
-function buildOpenStreetMapUrl(point: Point): string {
-  return `https://www.openstreetmap.org/?mlat=${point.latitude.toFixed(6)}&mlon=${point.longitude.toFixed(6)}#map=16/${point.latitude.toFixed(6)}/${point.longitude.toFixed(6)}`;
+function buildGoogleMapUrl(point: Point): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`)}`;
 }
 
 function buildDirectionsUrl(from: Point, to: Point): string {
-  const route = `${from.latitude.toFixed(6)},${from.longitude.toFixed(6)};${to.latitude.toFixed(6)},${to.longitude.toFixed(6)}`;
-  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(route)}`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${from.latitude.toFixed(6)},${from.longitude.toFixed(6)}`)}&destination=${encodeURIComponent(`${to.latitude.toFixed(6)},${to.longitude.toFixed(6)}`)}&travelmode=driving`;
+}
+
+function extractCityFromAddressComponents(addressComponents?: Array<{ long_name?: string; types?: string[] }>): string | undefined {
+  if (!addressComponents) {
+    return undefined;
+  }
+
+  const preferredTypes = ['locality', 'postal_town', 'administrative_area_level_2', 'administrative_area_level_1'];
+  for (const preferredType of preferredTypes) {
+    const match = addressComponents.find((component) => component.types?.includes(preferredType));
+    if (match?.long_name) {
+      return match.long_name;
+    }
+  }
+
+  return undefined;
 }
 
 async function reverseGeocode(point: Point): Promise<{ label: string; city?: string }> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    throw new Error('Map search is not configured. Missing VITE_GOOGLE_MAPS_API.');
+  }
+
   const cacheKey = toCoordKey(point);
   const cached = reverseGeocodeCache.get(cacheKey);
   if (cached) {
@@ -197,42 +216,34 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
   }
 
   const params = new URLSearchParams({
-    format: 'jsonv2',
-    lat: String(point.latitude),
-    lon: String(point.longitude),
-    zoom: '16',
-    addressdetails: '1',
+    latlng: `${point.latitude},${point.longitude}`,
+    key: GOOGLE_MAPS_API_KEY,
+    language: 'en',
   });
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
-    headers: {
-      'Accept-Language': 'en',
-    },
-  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error('Reverse geocoding failed.');
   }
 
   const data = (await response.json()) as {
-    display_name?: string;
-    address?: {
-      city?: string;
-      town?: string;
-      village?: string;
-      municipality?: string;
-      county?: string;
-    };
+    status?: string;
+    error_message?: string;
+    results?: Array<{
+      formatted_address?: string;
+      address_components?: Array<{ long_name?: string; types?: string[] }>;
+    }>;
   };
 
-  const city =
-    data.address?.city ??
-    data.address?.town ??
-    data.address?.village ??
-    data.address?.municipality ??
-    data.address?.county;
+  if (data.status !== 'OK') {
+    throw new Error(data.error_message || 'Reverse geocoding failed.');
+  }
 
-  const label = city ?? data.display_name?.split(',').slice(0, 2).join(',').trim() ?? 'Detected location';
+  const first = data.results?.[0];
+  const city = extractCityFromAddressComponents(first?.address_components);
+  const label = city ?? first?.formatted_address ?? 'Detected location';
+
   const resolved = { label, city };
   reverseGeocodeCache.set(cacheKey, resolved);
   return resolved;
@@ -242,6 +253,10 @@ async function searchLocation(
   query: string,
   options?: { cityHint?: string; bias?: Point; intent?: 'generic' | 'exact' },
 ): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    throw new Error('Map search is not configured. Missing VITE_GOOGLE_MAPS_API.');
+  }
+
   const normalizedQuery = query.trim();
   const intent = options?.intent ?? 'generic';
   const cacheKey = `${normalizedQuery.toLowerCase()}::${options?.cityHint?.trim().toLowerCase() ?? ''}::${
@@ -276,7 +291,7 @@ async function searchLocation(
     queryVariants.add(`${normalizedQuery}, Budapest`);
   }
 
-  const makeMapboxQueries = (text: string): string[] => {
+  const makeCandidateQueries = (text: string): string[] => {
     const cleaned = text.replace(/\s+/g, ' ').trim();
     const compacted = cleaned.replace(/\d+\/?[a-zA-Z]?/g, '').replace(/\s+/g, ' ').trim();
     if (!compacted || compacted === cleaned) {
@@ -323,44 +338,25 @@ async function searchLocation(
   const significantQueryTokens = queryTokens.filter((token) => !GENERIC_TOKENS.has(token));
   const hasHouseNumber = /\d/.test(normalizedQuery);
 
-  type MapboxFeature = {
-    place_name?: string;
-    text?: string;
-    center?: [number, number];
-    properties?: {
-      address?: string;
-      category?: string;
-    };
-    context?: Array<{
-      id?: string;
-      text?: string;
-    }>;
-  };
-
-  type PhotonFeature = {
+  type GoogleGeocodeResult = {
+    formatted_address?: string;
+    types?: string[];
+    address_components?: Array<{ long_name?: string; types?: string[] }>;
     geometry?: {
-      coordinates?: [number, number];
+      location?: {
+        lat?: number;
+        lng?: number;
+      };
     };
-    properties?: {
-      name?: string;
-      street?: string;
-      housenumber?: string;
-      city?: string;
-      state?: string;
-      country?: string;
-    };
-  };
-
-  const getMapboxContextValue = (feature: MapboxFeature, prefix: string): string | undefined => {
-    return feature.context?.find((item) => item.id?.startsWith(prefix))?.text;
   };
 
   const pickBestCandidate = (
-    candidates: MapboxFeature[],
-  ): MapboxFeature | undefined => {
+    candidates: GoogleGeocodeResult[],
+  ): GoogleGeocodeResult | undefined => {
     const usable = candidates.filter((candidate) => {
-      const coords = candidate.center;
-      return Boolean(coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1]));
+      const lat = candidate.geometry?.location?.lat;
+      const lng = candidate.geometry?.location?.lng;
+      return Number.isFinite(lat) && Number.isFinite(lng);
     });
 
     if (usable.length === 0) {
@@ -368,15 +364,12 @@ async function searchLocation(
     }
 
     const scored = usable.map((candidate) => {
-      const coords = candidate.center!;
-      const candidateCity = (
-        getMapboxContextValue(candidate, 'place.') ??
-        getMapboxContextValue(candidate, 'locality.') ??
-        getMapboxContextValue(candidate, 'district.')
-      )?.toLowerCase();
+      const lat = Number(candidate.geometry!.location!.lat);
+      const lng = Number(candidate.geometry!.location!.lng);
+      const candidateCity = extractCityFromAddressComponents(candidate.address_components)?.toLowerCase();
       const candidatePoint: Point = {
-        latitude: Number(coords[1]),
-        longitude: Number(coords[0]),
+        latitude: lat,
+        longitude: lng,
       };
 
       const cityBonus = normalizedCityHint && candidateCity === normalizedCityHint ? 12 : 0;
@@ -384,7 +377,7 @@ async function searchLocation(
         ? (intent === 'exact' ? 16 : 7)
         : 0;
       const biasPenalty = options?.bias ? haversineDistanceKm(options.bias, candidatePoint) : 0;
-      const label = [candidate.text, candidate.place_name, candidate.properties?.category]
+      const label = [candidate.formatted_address]
         .filter(Boolean)
         .join(', ')
         .toLowerCase();
@@ -393,7 +386,7 @@ async function searchLocation(
       const candidateTokens = tokenize(label);
       const queryOverlap = queryTokens.filter((token) => candidateTokens.includes(token)).length;
       const significantOverlap = significantQueryTokens.filter((token) => candidateTokens.includes(token)).length;
-      const exactNameBonus = normalizedLabel.includes(normalizeSearchText(normalizedQuery)) ? 4 : 0;
+      const exactNameBonus = normalizedLabel.includes(normalizeSearchText(normalizedQuery)) ? 6 : 0;
       const houseNumberBonus = hasHouseNumber && /\d/.test(normalizedLabel) ? 6 : 0;
       const overlapBonus = significantOverlap * 6 + queryOverlap;
 
@@ -420,11 +413,7 @@ async function searchLocation(
     }
 
     if (intent === 'exact' && normalizedCityHint) {
-      const candidateCity = (
-        getMapboxContextValue(best.candidate, 'place.') ??
-        getMapboxContextValue(best.candidate, 'locality.') ??
-        getMapboxContextValue(best.candidate, 'district.')
-      )?.toLowerCase();
+      const candidateCity = extractCityFromAddressComponents(best.candidate.address_components)?.toLowerCase();
       if (candidateCity && candidateCity !== normalizedCityHint && best.score < 10) {
         return undefined;
       }
@@ -434,40 +423,38 @@ async function searchLocation(
   };
 
   const candidateQueries = Array.from(queryVariants);
-  const allResults: MapboxFeature[] = [];
-
-  const mapboxToken = String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '').trim();
-  if (!mapboxToken) {
-    throw new Error('Map search is not configured. Missing VITE_MAPBOX_ACCESS_TOKEN.');
-  }
+  const allResults: GoogleGeocodeResult[] = [];
 
   for (let index = 0; index < candidateQueries.length; index += 1) {
     const candidateQuery = candidateQueries[index];
 
-    for (const q of makeMapboxQueries(candidateQuery)) {
+    for (const q of makeCandidateQueries(candidateQuery)) {
       const params = new URLSearchParams({
-        access_token: mapboxToken,
-        autocomplete: intent === 'exact' ? 'false' : 'true',
-        limit: '12',
-        lang: 'en',
-        country: 'hu',
-        types: intent === 'exact' ? 'address,street,place,locality,neighborhood' : 'poi,address,place,locality,neighborhood',
+        address: q,
+        key: GOOGLE_MAPS_API_KEY,
+        language: 'en',
+        region: 'hu',
       });
 
-      if (options?.bias) {
-        params.set('proximity', `${options.bias.longitude},${options.bias.latitude}`);
+      if (options?.cityHint) {
+        params.set('components', `country:HU|locality:${options.cityHint}`);
       }
 
-      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`);
+      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('Mapbox token is invalid or unauthorized for geocoding requests.');
-        }
         continue;
       }
 
-      const payload = (await response.json()) as { features?: MapboxFeature[] };
-      const results = payload.features ?? [];
+      const payload = (await response.json()) as {
+        status?: string;
+        results?: GoogleGeocodeResult[];
+        error_message?: string;
+      };
+      if (payload.status === 'REQUEST_DENIED') {
+        throw new Error(payload.error_message || 'Google Maps API key is invalid or Geocoding API is disabled.');
+      }
+
+      const results = payload.results ?? [];
 
       if (results.length > 0) {
         allResults.push(...results);
@@ -475,71 +462,17 @@ async function searchLocation(
     }
   }
 
-  let first = pickBestCandidate(allResults);
+  const first = pickBestCandidate(allResults);
 
-  // Fallback: Photon still has better POI coverage for some local business names.
-  if (!first) {
-    for (let index = 0; index < candidateQueries.length; index += 1) {
-      const candidateQuery = candidateQueries[index];
-      for (const q of makeMapboxQueries(candidateQuery)) {
-        const params = new URLSearchParams({
-          q,
-          limit: '12',
-          lang: 'en',
-        });
-
-        if (options?.bias) {
-          params.set('lat', String(options.bias.latitude));
-          params.set('lon', String(options.bias.longitude));
-        }
-
-        const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
-        if (!response.ok) {
-          continue;
-        }
-
-        const payload = (await response.json()) as { features?: PhotonFeature[] };
-        const photonResults = payload.features ?? [];
-
-        if (photonResults.length > 0) {
-          const converted = photonResults
-            .filter((feature) => Boolean(feature.geometry?.coordinates))
-            .map((feature): MapboxFeature => {
-              const coords = feature.geometry!.coordinates!;
-              const city = feature.properties?.city;
-              const address = [feature.properties?.street, feature.properties?.housenumber].filter(Boolean).join(' ').trim();
-              const name = feature.properties?.name ?? q;
-
-              return {
-                text: name,
-                place_name: [name, address, city].filter(Boolean).join(', '),
-                center: [coords[0], coords[1]],
-                context: city ? [{ id: 'place.0', text: city }] : [],
-              };
-            });
-
-          allResults.push(...converted);
-        }
-      }
-    }
-
-    first = pickBestCandidate(allResults);
-  }
-
-  const coords = first?.center;
-  if (first && coords) {
-    const city =
-      getMapboxContextValue(first, 'place.') ??
-      getMapboxContextValue(first, 'locality.') ??
-      getMapboxContextValue(first, 'district.');
-    const address = first.properties?.address ? `${first.properties.address}` : undefined;
-    const label = [first.text, address, city].filter(Boolean).join(', ');
+  if (first?.geometry?.location?.lat !== undefined && first.geometry.location.lng !== undefined) {
+    const city = extractCityFromAddressComponents(first.address_components);
+    const label = first.formatted_address || normalizedQuery;
 
     const resolved = {
-      label: label || normalizedQuery,
+      label,
       city,
-      latitude: Number(coords[1]),
-      longitude: Number(coords[0]),
+      latitude: Number(first.geometry.location.lat),
+      longitude: Number(first.geometry.location.lng),
     };
 
     searchGeocodeCache.set(cacheKey, resolved);
@@ -550,211 +483,6 @@ async function searchLocation(
     intent === 'exact'
       ? 'No exact address match was found. Include street + number + city (for example: Ifjusag utja 6, Pecs).'
       : 'No matching location was found. Try adding the city or a nearby landmark.',
-  );
-}
-
-function MapViewportController({ points }: { points: Array<[number, number]> }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (points.length === 0) {
-      return;
-    }
-
-    if (points.length === 1) {
-      map.setView(points[0], Math.max(map.getZoom(), 15), { animate: true });
-      return;
-    }
-
-    const bounds: LatLngBoundsExpression = latLngBounds(points);
-    map.fitBounds(bounds, {
-      animate: true,
-      padding: [48, 48],
-      maxZoom: 16,
-    });
-  }, [map, points]);
-
-  return null;
-}
-
-function MapZoomBridge({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
-  useMapEvents({
-    zoomend(event) {
-      onZoomChange(event.target.getZoom());
-    },
-  });
-
-  return null;
-}
-
-interface ClusterItem {
-  key: string;
-  latitude: number;
-  longitude: number;
-  spots: GeoHelpSpot[];
-}
-
-function getClusterPrecision(zoom: number): number | null {
-  if (zoom >= 16) {
-    return null;
-  }
-
-  if (zoom >= 14) {
-    return 3;
-  }
-
-  if (zoom >= 12) {
-    return 2;
-  }
-
-  return 1;
-}
-
-function clusterSpots(spots: GeoHelpSpot[], zoom: number): ClusterItem[] {
-  const precision = getClusterPrecision(zoom);
-  if (precision === null) {
-    return spots.map((spot) => ({
-      key: spot.id,
-      latitude: spot.latitude,
-      longitude: spot.longitude,
-      spots: [spot],
-    }));
-  }
-
-  const grouped = new Map<string, GeoHelpSpot[]>();
-
-  spots.forEach((spot) => {
-    const key = `${spot.latitude.toFixed(precision)}:${spot.longitude.toFixed(precision)}`;
-    const existing = grouped.get(key);
-    if (existing) {
-      existing.push(spot);
-      return;
-    }
-
-    grouped.set(key, [spot]);
-  });
-
-  return Array.from(grouped.entries()).map(([key, bucket]) => {
-    const latitude = bucket.reduce((sum, spot) => sum + spot.latitude, 0) / bucket.length;
-    const longitude = bucket.reduce((sum, spot) => sum + spot.longitude, 0) / bucket.length;
-
-    return {
-      key,
-      latitude,
-      longitude,
-      spots: bucket,
-    };
-  });
-}
-
-function buildSpotIcon(isSelected: boolean) {
-  return divIcon({
-    className: '',
-    html: `
-      <div style="
-        width: 18px;
-        height: 18px;
-        border-radius: 9999px;
-        border: 2px solid ${isSelected ? '#1d4ed8' : '#ffffff'};
-        background: ${isSelected ? '#2563eb' : '#0f766e'};
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
-      "></div>
-    `,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
-
-function buildClusterIcon(count: number, isSelected: boolean) {
-  const diameter = Math.min(52, 28 + count * 4);
-
-  return divIcon({
-    className: '',
-    html: `
-      <div style="
-        width: ${diameter}px;
-        height: ${diameter}px;
-        border-radius: 9999px;
-        display: grid;
-        place-items: center;
-        border: 2px solid ${isSelected ? '#1d4ed8' : '#ffffff'};
-        background: linear-gradient(180deg, ${isSelected ? '#60a5fa' : '#14b8a6'} 0%, ${isSelected ? '#2563eb' : '#0f766e'} 100%);
-        color: white;
-        font-size: 12px;
-        font-weight: 800;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
-      ">${count}</div>
-    `,
-    iconSize: [diameter, diameter],
-    iconAnchor: [diameter / 2, diameter / 2],
-  });
-}
-
-function MapResourceMarkers({
-  clusters,
-  selectedSpotId,
-  onSelectSpot,
-}: {
-  clusters: ClusterItem[];
-  selectedSpotId: string | null;
-  onSelectSpot: (spotId: string, openDrawer?: boolean) => void;
-}) {
-  const map = useMap();
-
-  return (
-    <>
-      {clusters.map((cluster) => {
-        const selectedInCluster = cluster.spots.some((spot) => spot.id === selectedSpotId);
-
-        if (cluster.spots.length === 1) {
-          const spot = cluster.spots[0];
-          return (
-            <Marker
-              key={cluster.key}
-              position={[spot.latitude, spot.longitude]}
-              icon={buildSpotIcon(spot.id === selectedSpotId)}
-              eventHandlers={{
-                click: () => {
-                  onSelectSpot(spot.id, true);
-                },
-              }}
-            >
-              <Popup>
-                <div className="min-w-[170px]">
-                  <p className="text-sm font-bold text-slate-900">{spot.title}</p>
-                  <p className="mt-1 text-xs text-slate-600">{spot.city}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(spot.distanceKm)}</p>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        }
-
-        return (
-          <Marker
-            key={cluster.key}
-            position={[cluster.latitude, cluster.longitude]}
-            icon={buildClusterIcon(cluster.spots.length, selectedInCluster)}
-            eventHandlers={{
-              click: () => {
-                map.flyTo([cluster.latitude, cluster.longitude], Math.min(map.getZoom() + 2, 17), {
-                  animate: true,
-                });
-                const firstSpot = cluster.spots[0];
-                onSelectSpot(firstSpot.id, false);
-              },
-            }}
-          >
-            <Popup>
-              <div className="min-w-[190px]">
-                <p className="text-sm font-bold text-slate-900">{cluster.spots.length} nearby resources</p>
-                <p className="mt-1 text-xs text-slate-600">Zoom in to see individual markers.</p>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
-    </>
   );
 }
 
@@ -800,7 +528,7 @@ export function GeoHelpBoardPage() {
   const [noticeMessage, setNoticeMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workingSpotId, setWorkingSpotId] = useState<string | null>(null);
-  const [mapZoom, setMapZoom] = useState(15);
+  const [activeMapSpotId, setActiveMapSpotId] = useState<string | null>(null);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [suggestTitle, setSuggestTitle] = useState('');
   const [suggestCategory, setSuggestCategory] = useState<GeoHelpSpotCategory>('UNIVERSITY_SERVICE');
@@ -810,6 +538,12 @@ export function GeoHelpBoardPage() {
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const mapRef = useRef<any>(null);
+
+  const { isLoaded: isMapLoaded, loadError: mapLoadError } = useJsApiLoader({
+    id: 'geo-help-google-map',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
 
   const currentSection = TAB_SECTION_MAP[activeTab];
   const categoryOptions = activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS;
@@ -945,11 +679,39 @@ export function GeoHelpBoardPage() {
   const searchedPlaceDistanceKm = searchedPlace ? haversineDistanceKm(point, searchedPlace.point) : null;
 
   const mapCenter: [number, number] = [mapCenterPoint.latitude, mapCenterPoint.longitude];
-  const mapClusters = useMemo(() => clusterSpots(filteredSpots, mapZoom), [filteredSpots, mapZoom]);
   const mapPoints = useMemo<Array<[number, number]>>(
     () => filteredSpots.map((spot) => [spot.latitude, spot.longitude]),
     [filteredSpots],
   );
+
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current) {
+      return;
+    }
+
+    const googleMaps = (window as { google?: any }).google;
+    if (!googleMaps || mapPoints.length === 0) {
+      return;
+    }
+
+    if (mapPoints.length === 1) {
+      mapRef.current.panTo({ lat: mapPoints[0][0], lng: mapPoints[0][1] });
+      mapRef.current.setZoom(Math.max(mapRef.current.getZoom() ?? 15, 15));
+      return;
+    }
+
+    const bounds = new googleMaps.maps.LatLngBounds();
+    mapPoints.forEach(([latitude, longitude]) => {
+      bounds.extend({ lat: latitude, lng: longitude });
+    });
+
+    if (searchedPlace) {
+      bounds.extend({ lat: searchedPlace.point.latitude, lng: searchedPlace.point.longitude });
+    }
+
+    bounds.extend({ lat: point.latitude, lng: point.longitude });
+    mapRef.current.fitBounds(bounds);
+  }, [isMapLoaded, mapPoints, point.latitude, point.longitude, searchedPlace]);
 
   useEffect(() => {
     if (!selectedSpotId && filteredSpots.length > 0) {
@@ -1425,7 +1187,7 @@ export function GeoHelpBoardPage() {
               <p className="text-sm font-semibold text-slate-700">Interactive map</p>
             </div>
             <a
-              href={buildOpenStreetMapUrl(mapCenterPoint)}
+              href={buildGoogleMapUrl(mapCenterPoint)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
@@ -1434,45 +1196,97 @@ export function GeoHelpBoardPage() {
             </a>
           </header>
 
-          <MapContainer
-            center={mapCenter}
-            zoom={15}
-            className="h-[460px] w-full"
-            scrollWheelZoom
-          >
-            <MapViewportController points={mapPoints} />
-            <MapZoomBridge onZoomChange={setMapZoom} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            <Circle
-              center={[point.latitude, point.longitude]}
-              radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
-              pathOptions={{ color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.1 }}
-            />
-
-            <CircleMarker
-              center={[point.latitude, point.longitude]}
-              radius={8}
-              pathOptions={{ color: '#0284c7', fillColor: '#0284c7', fillOpacity: 0.9 }}
+          {GOOGLE_MAPS_API_KEY.length === 0 ? (
+            <div className="flex h-[460px] items-center justify-center bg-slate-50 px-6 text-center text-sm text-rose-700">
+              Google Maps key is missing. Add VITE_GOOGLE_MAPS_API to web/.env and restart the dev server.
+            </div>
+          ) : mapLoadError ? (
+            <div className="flex h-[460px] items-center justify-center bg-slate-50 px-6 text-center text-sm text-rose-700">
+              Unable to load Google Maps script. Check API key restrictions and enabled APIs.
+            </div>
+          ) : !isMapLoaded ? (
+            <div className="flex h-[460px] items-center justify-center bg-slate-50 text-slate-500">
+              <Loader2 size={18} className="mr-2 animate-spin" />
+              Loading map...
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '460px' }}
+              center={{ lat: mapCenter[0], lng: mapCenter[1] }}
+              zoom={15}
+              onLoad={(map) => {
+                mapRef.current = map;
+              }}
+              options={{
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+                clickableIcons: false,
+              }}
             >
-              <Popup>Your current center point</Popup>
-            </CircleMarker>
+              <CircleF
+                center={{ lat: point.latitude, lng: point.longitude }}
+                radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
+                options={{
+                  strokeColor: '#0ea5e9',
+                  fillColor: '#38bdf8',
+                  fillOpacity: 0.1,
+                  strokeOpacity: 0.9,
+                  strokeWeight: 2,
+                }}
+              />
 
-            {searchedPlace ? (
-              <CircleMarker
-                center={[searchedPlace.point.latitude, searchedPlace.point.longitude]}
-                radius={10}
-                pathOptions={{ color: '#f97316', fillColor: '#fb923c', fillOpacity: 0.95 }}
-              >
-                <Popup>{searchedPlace.label}</Popup>
-              </CircleMarker>
-            ) : null}
+              <MarkerF
+                position={{ lat: point.latitude, lng: point.longitude }}
+                title="Your current center point"
+              />
 
-            <MapResourceMarkers clusters={mapClusters} selectedSpotId={selectedSpotId} onSelectSpot={selectSpot} />
-          </MapContainer>
+              {searchedPlace ? (
+                <MarkerF
+                  position={{ lat: searchedPlace.point.latitude, lng: searchedPlace.point.longitude }}
+                  title={searchedPlace.label}
+                  icon={{
+                    url: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png',
+                  }}
+                />
+              ) : null}
+
+              {filteredSpots.map((spot) => (
+                <MarkerF
+                  key={spot.id}
+                  position={{ lat: spot.latitude, lng: spot.longitude }}
+                  title={spot.title}
+                  onClick={() => {
+                    setActiveMapSpotId(spot.id);
+                    selectSpot(spot.id, true);
+                  }}
+                  icon={spot.id === selectedSpotId
+                    ? { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }
+                    : undefined}
+                />
+              ))}
+
+              {(() => {
+                const infoSpot = filteredSpots.find((spot) => spot.id === activeMapSpotId);
+                if (!infoSpot) {
+                  return null;
+                }
+
+                return (
+                  <InfoWindowF
+                    position={{ lat: infoSpot.latitude, lng: infoSpot.longitude }}
+                    onCloseClick={() => setActiveMapSpotId(null)}
+                  >
+                    <div className="min-w-[170px]">
+                      <p className="text-sm font-bold text-slate-900">{infoSpot.title}</p>
+                      <p className="mt-1 text-xs text-slate-600">{infoSpot.city}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(infoSpot.distanceKm)}</p>
+                    </div>
+                  </InfoWindowF>
+                );
+              })()}
+            </GoogleMap>
+          )}
         </section>
 
         <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
