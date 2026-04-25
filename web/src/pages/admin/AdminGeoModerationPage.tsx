@@ -52,7 +52,7 @@ export function AdminGeoModerationPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<'ALL' | GeoReviewStatus>('PENDING');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | GeoReviewStatus>('ALL');
   const [sectionFilter, setSectionFilter] = useState<'ALL' | GeoSection>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | GeoCategory>('ALL');
   const [searchText, setSearchText] = useState('');
@@ -81,7 +81,6 @@ export function AdminGeoModerationPage() {
         reviewStatus: statusFilter === 'ALL' ? undefined : statusFilter,
         section: sectionFilter === 'ALL' ? undefined : sectionFilter,
         category: categoryFilter === 'ALL' ? undefined : categoryFilter,
-        isActive: true,
         limit: 100,
       });
       setSpots(data);
@@ -111,6 +110,10 @@ export function AdminGeoModerationPage() {
       const reviewed = await reviewGeoSpot(spotId, isVerified);
       setSpots((prev) => prev.map((spot) => (spot.id === spotId ? reviewed : spot)));
       setNotice(isVerified ? 'Spot approved successfully.' : 'Spot rejected successfully.');
+
+      if (isVerified && statusFilter !== 'VERIFIED') {
+        setStatusFilter('VERIFIED');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply moderation action.');
     } finally {

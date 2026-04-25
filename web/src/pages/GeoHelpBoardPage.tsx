@@ -738,24 +738,7 @@ export function GeoHelpBoardPage() {
         setErrorMessage('');
         setIsLoading(true);
 
-        const nearby = activeTab === 'OFFICIAL'
-          ? await listNearbyGeoHelpSpots({
-              latitude: point.latitude,
-              longitude: point.longitude,
-              radiusKm,
-              city: cityFilter.trim() || undefined,
-              section: currentSection,
-              category: apiCategory,
-              limit: 30,
-              page: 1,
-            })
-          : await listPopularGeoHelpSpots({
-              city: cityFilter.trim() || undefined,
-              section: currentSection,
-              category: apiCategory,
-              limit: 30,
-              page: 1,
-            });
+        const nearby = await fetchSpotsWithFallback({ skipNotice: true });
 
         if (!cancelled) {
           setSpots(nearby);
@@ -934,29 +917,82 @@ export function GeoHelpBoardPage() {
     }
   }
 
+  async function fetchSpotsWithFallback(filters?: { skipNotice?: boolean }): Promise<GeoHelpSpot[]> {
+    const city = cityFilter.trim() || undefined;
+
+    const querySpots = async (input: { city?: string; category?: GeoHelpSpotCategory }) => (
+      activeTab === 'OFFICIAL'
+        ? listNearbyGeoHelpSpots({
+            latitude: point.latitude,
+            longitude: point.longitude,
+            radiusKm,
+            city: input.city,
+            section: currentSection,
+            category: input.category,
+            limit: 30,
+            page: 1,
+          })
+        : listPopularGeoHelpSpots({
+            city: input.city,
+            section: currentSection,
+            category: input.category,
+            limit: 30,
+            page: 1,
+          })
+    );
+
+    const primary = await querySpots({ city, category: apiCategory });
+    if (primary.length > 0) {
+      return primary;
+    }
+
+    if (apiCategory) {
+      const relaxedCategory = await querySpots({ city, category: undefined });
+      if (relaxedCategory.length > 0) {
+        if (!filters?.skipNotice) {
+          setNoticeMessage(`No results for ${categoryLabel(apiCategory)}. Showing all categories instead.`);
+        }
+        setCategory('ALL');
+        return relaxedCategory;
+      }
+    }
+
+    if (city) {
+      const relaxedCity = await querySpots({ city: undefined, category: apiCategory });
+      if (relaxedCity.length > 0) {
+        if (!filters?.skipNotice) {
+          setNoticeMessage(`No results for city "${city}". Showing suggestions from all cities.`);
+        }
+        setCityFilter('');
+        return relaxedCity;
+      }
+    }
+
+    if (city || apiCategory) {
+      const fullyRelaxed = await querySpots({ city: undefined, category: undefined });
+      if (fullyRelaxed.length > 0) {
+        if (!filters?.skipNotice) {
+          setNoticeMessage('No matches for the current city/category combination. Showing all verified places.');
+        }
+        if (city) {
+          setCityFilter('');
+        }
+        if (apiCategory) {
+          setCategory('ALL');
+        }
+        return fullyRelaxed;
+      }
+    }
+
+    return primary;
+  }
+
   async function handleRefresh() {
     try {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const refreshed = activeTab === 'OFFICIAL'
-        ? await listNearbyGeoHelpSpots({
-            latitude: point.latitude,
-            longitude: point.longitude,
-            radiusKm,
-            city: cityFilter.trim() || undefined,
-            section: currentSection,
-            category: apiCategory,
-            limit: 30,
-            page: 1,
-          })
-        : await listPopularGeoHelpSpots({
-            city: cityFilter.trim() || undefined,
-            section: currentSection,
-            category: apiCategory,
-            limit: 30,
-            page: 1,
-          });
+      const refreshed = await fetchSpotsWithFallback();
 
       setSpots(refreshed);
     } catch (error) {
