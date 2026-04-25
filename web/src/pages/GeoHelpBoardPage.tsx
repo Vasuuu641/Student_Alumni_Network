@@ -240,12 +240,13 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
 
 async function searchLocation(
   query: string,
-  options?: { cityHint?: string; bias?: Point },
+  options?: { cityHint?: string; bias?: Point; intent?: 'generic' | 'exact' },
 ): Promise<{ label: string; city?: string; latitude: number; longitude: number }> {
   const normalizedQuery = query.trim();
+  const intent = options?.intent ?? 'generic';
   const cacheKey = `${normalizedQuery.toLowerCase()}::${options?.cityHint?.trim().toLowerCase() ?? ''}::${
     options?.bias ? toCoordKey(options.bias) : ''
-  }`;
+  }::${intent}`;
   const cached = searchGeocodeCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -270,10 +271,12 @@ async function searchLocation(
     queryVariants.add(`${parts.slice(-4).join(' ')}, ${options.cityHint.trim()}`);
   }
 
-  queryVariants.add(`${normalizedQuery}, Pecs`);
-  queryVariants.add(`${normalizedQuery}, Budapest`);
+  if (intent === 'generic') {
+    queryVariants.add(`${normalizedQuery}, Pecs`);
+    queryVariants.add(`${normalizedQuery}, Budapest`);
+  }
 
-  const makePhotonQueries = (text: string): string[] => {
+  const makeMapboxQueries = (text: string): string[] => {
     const cleaned = text.replace(/\s+/g, ' ').trim();
     const compacted = cleaned.replace(/\d+\/?[a-zA-Z]?/g, '').replace(/\s+/g, ' ').trim();
     if (!compacted || compacted === cleaned) {
@@ -301,8 +304,15 @@ async function searchLocation(
     'avenue',
   ]);
 
+  const normalizeSearchText = (value: string): string => value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
   const tokenize = (value: string): string[] =>
     value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
@@ -311,6 +321,21 @@ async function searchLocation(
 
   const queryTokens = tokenize(normalizedQuery);
   const significantQueryTokens = queryTokens.filter((token) => !GENERIC_TOKENS.has(token));
+  const hasHouseNumber = /\d/.test(normalizedQuery);
+
+  type MapboxFeature = {
+    place_name?: string;
+    text?: string;
+    center?: [number, number];
+    properties?: {
+      address?: string;
+      category?: string;
+    };
+    context?: Array<{
+      id?: string;
+      text?: string;
+    }>;
+  };
 
   type PhotonFeature = {
     geometry?: {
@@ -326,11 +351,15 @@ async function searchLocation(
     };
   };
 
+  const getMapboxContextValue = (feature: MapboxFeature, prefix: string): string | undefined => {
+    return feature.context?.find((item) => item.id?.startsWith(prefix))?.text;
+  };
+
   const pickBestCandidate = (
-    candidates: PhotonFeature[],
-  ): PhotonFeature | undefined => {
+    candidates: MapboxFeature[],
+  ): MapboxFeature | undefined => {
     const usable = candidates.filter((candidate) => {
-      const coords = candidate.geometry?.coordinates;
+      const coords = candidate.center;
       return Boolean(coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1]));
     });
 
@@ -339,32 +368,37 @@ async function searchLocation(
     }
 
     const scored = usable.map((candidate) => {
-      const coords = candidate.geometry!.coordinates!;
-      const candidateCity = candidate.properties?.city?.toLowerCase();
+      const coords = candidate.center!;
+      const candidateCity = (
+        getMapboxContextValue(candidate, 'place.') ??
+        getMapboxContextValue(candidate, 'locality.') ??
+        getMapboxContextValue(candidate, 'district.')
+      )?.toLowerCase();
       const candidatePoint: Point = {
         latitude: Number(coords[1]),
         longitude: Number(coords[0]),
       };
 
-      const cityBonus = normalizedCityHint && candidateCity === normalizedCityHint ? 10 : 0;
+      const cityBonus = normalizedCityHint && candidateCity === normalizedCityHint ? 12 : 0;
+      const cityPenalty = normalizedCityHint && candidateCity && candidateCity !== normalizedCityHint
+        ? (intent === 'exact' ? 16 : 7)
+        : 0;
       const biasPenalty = options?.bias ? haversineDistanceKm(options.bias, candidatePoint) : 0;
-      const label = [
-        candidate.properties?.name,
-        [candidate.properties?.street, candidate.properties?.housenumber].filter(Boolean).join(' '),
-        candidate.properties?.city,
-      ]
+      const label = [candidate.text, candidate.place_name, candidate.properties?.category]
         .filter(Boolean)
         .join(', ')
         .toLowerCase();
+      const normalizedLabel = normalizeSearchText(label);
 
       const candidateTokens = tokenize(label);
       const queryOverlap = queryTokens.filter((token) => candidateTokens.includes(token)).length;
       const significantOverlap = significantQueryTokens.filter((token) => candidateTokens.includes(token)).length;
-      const exactNameBonus = label.includes(normalizedQuery.toLowerCase()) ? 2 : 0;
+      const exactNameBonus = normalizedLabel.includes(normalizeSearchText(normalizedQuery)) ? 4 : 0;
+      const houseNumberBonus = hasHouseNumber && /\d/.test(normalizedLabel) ? 6 : 0;
       const overlapBonus = significantOverlap * 6 + queryOverlap;
 
       // Higher score is better: prefer same-city, closer-to-user, and name-containing results.
-      const score = cityBonus + exactNameBonus + overlapBonus - biasPenalty;
+      const score = cityBonus + exactNameBonus + overlapBonus + houseNumberBonus - cityPenalty - biasPenalty;
 
       return { candidate, score, queryOverlap, significantOverlap };
     });
@@ -385,33 +419,54 @@ async function searchLocation(
       return undefined;
     }
 
+    if (intent === 'exact' && normalizedCityHint) {
+      const candidateCity = (
+        getMapboxContextValue(best.candidate, 'place.') ??
+        getMapboxContextValue(best.candidate, 'locality.') ??
+        getMapboxContextValue(best.candidate, 'district.')
+      )?.toLowerCase();
+      if (candidateCity && candidateCity !== normalizedCityHint && best.score < 10) {
+        return undefined;
+      }
+    }
+
     return best.candidate;
   };
 
   const candidateQueries = Array.from(queryVariants);
-  const allResults: PhotonFeature[] = [];
+  const allResults: MapboxFeature[] = [];
+
+  const mapboxToken = String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '').trim();
+  if (!mapboxToken) {
+    throw new Error('Map search is not configured. Missing VITE_MAPBOX_ACCESS_TOKEN.');
+  }
 
   for (let index = 0; index < candidateQueries.length; index += 1) {
     const candidateQuery = candidateQueries[index];
 
-    for (const q of makePhotonQueries(candidateQuery)) {
+    for (const q of makeMapboxQueries(candidateQuery)) {
       const params = new URLSearchParams({
-        q,
+        access_token: mapboxToken,
+        autocomplete: intent === 'exact' ? 'false' : 'true',
         limit: '12',
         lang: 'en',
+        country: 'hu',
+        types: intent === 'exact' ? 'address,street,place,locality,neighborhood' : 'poi,address,place,locality,neighborhood',
       });
 
       if (options?.bias) {
-        params.set('lat', String(options.bias.latitude));
-        params.set('lon', String(options.bias.longitude));
+        params.set('proximity', `${options.bias.longitude},${options.bias.latitude}`);
       }
 
-      const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`);
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Mapbox token is invalid or unauthorized for geocoding requests.');
+        }
         continue;
       }
 
-      const payload = (await response.json()) as { features?: PhotonFeature[] };
+      const payload = (await response.json()) as { features?: MapboxFeature[] };
       const results = payload.features ?? [];
 
       if (results.length > 0) {
@@ -420,12 +475,65 @@ async function searchLocation(
     }
   }
 
-  const first = pickBestCandidate(allResults);
-  const coords = first?.geometry?.coordinates;
+  let first = pickBestCandidate(allResults);
+
+  // Fallback: Photon still has better POI coverage for some local business names.
+  if (!first) {
+    for (let index = 0; index < candidateQueries.length; index += 1) {
+      const candidateQuery = candidateQueries[index];
+      for (const q of makeMapboxQueries(candidateQuery)) {
+        const params = new URLSearchParams({
+          q,
+          limit: '12',
+          lang: 'en',
+        });
+
+        if (options?.bias) {
+          params.set('lat', String(options.bias.latitude));
+          params.set('lon', String(options.bias.longitude));
+        }
+
+        const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+        if (!response.ok) {
+          continue;
+        }
+
+        const payload = (await response.json()) as { features?: PhotonFeature[] };
+        const photonResults = payload.features ?? [];
+
+        if (photonResults.length > 0) {
+          const converted = photonResults
+            .filter((feature) => Boolean(feature.geometry?.coordinates))
+            .map((feature): MapboxFeature => {
+              const coords = feature.geometry!.coordinates!;
+              const city = feature.properties?.city;
+              const address = [feature.properties?.street, feature.properties?.housenumber].filter(Boolean).join(' ').trim();
+              const name = feature.properties?.name ?? q;
+
+              return {
+                text: name,
+                place_name: [name, address, city].filter(Boolean).join(', '),
+                center: [coords[0], coords[1]],
+                context: city ? [{ id: 'place.0', text: city }] : [],
+              };
+            });
+
+          allResults.push(...converted);
+        }
+      }
+    }
+
+    first = pickBestCandidate(allResults);
+  }
+
+  const coords = first?.center;
   if (first && coords) {
-    const city = first.properties?.city;
-    const address = [first.properties?.street, first.properties?.housenumber].filter(Boolean).join(' ').trim();
-    const label = [first.properties?.name, address, city].filter(Boolean).join(', ');
+    const city =
+      getMapboxContextValue(first, 'place.') ??
+      getMapboxContextValue(first, 'locality.') ??
+      getMapboxContextValue(first, 'district.');
+    const address = first.properties?.address ? `${first.properties.address}` : undefined;
+    const label = [first.text, address, city].filter(Boolean).join(', ');
 
     const resolved = {
       label: label || normalizedQuery,
@@ -438,7 +546,11 @@ async function searchLocation(
     return resolved;
   }
 
-  throw new Error('No matching location was found. Try adding the city or a nearby landmark.');
+  throw new Error(
+    intent === 'exact'
+      ? 'No exact address match was found. Include street + number + city (for example: Ifjusag utja 6, Pecs).'
+      : 'No matching location was found. Try adding the city or a nearby landmark.',
+  );
 }
 
 function MapViewportController({ points }: { points: Array<[number, number]> }) {
@@ -988,7 +1100,11 @@ export function GeoHelpBoardPage() {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const result = await searchLocation(query, { cityHint: cityFilter || DEFAULT_LOCATION.city, bias: point });
+      const result = await searchLocation(query, {
+        cityHint: cityFilter || DEFAULT_LOCATION.city,
+        bias: point,
+        intent: 'exact',
+      });
       const nextPoint = {
         latitude: result.latitude,
         longitude: result.longitude,
