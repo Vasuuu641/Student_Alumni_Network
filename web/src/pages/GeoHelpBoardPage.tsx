@@ -53,6 +53,7 @@ const GEO_HELP_BOARD_CATEGORY_STORAGE_KEY = 'geo-help-board-category-filter';
 const reverseGeocodeCache = new Map<string, { label: string; city?: string }>();
 const searchGeocodeCache = new Map<string, { label: string; city?: string; latitude: number; longitude: number }>();
 const GOOGLE_MAPS_API_KEY = String((import.meta.env as Record<string, string | undefined>).VITE_GOOGLE_MAPS_API ?? '').trim();
+const GOOGLE_MAP_LIBRARIES: ('places')[] = ['places'];
 
 const TAB_SECTION_MAP: Record<ResourceTab, GeoHelpSpotSection> = {
   OFFICIAL: 'OFFICIAL_RESOURCE',
@@ -235,6 +236,76 @@ async function geocodeWithGoogleMaps(
       }
 
       reject(new Error(`Google Maps geocoding failed (${status}).`));
+    });
+  });
+}
+
+function extractCityFromAddressLabel(label: string): string | undefined {
+  const parts = label
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    return undefined;
+  }
+
+  const middle = parts[parts.length - 2];
+  return middle || undefined;
+}
+
+async function searchWithGooglePlaces(
+  query: string,
+  options?: { cityHint?: string; bias?: Point },
+): Promise<{ label: string; city?: string; latitude: number; longitude: number } | null> {
+  if (typeof window === 'undefined' || !window.google?.maps?.places?.PlacesService) {
+    return null;
+  }
+
+  const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+  const request: google.maps.places.TextSearchRequest = {
+    query: options?.cityHint?.trim() ? `${query}, ${options.cityHint.trim()}` : query,
+    region: 'hu',
+  };
+
+  if (options?.bias) {
+    request.location = new window.google.maps.LatLng(options.bias.latitude, options.bias.longitude);
+    request.radius = 10000;
+  }
+
+  return new Promise((resolve, reject) => {
+    service.textSearch(request, (results, status) => {
+      if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+        const first = results[0];
+        const lat = first.geometry?.location?.lat();
+        const lng = first.geometry?.location?.lng();
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          resolve(null);
+          return;
+        }
+
+        const label = first.formatted_address || first.name || query;
+        resolve({
+          label,
+          city: extractCityFromAddressLabel(label),
+          latitude: Number(lat),
+          longitude: Number(lng),
+        });
+        return;
+      }
+
+      if (status === window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+        resolve(null);
+        return;
+      }
+
+      if (status === window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+        reject(new Error('Google Places request was denied. Enable Places API and verify key restrictions in Google Cloud.'));
+        return;
+      }
+
+      resolve(null);
     });
   });
 }
@@ -455,20 +526,25 @@ async function searchLocation(
         },
       ];
 
+      if (options?.cityHint?.trim()) {
+        requestVariants.push({
+          address: q,
+          region: 'hu',
+          componentRestrictions: {
+            country: 'HU',
+          },
+        });
+      }
+
+      requestVariants.push({
+        address: q,
+        region: 'hu',
+      });
+
       if (intent === 'exact') {
-        requestVariants.push(
-          {
-            address: q,
-            region: 'hu',
-            componentRestrictions: {
-              country: 'HU',
-            },
-          },
-          {
-            address: q,
-            region: 'hu',
-          },
-        );
+        requestVariants.push({
+          address: q,
+        });
       }
 
       for (let requestIndex = 0; requestIndex < requestVariants.length; requestIndex += 1) {
@@ -500,6 +576,18 @@ async function searchLocation(
 
     searchGeocodeCache.set(cacheKey, resolved);
     return resolved;
+  }
+
+  if (intent === 'generic') {
+    const placeResult = await searchWithGooglePlaces(normalizedQuery, {
+      cityHint: options?.cityHint,
+      bias: options?.bias,
+    });
+
+    if (placeResult) {
+      searchGeocodeCache.set(cacheKey, placeResult);
+      return placeResult;
+    }
   }
 
   throw new Error(
@@ -566,6 +654,7 @@ export function GeoHelpBoardPage() {
   const { isLoaded: isMapLoaded, loadError: mapLoadError } = useJsApiLoader({
     id: 'geo-help-google-map',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES,
   });
 
   const currentSection = TAB_SECTION_MAP[activeTab];
