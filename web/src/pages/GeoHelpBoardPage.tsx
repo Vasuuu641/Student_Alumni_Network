@@ -204,6 +204,41 @@ function extractCityFromAddressComponents(addressComponents?: Array<{ long_name?
   return undefined;
 }
 
+function getGoogleGeocoder(): google.maps.Geocoder {
+  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
+    throw new Error('Google Maps is still loading. Wait a moment and try again.');
+  }
+
+  return new window.google.maps.Geocoder();
+}
+
+async function geocodeWithGoogleMaps(
+  request: google.maps.GeocoderRequest,
+): Promise<google.maps.GeocoderResult[]> {
+  const geocoder = getGoogleGeocoder();
+
+  return new Promise((resolve, reject) => {
+    geocoder.geocode(request, (results, status) => {
+      if (status === 'OK' && results) {
+        resolve(results);
+        return;
+      }
+
+      if (status === 'REQUEST_DENIED') {
+        reject(new Error('Google Maps request was denied. Verify API key restrictions and enabled APIs in Google Cloud.'));
+        return;
+      }
+
+      if (status === 'ZERO_RESULTS') {
+        resolve([]);
+        return;
+      }
+
+      reject(new Error(`Google Maps geocoding failed (${status}).`));
+    });
+  });
+}
+
 async function reverseGeocode(point: Point): Promise<{ label: string; city?: string }> {
   if (!GOOGLE_MAPS_API_KEY) {
     throw new Error('Map search is not configured. Missing VITE_GOOGLE_MAPS_API.');
@@ -215,32 +250,14 @@ async function reverseGeocode(point: Point): Promise<{ label: string; city?: str
     return cached;
   }
 
-  const params = new URLSearchParams({
-    latlng: `${point.latitude},${point.longitude}`,
-    key: GOOGLE_MAPS_API_KEY,
-    language: 'en',
+  const results = await geocodeWithGoogleMaps({
+    location: {
+      lat: point.latitude,
+      lng: point.longitude,
+    },
   });
 
-  const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
-
-  if (!response.ok) {
-    throw new Error('Reverse geocoding failed.');
-  }
-
-  const data = (await response.json()) as {
-    status?: string;
-    error_message?: string;
-    results?: Array<{
-      formatted_address?: string;
-      address_components?: Array<{ long_name?: string; types?: string[] }>;
-    }>;
-  };
-
-  if (data.status !== 'OK') {
-    throw new Error(data.error_message || 'Reverse geocoding failed.');
-  }
-
-  const first = data.results?.[0];
+  const first = results[0];
   const city = extractCityFromAddressComponents(first?.address_components);
   const label = city ?? first?.formatted_address ?? 'Detected location';
 
@@ -338,24 +355,22 @@ async function searchLocation(
   const significantQueryTokens = queryTokens.filter((token) => !GENERIC_TOKENS.has(token));
   const hasHouseNumber = /\d/.test(normalizedQuery);
 
-  type GoogleGeocodeResult = {
-    formatted_address?: string;
-    types?: string[];
-    address_components?: Array<{ long_name?: string; types?: string[] }>;
-    geometry?: {
-      location?: {
-        lat?: number;
-        lng?: number;
-      };
-    };
+  type GoogleGeocodeResult = google.maps.GeocoderResult;
+
+  const toCoordinate = (value: number | (() => number) | undefined): number | undefined => {
+    if (typeof value === 'function') {
+      return value();
+    }
+
+    return value;
   };
 
   const pickBestCandidate = (
     candidates: GoogleGeocodeResult[],
   ): GoogleGeocodeResult | undefined => {
     const usable = candidates.filter((candidate) => {
-      const lat = candidate.geometry?.location?.lat;
-      const lng = candidate.geometry?.location?.lng;
+      const lat = toCoordinate(candidate.geometry?.location?.lat);
+      const lng = toCoordinate(candidate.geometry?.location?.lng);
       return Number.isFinite(lat) && Number.isFinite(lng);
     });
 
@@ -364,8 +379,8 @@ async function searchLocation(
     }
 
     const scored = usable.map((candidate) => {
-      const lat = Number(candidate.geometry!.location!.lat);
-      const lng = Number(candidate.geometry!.location!.lng);
+      const lat = Number(toCoordinate(candidate.geometry!.location!.lat));
+      const lng = Number(toCoordinate(candidate.geometry!.location!.lng));
       const candidateCity = extractCityFromAddressComponents(candidate.address_components)?.toLowerCase();
       const candidatePoint: Point = {
         latitude: lat,
@@ -429,50 +444,58 @@ async function searchLocation(
     const candidateQuery = candidateQueries[index];
 
     for (const q of makeCandidateQueries(candidateQuery)) {
-      const params = new URLSearchParams({
-        address: q,
-        key: GOOGLE_MAPS_API_KEY,
-        language: 'en',
-        region: 'hu',
-      });
+      const requestVariants: google.maps.GeocoderRequest[] = [
+        {
+          address: q,
+          region: 'hu',
+          componentRestrictions: {
+            country: 'HU',
+            ...(options?.cityHint?.trim() ? { locality: options.cityHint.trim() } : {}),
+          },
+        },
+      ];
 
-      if (options?.cityHint) {
-        params.set('components', `country:HU|locality:${options.cityHint}`);
+      if (intent === 'exact') {
+        requestVariants.push(
+          {
+            address: q,
+            region: 'hu',
+            componentRestrictions: {
+              country: 'HU',
+            },
+          },
+          {
+            address: q,
+            region: 'hu',
+          },
+        );
       }
 
-      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
-      if (!response.ok) {
-        continue;
-      }
+      for (let requestIndex = 0; requestIndex < requestVariants.length; requestIndex += 1) {
+        const results = await geocodeWithGoogleMaps(requestVariants[requestIndex]);
 
-      const payload = (await response.json()) as {
-        status?: string;
-        results?: GoogleGeocodeResult[];
-        error_message?: string;
-      };
-      if (payload.status === 'REQUEST_DENIED') {
-        throw new Error(payload.error_message || 'Google Maps API key is invalid or Geocoding API is disabled.');
-      }
-
-      const results = payload.results ?? [];
-
-      if (results.length > 0) {
-        allResults.push(...results);
+        if (results.length > 0) {
+          allResults.push(...results);
+          break;
+        }
       }
     }
   }
 
   const first = pickBestCandidate(allResults);
 
-  if (first?.geometry?.location?.lat !== undefined && first.geometry.location.lng !== undefined) {
+  const firstLat = toCoordinate(first?.geometry?.location?.lat);
+  const firstLng = toCoordinate(first?.geometry?.location?.lng);
+
+  if (first && firstLat !== undefined && firstLng !== undefined) {
     const city = extractCityFromAddressComponents(first.address_components);
     const label = first.formatted_address || normalizedQuery;
 
     const resolved = {
       label,
       city,
-      latitude: Number(first.geometry.location.lat),
-      longitude: Number(first.geometry.location.lng),
+      latitude: Number(firstLat),
+      longitude: Number(firstLng),
     };
 
     searchGeocodeCache.set(cacheKey, resolved);
