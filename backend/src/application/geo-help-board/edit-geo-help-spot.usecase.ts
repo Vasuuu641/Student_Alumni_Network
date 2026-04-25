@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { GeoHelpSpot, GeoHelpSpotCategory } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotSection } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpBoardForbiddenError, GeoHelpBoardNotFoundError, GeoHelpBoardValidationError } from './geo-help-board.errors';
 
@@ -13,6 +13,7 @@ export interface EditGeoHelpSpotRequest {
   address?: string | null;
   latitude?: number;
   longitude?: number;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
 }
 
@@ -49,6 +50,7 @@ export class EditGeoHelpSpotUseCase {
       address: request.address === undefined ? undefined : request.address?.trim() || null,
       latitude: request.latitude,
       longitude: request.longitude,
+      section: request.section,
       category: request.category,
     });
   }
