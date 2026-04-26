@@ -44,7 +44,7 @@ interface RoomPermission {
 })
 export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Namespace;
+  server!: Namespace;
 
   private readonly logger = new Logger(NotesGateway.name);
 
@@ -267,8 +267,36 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  // Deprecated: kept to prevent token burn from legacy clients that emit on each keystroke.
+  // Cohere is only called from `notes:request-related-threads`.
   @SubscribeMessage('notes:typing-related-threads')
-  async handleTypingRelatedThreads(
+  handleTypingRelatedThreads(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string },
+  ) {
+    const session: SocketSession = socket.data.session;
+
+    if (!session) {
+      return this.emitError(socket, 'Unauthorized');
+    }
+
+    if (!this.isInRoom(socket, data.noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    socket.emit('notes:related-threads', {
+      noteId: data.noteId,
+      results: [],
+      mode: 'manual-request-required',
+    });
+
+    this.logger.debug(
+      `Ignored legacy typing-related-threads event: user=${session.userId} note=${data.noteId}`,
+    );
+  }
+
+  @SubscribeMessage('notes:request-related-threads')
+  async handleRequestRelatedThreads(
     @ConnectedSocket() socket: Socket,
     @MessageBody() data: { noteId: string; title: string; contentJson: unknown },
   ) {
@@ -303,10 +331,12 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       this.logger.log(
-        `Related threads search: user=${session.userId} note=${data.noteId} results=${results.length}`,
+        `Related threads search (manual): user=${session.userId} note=${data.noteId} results=${results.length}`,
       );
     } catch (error) {
-      this.logger.error(`Related threads search failed: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Related threads search failed: ${errorMessage}`);
       socket.emit('notes:related-threads', { noteId: data.noteId, results: [] });
     }
   }
