@@ -3,29 +3,22 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
-  CalendarDays,
   ChevronDown,
   Clock3,
   Compass,
-  FolderOpen,
-  LayoutDashboard,
   LogOut,
-  MessageCircle,
   MessageSquare,
   MessagesSquare,
-  NotebookText,
-  Plus,
   Sparkles,
-  TrendingUp,
   User,
-  UserPlus,
   Users,
 } from 'lucide-react';
 import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken, type UserRole } from '../lib/auth';
 import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api';
 import { listUserNotes } from '../api/notes.api';
+import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
-import { PlatformTopNav, type PlatformTopNavItem } from '../components/PlatformTopNav';
+import { PlatformTopNav } from '../components/PlatformTopNav';
 
 function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
   if (!profilePictureUrl) {
@@ -67,6 +60,7 @@ export function DashboardPage() {
   const [profileLoading, setProfileLoading] = useState(Boolean(token));
   const [notesCount, setNotesCount] = useState(0);
   const [discussionCount, setDiscussionCount] = useState(0);
+  const [studyGroupsCount, setStudyGroupsCount] = useState(0);
   const [recentDiscussions, setRecentDiscussions] = useState<Thread[]>([]);
   const [statsLoading, setStatsLoading] = useState(Boolean(token));
   const [placeholderNotice, setPlaceholderNotice] = useState<string | null>(null);
@@ -119,8 +113,9 @@ export function DashboardPage() {
     async function loadDashboardStats() {
       try {
         setStatsLoading(true);
-        const [notesResponse, ...threadResponses] = await Promise.all([
+        const [notesResponse, studyGroupsResponse, ...threadResponses] = await Promise.all([
           listUserNotes(),
+          listStudyGroups(),
           ...panels.map((panel) => listThreads({ panel, sortBy: 'newest', take: 25 })),
         ]);
 
@@ -129,8 +124,10 @@ export function DashboardPage() {
         }
 
         setNotesCount(notesResponse.notes.length);
+        setStudyGroupsCount(studyGroupsResponse.filter((group) => group.status !== 'DELETED').length);
         const totalThreads = threadResponses.reduce((sum, response) => sum + response.total, 0);
         setDiscussionCount(totalThreads);
+        
 
         const merged = threadResponses
           .flatMap((response) => response.threads)
@@ -142,6 +139,7 @@ export function DashboardPage() {
         if (!cancelled) {
           setNotesCount(0);
           setDiscussionCount(0);
+          setStudyGroupsCount(0);
           setRecentDiscussions([]);
         }
       } finally {
@@ -231,18 +229,9 @@ export function DashboardPage() {
     return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
 
-  const topNavItems: PlatformTopNavItem[] = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/notes', label: 'Notes', icon: NotebookText },
-    { to: '/threads', label: 'Discussions', icon: MessageCircle },
-    { to: '/geo-help-board', label: 'Geo Help Board', icon: Compass },
-    { label: 'More', icon: Sparkles, onClick: () => openPlaceholder('More') },
-  ];
-
   return (
     <main className="dashboard-v2">
       <PlatformTopNav
-        items={topNavItems}
         rightContent={(
           <div className="dashboard-v2__topbar-actions">
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Theme settings')}>
@@ -312,10 +301,6 @@ export function DashboardPage() {
             <h1>Welcome back, {firstName}!</h1>
             <p>Here&apos;s what&apos;s happening in your academic community</p>
           </div>
-          <button type="button" className="dashboard-v2__new-note" onClick={() => navigate('/notes')}>
-            <Plus size={16} />
-            New Note
-          </button>
         </div>
 
         <section className="dashboard-v2__stats" aria-label="Dashboard highlights">
@@ -339,12 +324,13 @@ export function DashboardPage() {
 
           <article className="dashboard-v2__stat-card">
             <div className="dashboard-v2__stat-head">
-              <span>Profile Views</span>
-              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><TrendingUp size={16} /></div>
+              <span>Study Groups Joined</span>
+              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><Users size={16} /></div>
             </div>
-            <strong>--</strong>
-            <button type="button" onClick={() => openPlaceholder('Profile analytics')}>View profile</button>
+            <strong>{statsLoading ? '...' : studyGroupsCount}</strong>
+            <Link to="/study-groups">Join Study Groups</Link>
           </article>
+
         </section>
 
         <section className="dashboard-v2__content-grid">
@@ -433,26 +419,6 @@ export function DashboardPage() {
               <p>AI-Powered</p>
               <small>Write notes and discover related discussions from your academic community in real-time.</small>
               <button type="button" onClick={() => openPlaceholder('Smart Notes')}>Try Smart Notes</button>
-            </section>
-
-            <section className="dashboard-v2__side-card dashboard-v2__side-card--links">
-              <h3>Quick Links</h3>
-              <button type="button" className="dashboard-v2__quick-link dashboard-v2__quick-link--highlight" onClick={() => openPlaceholder('Find a Mentor')}>
-                <UserPlus size={14} />
-                Find a Mentor
-              </button>
-              <button type="button" className="dashboard-v2__quick-link" onClick={() => navigate('/study-groups')}>
-                <Users size={14} />
-                Study Groups
-              </button>
-              <button type="button" className="dashboard-v2__quick-link" onClick={() => openPlaceholder('Campus Events')}>
-                <CalendarDays size={14} />
-                Campus Events
-              </button>
-              <button type="button" className="dashboard-v2__quick-link" onClick={() => openPlaceholder('Resources & FAQs')}>
-                <FolderOpen size={14} />
-                Resources & FAQs
-              </button>
             </section>
           </aside>
         </section>
