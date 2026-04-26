@@ -1,6 +1,9 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { socket } from '../lib/socket'
 import type { RelatedThread } from '../api/notes.api'
+
+const MIN_CONTENT_CHARS = 20
+const REQUEST_COOLDOWN_MS = 5000
 
 interface UseNoteRelatedThreadsProps {
   noteId: string
@@ -17,49 +20,60 @@ export function useNoteRelatedThreads({
 }: UseNoteRelatedThreadsProps) {
   const [relatedThreads, setRelatedThreads] = useState<RelatedThread[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [hasRequested, setHasRequested] = useState(false)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+
+  const cooldownRemainingMs = Math.max(0, cooldownUntil - now)
 
   useEffect(() => {
     if (!enabled) {
       setRelatedThreads([])
       setIsLoading(false)
-      return
+      setHasRequested(false)
+      setCooldownUntil(0)
     }
+  }, [enabled])
 
-    // Debounce the search - wait 350ms after content stops changing before searching
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
+  useEffect(() => {
+    if (cooldownRemainingMs <= 0) return
+
+    const timer = window.setInterval(() => {
+      setNow(Date.now())
+    }, 250)
+
+    return () => {
+      window.clearInterval(timer)
     }
+  }, [cooldownRemainingMs])
 
-    // Calculate content length for minimum threshold check
+  const requestRelatedThreads = useCallback(() => {
+    if (!enabled) return
+    if (cooldownRemainingMs > 0) return
+
     const contentText = title + ' ' + JSON.stringify(contentJson ?? '')
-    if (contentText.trim().length < 20) {
+    setHasRequested(true)
+
+    if (contentText.trim().length < MIN_CONTENT_CHARS) {
       setRelatedThreads([])
       setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
-
-    debounceTimerRef.current = setTimeout(() => {
-      if (!socket.connected) {
-        setIsLoading(false)
-        return
-      }
-
-      socket.emit('notes:typing-related-threads', {
-        noteId,
-        title,
-        contentJson,
-      })
-    }, 350)
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
+    if (!socket.connected) {
+      setIsLoading(false)
+      return
     }
-  }, [noteId, title, contentJson, enabled])
+
+    setIsLoading(true)
+    socket.emit('notes:request-related-threads', {
+      noteId,
+      title,
+      contentJson,
+    })
+    setCooldownUntil(Date.now() + REQUEST_COOLDOWN_MS)
+    setNow(Date.now())
+  }, [enabled, cooldownRemainingMs, noteId, title, contentJson])
 
   // Listen for related threads results
   useEffect(() => {
@@ -81,5 +95,9 @@ export function useNoteRelatedThreads({
   return {
     threads: relatedThreads,
     isLoading,
+    hasRequested,
+    minContentChars: MIN_CONTENT_CHARS,
+    cooldownRemainingMs,
+    requestRelatedThreads,
   }
 }

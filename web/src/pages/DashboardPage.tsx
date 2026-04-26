@@ -343,8 +343,8 @@ export function DashboardPage() {
                   Notes
                 </button>
                 <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/threads')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--blue"><MessageSquare size={16} /></span>
-                  Academic
+                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--gold"><MessageSquare size={16} /></span>
+                  Discussions
                 </button>
                 <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/geo-help-board')}>
                   <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><Compass size={16} /></span>

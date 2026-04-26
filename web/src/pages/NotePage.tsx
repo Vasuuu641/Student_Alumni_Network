@@ -129,12 +129,25 @@ export function NotePage() {
 
   // ─── LLM Related Threads ──────────────────────────────────────────────────
 
-  const { threads: relatedThreads, isLoading: llmLoading } = useNoteRelatedThreads({
+  const {
+    threads: relatedThreads,
+    isLoading: llmLoading,
+    hasRequested: hasRequestedRelatedThreads,
+    minContentChars,
+    cooldownRemainingMs,
+    requestRelatedThreads,
+  } = useNoteRelatedThreads({
     noteId: noteId!,
     title: note?.title ?? '',
     contentJson: editorContent,
     enabled: showLLMPanel && room.status === 'joined',
   })
+
+  const relatedThreadsInput = `${note?.title ?? ''} ${JSON.stringify(editorContent ?? '')}`
+  const canRequestRelatedThreads =
+    room.status === 'joined' &&
+    relatedThreadsInput.trim().length >= minContentChars &&
+    cooldownRemainingMs <= 0
 
 // Flush on SPA navigation away — back button, notes list link etc.
 useEffect(() => {
@@ -405,6 +418,10 @@ useEffect(() => {
           <RelatedThreadsPanel
             threads={relatedThreads}
             isLoading={llmLoading}
+            hasRequested={hasRequestedRelatedThreads}
+            canRequestSuggestions={canRequestRelatedThreads}
+            cooldownRemainingMs={cooldownRemainingMs}
+            onRequestSuggestions={requestRelatedThreads}
             onClose={() => setShowLLMPanel(false)}
           />
         )}
