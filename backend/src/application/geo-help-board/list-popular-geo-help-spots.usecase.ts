@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { GeoHelpSpot, GeoHelpSpotCategory } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotSection } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 
 export interface ListPopularGeoHelpSpotsRequest {
   city?: string;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
@@ -25,6 +26,7 @@ export class ListPopularGeoHelpSpotsUseCase {
 
     return this.geoHelpBoardRepository.listPopularSpots({
       city: request.city?.trim(),
+      section: request.section,
       category: request.category,
       isActive: true,
       limit,

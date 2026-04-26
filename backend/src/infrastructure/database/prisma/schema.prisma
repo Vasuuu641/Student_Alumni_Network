@@ -524,14 +524,23 @@ model StudyGroupAuditEvent {
 // Geo-based help board
 
 enum GeoHelpSpotCategory {
-  STUDY_SPACE
-  FOOD
-  TRANSPORT
-  HOUSING
-  HEALTH
-  GYM
-  LIBRARY
+  UNIVERSITY_SERVICE
+  ACADEMIC_DEPARTMENT
+  ADMIN_OFFICE
+  STUDENT_SUPPORT
+  CAMPUS_FACILITY
+  RESTAURANT
+  CAFE
+  STUDY_SPOT
+  SOCIAL_HANGOUT
+  FITNESS_WELLNESS
+  SHOPPING
   OTHER
+}
+
+enum GeoHelpSpotSection {
+  OFFICIAL_RESOURCE
+  COMMUNITY_PICK
 }
 
 enum GeoHelpSpotReviewStatus {
@@ -548,6 +557,7 @@ model GeoHelpSpot {
   address     String?
   latitude    Decimal             @db.Decimal(9, 6)
   longitude   Decimal             @db.Decimal(9, 6)
+  section     GeoHelpSpotSection  @default(COMMUNITY_PICK)
   category    GeoHelpSpotCategory @default(OTHER)
   createdById String
   isActive    Boolean             @default(true)
@@ -562,8 +572,8 @@ model GeoHelpSpot {
   reviewedBy User?             @relation("GeoHelpSpotReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   visits    GeoHelpSpotVisit[]
 
-  @@index([city, category, reviewStatus])
-  @@index([city, visitCount, reviewStatus])
+  @@index([city, section, category, reviewStatus])
+  @@index([city, section, visitCount, reviewStatus])
   @@index([latitude, longitude])
   @@index([createdById])
   @@index([reviewedById, reviewedAt])

@@ -18,14 +18,19 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export type AuthorizedRole = 'STUDENT' | 'ALUMNI' | 'PROFESSOR' | 'ADMIN';
 export type GeoReviewStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type GeoSection = 'OFFICIAL_RESOURCE' | 'COMMUNITY_PICK';
 export type GeoCategory =
-  | 'STUDY_SPACE'
-  | 'FOOD'
-  | 'TRANSPORT'
-  | 'HOUSING'
-  | 'HEALTH'
-  | 'GYM'
-  | 'LIBRARY'
+  | 'UNIVERSITY_SERVICE'
+  | 'ACADEMIC_DEPARTMENT'
+  | 'ADMIN_OFFICE'
+  | 'STUDENT_SUPPORT'
+  | 'CAMPUS_FACILITY'
+  | 'RESTAURANT'
+  | 'CAFE'
+  | 'STUDY_SPOT'
+  | 'SOCIAL_HANGOUT'
+  | 'FITNESS_WELLNESS'
+  | 'SHOPPING'
   | 'OTHER';
 
 export interface AuthorizedUser {
@@ -45,6 +50,7 @@ export interface GeoSpotForReview {
   address: string | null;
   latitude: number;
   longitude: number;
+  section: GeoSection;
   category: GeoCategory;
   createdById: string;
   isActive: boolean;
@@ -115,6 +121,7 @@ export async function deleteAuthorizedUser(id: string): Promise<{ message: strin
 
 export async function listGeoReviewQueue(params?: {
   city?: string;
+  section?: GeoSection;
   category?: GeoCategory;
   reviewStatus?: GeoReviewStatus;
   isActive?: boolean;
@@ -139,6 +146,15 @@ export async function reviewGeoSpot(spotId: string, isVerified: boolean): Promis
     return data;
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Failed to review geo spot request.'));
+  }
+}
+
+export async function deactivateGeoSpot(spotId: string): Promise<GeoSpotForReview> {
+  try {
+    const { data } = await api.patch<GeoSpotForReview>(`/geo-help-board/spots/${spotId}/deactivate`);
+    return data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, 'Failed to delete geo spot.'));
   }
 }
 

@@ -8,7 +8,7 @@ import type {
   ListGeoHelpSpotsFilter,
   UpdateGeoHelpSpotInput,
 } from '../../domain/repositories/geo-help-board.repository';
-import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotSection, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 
 @Injectable()
 export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
@@ -23,6 +23,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         address: input.address ?? null,
         latitude: input.latitude,
         longitude: input.longitude,
+        section: input.section,
         category: input.category,
         createdById: input.createdById,
         reviewStatus: GeoHelpSpotReviewStatus.PENDING,
@@ -51,6 +52,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
       where: {
         isActive: true,
         city: input.city,
+        section: input.section,
         category: input.category,
         latitude: {
           gte: minLat,
@@ -96,6 +98,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         address: input.address,
         latitude: input.latitude,
         longitude: input.longitude,
+        section: input.section,
         category: input.category,
       } as any,
     });
@@ -132,6 +135,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     const records = await this.prisma.geoHelpSpot.findMany({
       where: {
         city: filter.city,
+        section: filter.section,
         category: filter.category,
         isActive: filter.isActive ?? true,
         reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
@@ -151,6 +155,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     const records = await this.prisma.geoHelpSpot.findMany({
       where: {
         city: filter.city,
+        section: filter.section,
         category: filter.category,
         isActive: filter.isActive,
         reviewStatus: filter.reviewStatus,
@@ -168,6 +173,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
     longitude: number;
     radiusKm: number;
     city?: string;
+    section?: GeoHelpSpotSection;
     category?: GeoHelpSpotCategory;
     limit?: number;
     offset?: number;
@@ -188,6 +194,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
         isActive: true,
         reviewStatus: GeoHelpSpotReviewStatus.VERIFIED,
         city: params.city,
+        section: params.section,
         category: params.category,
         latitude: {
           gte: minLat,
@@ -259,6 +266,7 @@ export class PrismaGeoHelpBoardRepository implements GeoHelpBoardRepository {
       record.address,
       Number(record.latitude),
       Number(record.longitude),
+      record.section as GeoHelpSpotSection,
       record.category as GeoHelpSpotCategory,
       record.createdById,
       record.isActive,

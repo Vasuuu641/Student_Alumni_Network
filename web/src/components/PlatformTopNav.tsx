@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LayoutDashboard, MessageSquare, NotebookText, Users, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, MapPinned, MessageSquare, NotebookText, Users, type LucideIcon } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import { NavLink } from 'react-router-dom';
@@ -16,6 +16,7 @@ const DEFAULT_ITEMS: PlatformTopNavItem[] = [
   { to: '/notes', label: 'Notes', icon: NotebookText },
   { to: '/threads', label: 'Threads', icon: MessageSquare },
   { to: '/study-groups', label: 'Study Groups', icon: Users },
+  { to: '/geo-help-board', label: 'Geo Help', icon: MapPinned },
 ];
 
 interface PlatformTopNavProps {

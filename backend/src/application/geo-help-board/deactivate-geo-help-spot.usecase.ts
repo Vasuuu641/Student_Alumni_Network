@@ -22,7 +22,11 @@ export class DeactivateGeoHelpSpotUseCase {
       throw new GeoHelpBoardNotFoundError('Spot not found');
     }
 
-    if (request.requesterId !== spot.createdById && request.requesterRole !== 'ADMIN') {
+    const isAdmin = request.requesterRole === 'ADMIN';
+    const isStudent = request.requesterRole === 'STUDENT';
+    const isOwner = request.requesterId === spot.createdById;
+
+    if (!isAdmin && !isStudent && !isOwner) {
       throw new GeoHelpBoardForbiddenError('You are not allowed to deactivate this spot');
     }
 

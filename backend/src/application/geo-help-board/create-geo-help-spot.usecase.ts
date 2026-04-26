@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { GeoHelpSpot, GeoHelpSpotCategory } from '../../domain/entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotSection } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpBoardConflictError, GeoHelpBoardValidationError } from './geo-help-board.errors';
 
@@ -10,6 +10,7 @@ export interface CreateGeoHelpSpotRequest {
   address?: string | null;
   latitude: number;
   longitude: number;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   createdById: string;
 }
@@ -26,6 +27,7 @@ export class CreateGeoHelpSpotUseCase {
     const city = request.city.trim();
     const address = request.address?.trim() || null;
     const description = request.description?.trim() || null;
+    const section = request.section ?? GeoHelpSpotSection.COMMUNITY_PICK;
     const category = request.category ?? GeoHelpSpotCategory.OTHER;
 
     if (request.latitude < -90 || request.latitude > 90) {
@@ -39,6 +41,7 @@ export class CreateGeoHelpSpotUseCase {
     const duplicate = await this.geoHelpBoardRepository.findPotentialDuplicate({
       title,
       city,
+      section,
       category,
       latitude: request.latitude,
       longitude: request.longitude,
@@ -56,6 +59,7 @@ export class CreateGeoHelpSpotUseCase {
       address,
       latitude: request.latitude,
       longitude: request.longitude,
+      section,
       category,
       createdById: request.createdById,
     });

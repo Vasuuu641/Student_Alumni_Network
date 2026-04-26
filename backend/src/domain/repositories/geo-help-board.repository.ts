@@ -1,4 +1,4 @@
-import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../entities/geo-help-spot.entity';
+import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotReviewStatus, GeoHelpSpotSection, GeoHelpSpotVisit, GeoHelpSpotWithDistance } from '../entities/geo-help-spot.entity';
 
 export interface CreateGeoHelpSpotInput {
   title: string;
@@ -7,6 +7,7 @@ export interface CreateGeoHelpSpotInput {
   address?: string | null;
   latitude: number;
   longitude: number;
+  section: GeoHelpSpotSection;
   category: GeoHelpSpotCategory;
   createdById: string;
 }
@@ -19,6 +20,7 @@ export interface UpdateGeoHelpSpotInput {
   address?: string | null;
   latitude?: number;
   longitude?: number;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
 }
 
@@ -31,6 +33,7 @@ export interface ReviewGeoHelpSpotInput {
 export interface DuplicateGeoHelpSpotCheckInput {
   title: string;
   city: string;
+  section: GeoHelpSpotSection;
   category: GeoHelpSpotCategory;
   latitude: number;
   longitude: number;
@@ -39,6 +42,7 @@ export interface DuplicateGeoHelpSpotCheckInput {
 
 export interface ListGeoHelpSpotsFilter {
   city?: string;
+  section?: GeoHelpSpotSection;
   category?: GeoHelpSpotCategory;
   isActive?: boolean;
   limit?: number;
@@ -63,6 +67,7 @@ export interface GeoHelpBoardRepository {
     longitude: number;
     radiusKm: number;
     city?: string;
+    section?: GeoHelpSpotSection;
     category?: GeoHelpSpotCategory;
     limit?: number;
     offset?: number;
