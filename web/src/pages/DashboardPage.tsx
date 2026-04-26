@@ -6,12 +6,9 @@ import {
   ChevronDown,
   Clock3,
   Compass,
-  LayoutDashboard,
   LogOut,
-  MessageCircle,
   MessageSquare,
   MessagesSquare,
-  NotebookText,
   Sparkles,
   User,
   Users,
@@ -21,7 +18,7 @@ import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api'
 import { listUserNotes } from '../api/notes.api';
 import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
-import { PlatformTopNav, type PlatformTopNavItem } from '../components/PlatformTopNav';
+import { PlatformTopNav } from '../components/PlatformTopNav';
 
 function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
   if (!profilePictureUrl) {
@@ -232,18 +229,9 @@ export function DashboardPage() {
     return baseThreads.slice(0, 3);
   }, [recentDiscussions, userId]);
 
-  const topNavItems: PlatformTopNavItem[] = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/notes', label: 'Notes', icon: NotebookText },
-    { to: '/threads', label: 'Discussions', icon: MessageCircle },
-    { to: '/geo-help-board', label: 'Geo Help Board', icon: Compass },
-    { label: 'More', icon: Sparkles, onClick: () => openPlaceholder('More') },
-  ];
-
   return (
     <main className="dashboard-v2">
       <PlatformTopNav
-        items={topNavItems}
         rightContent={(
           <div className="dashboard-v2__topbar-actions">
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Theme settings')}>
