@@ -2490,6 +2490,11 @@
     color: #8b45f7;
   }
 
+  .dashboard-v2__quick-icon--gold {
+    background: #fff4db;
+    color: #c07400;
+  }
+
   .dashboard-v2__quick-icon--green {
     background: #e7f9eb;
     color: #23954f;
