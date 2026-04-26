@@ -5,6 +5,10 @@ import type { RelatedThread } from '../../api/notes.api'
 interface RelatedThreadsPanelProps {
   threads: RelatedThread[]
   isLoading: boolean
+  hasRequested: boolean
+  canRequestSuggestions: boolean
+  cooldownRemainingMs: number
+  onRequestSuggestions: () => void
   onClose: () => void
 }
 
@@ -15,8 +19,17 @@ function getSimilarityColor(score: number): string {
   return 'text-gray-600'
 }
 
-export function RelatedThreadsPanel({ threads, isLoading, onClose }: RelatedThreadsPanelProps) {
+export function RelatedThreadsPanel({
+  threads,
+  isLoading,
+  hasRequested,
+  canRequestSuggestions,
+  cooldownRemainingMs,
+  onRequestSuggestions,
+  onClose,
+}: RelatedThreadsPanelProps) {
   const navigate = useNavigate()
+  const cooldownSeconds = Math.ceil(cooldownRemainingMs / 1000)
 
   const handleThreadClick = (threadId: string) => {
     navigate(`/threads/${threadId}`)
@@ -39,6 +52,21 @@ export function RelatedThreadsPanel({ threads, isLoading, onClose }: RelatedThre
         </button>
       </div>
 
+      <div className="notes-llm-actions">
+        <button
+          type="button"
+          className="notes-llm-request-btn"
+          onClick={onRequestSuggestions}
+          disabled={isLoading || !canRequestSuggestions || cooldownRemainingMs > 0}
+        >
+          {isLoading
+            ? 'Finding suggestions…'
+            : cooldownRemainingMs > 0
+              ? `Try again in ${cooldownSeconds}s`
+              : 'Get AI Suggestions'}
+        </button>
+      </div>
+
       {/* Content */}
       <div className="notes-llm-content">
         {isLoading ? (
@@ -49,7 +77,13 @@ export function RelatedThreadsPanel({ threads, isLoading, onClose }: RelatedThre
         ) : threads.length === 0 ? (
           <div className="notes-llm-empty">
             <MessageCircle size={20} />
-            <p>Write more to find similar discussions</p>
+            <p>
+              {!hasRequested
+                ? 'Press Get AI Suggestions to find related discussions.'
+                : canRequestSuggestions
+                  ? 'No related discussions found for this note yet.'
+                  : 'Write a bit more before requesting suggestions.'}
+            </p>
           </div>
         ) : (
           <div className="notes-llm-threads">
@@ -108,7 +142,7 @@ export function RelatedThreadsPanel({ threads, isLoading, onClose }: RelatedThre
 
       {/* Footer hint */}
       <div className="notes-llm-footer">
-        <p>Real-time suggestions as you write</p>
+        <p>Suggestions are fetched only when you request them.</p>
       </div>
     </aside>
   )
