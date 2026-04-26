@@ -1,9 +1,12 @@
 // src/pages/NotesListPage.tsx
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { listUserNotes, createNote, updateNote, type Note, type NoteStatus } from '../api/notes.api'
 import { getAccessToken } from '../lib/auth'
-import { FileText, Plus, Clock, Archive, BookOpen, LogOut, ChevronRight } from 'lucide-react'
+import { FileText, Plus, Clock, Archive } from 'lucide-react'
+import { PlatformTopNav } from '../components/PlatformTopNav'
+
+type NoteFilter = NoteStatus | 'ALL'
 
 export function NotesListPage() {
   const navigate = useNavigate()
@@ -15,12 +18,12 @@ export function NotesListPage() {
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [filter, setFilter] = useState<NoteStatus | 'ALL'>('ALL')
+  const [filter, setFilter] = useState<NoteFilter>('ALL')
 
   // Redirect if not logged in
-  useEffect(() => {
-    if (!token) navigate('/login', { replace: true })
-  }, [token, navigate])
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
 
   const fetchNotes = useCallback(async () => {
     try {
@@ -62,80 +65,33 @@ export function NotesListPage() {
     }
   }
 
-  function handleLogout() {
-    localStorage.removeItem('unibridge.accessToken')
-    localStorage.removeItem('unibridge.refreshToken')
-    navigate('/login', { replace: true })
-  }
-
   const filtered = notes.filter((n) => filter === 'ALL' || n.status === filter)
   const activeCount = notes.filter((n) => n.status === 'ACTIVE').length
   const archivedCount = notes.filter((n) => n.status === 'ARCHIVED').length
 
+  const filterOptions: Array<{ label: string; value: NoteFilter; count: number }> = [
+    { label: 'All notes', value: 'ALL', count: notes.length },
+    { label: 'Active', value: 'ACTIVE', count: activeCount },
+    { label: 'Archived', value: 'ARCHIVED', count: archivedCount },
+  ]
+
   return (
-    <div className="notes-list-page">
-      {/* ─── Sidebar ──────────────────────────────────────────────────── */}
-      <aside className="notes-sidebar">
-        <div className="notes-sidebar__brand">
-          <div className="brand-icon" style={{ width: '2.2rem', height: '2.2rem' }}>
-            <BookOpen size={16} />
-          </div>
-          <span className="notes-sidebar__brand-name">UniBridge</span>
-        </div>
+    <main className="notes-list-page-modern">
+      <PlatformTopNav />
 
-        <nav className="notes-sidebar__nav">
-          <button
-            className={`notes-sidebar__nav-item ${filter === 'ALL' ? 'notes-sidebar__nav-item--active' : ''}`}
-            onClick={() => setFilter('ALL')}
-          >
-            <FileText size={15} />
-            <span>All notes</span>
-            <span className="notes-sidebar__nav-count">{notes.length}</span>
-          </button>
-          <button
-            className={`notes-sidebar__nav-item ${filter === 'ACTIVE' ? 'notes-sidebar__nav-item--active' : ''}`}
-            onClick={() => setFilter('ACTIVE')}
-          >
-            <BookOpen size={15} />
-            <span>Active</span>
-            <span className="notes-sidebar__nav-count">{activeCount}</span>
-          </button>
-          <button
-            className={`notes-sidebar__nav-item ${filter === 'ARCHIVED' ? 'notes-sidebar__nav-item--active' : ''}`}
-            onClick={() => setFilter('ARCHIVED')}
-          >
-            <Archive size={15} />
-            <span>Archived</span>
-            <span className="notes-sidebar__nav-count">{archivedCount}</span>
-          </button>
-        </nav>
-
-        <div className="notes-sidebar__footer">
-          <button className="notes-sidebar__nav-item" onClick={() => navigate('/dashboard')}>
-            <ChevronRight size={15} />
-            <span>Dashboard</span>
-          </button>
-          <button className="notes-sidebar__nav-item" onClick={handleLogout}>
-            <LogOut size={15} />
-            <span>Log out</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* ─── Main ─────────────────────────────────────────────────────── */}
-      <main className="notes-list-main">
-        {/* Header */}
-        <div className="notes-list-header">
+      <div className="notes-list-container">
+        {/* ─── Header Row ──────────────────────────────────────────────── */}
+        <div className="notes-list-header-modern">
           <div>
-            <h1 className="notes-list-header__title">
+            <h1 className="notes-list-title">
               {filter === 'ALL' ? 'My Notes' : filter === 'ACTIVE' ? 'Active Notes' : 'Archived Notes'}
             </h1>
-            <p className="notes-list-header__sub">
+            <p className="notes-list-subtitle">
               {filtered.length} {filtered.length === 1 ? 'document' : 'documents'}
             </p>
           </div>
           <button
-            className="notes-create-btn"
+            className="notes-create-btn-modern"
             onClick={() => setShowCreateForm((v) => !v)}
           >
             <Plus size={16} />
@@ -143,9 +99,23 @@ export function NotesListPage() {
           </button>
         </div>
 
-        {/* Create form */}
+        {/* ─── Filter Tabs ──────────────────────────────────────────────── */}
+        <div className="notes-filter-tabs">
+          {filterOptions.map((option) => (
+            <button
+              key={option.value}
+              className={`notes-filter-tab ${filter === option.value ? 'notes-filter-tab--active' : ''}`}
+              onClick={() => setFilter(option.value)}
+            >
+              {option.label}
+              <span className="notes-filter-count">{option.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ─── Create form ──────────────────────────────────────────────── */}
         {showCreateForm && (
-          <form onSubmit={handleCreate} className="notes-create-form">
+          <form onSubmit={handleCreate} className="notes-create-form-modern">
             <div className="input-shell" style={{ flex: 1 }}>
               <div className="input-icon"><FileText size={16} /></div>
               <input
@@ -174,13 +144,14 @@ export function NotesListPage() {
           </form>
         )}
 
-        {/* Error */}
+        {/* ─── Error ────────────────────────────────────────────────────── */}
         {error && (
           <div className="status-banner status-banner--error" style={{ marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
+        {/* ─── Content ──────────────────────────────────────────────────── */}
         {/* Loading */}
         {loading && (
           <div className="notes-empty-state">
@@ -222,8 +193,8 @@ export function NotesListPage() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
 
