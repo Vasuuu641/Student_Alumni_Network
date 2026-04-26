@@ -6,7 +6,8 @@ import { FileStorageService, FileUploadRequest } from '../../domain/services/fil
 
 @Injectable()
 export class LocalFileStorageService implements FileStorageService {
-  private readonly uploadsDir = path.join(process.cwd(), 'uploads');
+  // Resolve to backend/uploads in both src and dist runtime layouts.
+  private readonly uploadsDir = path.resolve(__dirname, '..', '..', '..', 'uploads');
   private readonly baseUrl = '/uploads';
   private readonly validMimeTypes = ['image/jpeg', 'image/png'];
   private readonly maxSize = 5 * 1024 * 1024; // 5MB

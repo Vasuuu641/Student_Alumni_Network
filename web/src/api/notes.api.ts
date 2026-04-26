@@ -1,23 +1,20 @@
-import axios from 'axios';
 import { getAccessToken } from '../lib/auth';
+import { api } from './http-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken()
-  if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config
-})
-
 export type NoteRole = 'OWNER' | 'EDITOR' | 'VIEWER'
 export type NoteStatus = 'ACTIVE' | 'ARCHIVED'
+
+export interface RelatedThread {
+  threadId: string
+  title: string
+  description: string | null
+  panel: 'ACADEMIC' | 'ALUMNI'
+  replyCount: number
+  voteScore: number
+  similarityScore: number
+}
 
 export interface Note {
     id: string

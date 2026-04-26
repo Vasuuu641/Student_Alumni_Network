@@ -1,9 +1,9 @@
 # ─── Notes REST API Tests ─────────────────────────────────────────────────────
 # Set your token below after logging in via notes-login.http
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYjczN2YzYi05NTk1LTQ1ZWYtOTU5Ni03MGRiNmYxNzBlYTMiLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3MzY3ODM2MCwiZXhwIjoxNzczNjgxOTYwfQ.bDpuJayH6BU34NImTmfwGwBq576D0-PL-2Eyxbe3y7g
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzMWNhZjAwMi1hNzNhLTRjNjktODMyYy05NDM4MjFmNWQ2YzciLCJyb2xlIjoiU1RVREVOVCIsInRva2VuVHlwZSI6ImFjY2VzcyIsImlhdCI6MTc3NDAwMTM1MywiZXhwIjoxNzc0MDA0OTUzfQ.dP4SFddliw9uU-vA30T7-WOhhedJqn7eqUo87rncnPc
 @baseUrl = http://localhost:3000
-@noteId = l8rpubs34
+@noteId = z99u42avz
 @collaboratorEmail = ztyboc@tr.pte.hu
 @collaboratorEmail2 = profe1@tr.pte.hu
 @collaboratorEmailEncoded = ztyboc%40tr.pte.hu
@@ -18,7 +18,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "My First Collaborative Note"
+  "title": "Preparing for the CS101 midterm exam"
 }
 
 ###
@@ -65,7 +65,7 @@ Authorization: Bearer {{token}}
       {
         "type": "paragraph",
         "content": [
-          { "type": "text", "text": "New test to see if the update works or not" }
+          { "type": "text", "text": "Key topics include algorithms, data structures, and programming concepts. Need to review past papers and lecture notes before the exam." }
         ]
       }
     ]

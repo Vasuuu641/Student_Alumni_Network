@@ -21,6 +21,8 @@ import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-co
 import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { NotePermissionRole } from 'src/domain/entities/note.entity';
 
+import type { NoteLLMService } from 'src/domain/services/note-llm-service';
+
 interface SocketSession {
   userId: string;
   role: string;
@@ -55,6 +57,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject('NoteCollaboratorRepository')
     private readonly noteCollaboratorRepository: NoteCollaboratorRepository,
     @Inject('UserRepository') private readonly userRepository: UserRepository,
+    @Inject('NoteLLMService') private readonly noteLLMService: NoteLLMService,
   ) {}
 
   // ─── Connection lifecycle ──────────────────────────────────────────────────
@@ -262,6 +265,50 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId: session.userId,
       update,
     });
+  }
+
+  @SubscribeMessage('notes:typing-related-threads')
+  async handleTypingRelatedThreads(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { noteId: string; title: string; contentJson: unknown },
+  ) {
+    const session: SocketSession = socket.data.session;
+
+    if (!session) {
+      return this.emitError(socket, 'Unauthorized');
+    }
+
+    if (!this.isInRoom(socket, data.noteId)) {
+      return this.emitError(socket, 'Join the note room first');
+    }
+
+    // Need at least 20 chars of combined content before searching
+    const bodyText = data.title + ' ' + JSON.stringify(data.contentJson ?? '');
+    if (bodyText.trim().length < 20) {
+      socket.emit('notes:related-threads', { noteId: data.noteId, results: [] });
+      return;
+    }
+
+    try {
+      const results = await this.noteLLMService.findRelatedThreads(
+        data.title,
+        data.contentJson,
+        5,
+        0.55,
+      );
+
+      socket.emit('notes:related-threads', {
+        noteId: data.noteId,
+        results,
+      });
+
+      this.logger.log(
+        `Related threads search: user=${session.userId} note=${data.noteId} results=${results.length}`,
+      );
+    } catch (error) {
+      this.logger.error(`Related threads search failed: ${error.message}`);
+      socket.emit('notes:related-threads', { noteId: data.noteId, results: [] });
+    }
   }
 
   // ─── Server-side broadcasts ───────────────────────────────────────────────

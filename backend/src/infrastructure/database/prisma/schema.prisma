@@ -13,60 +13,76 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  firstName     String
-  lastName      String
-  role          Role
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  student       Student?
-  alumni        Alumni?
-  professor     Professor?
-  notesOwned    Note[]   @relation("NoteOwner")
-  notesShared   NoteCollaborator[]
-  noteVersions  NoteVersion[] @relation("NoteVersionAuthor")
-  noteActivities NoteActivity[] @relation("NoteActivityActor")
+  student         Student?
+  alumni          Alumni?
+  professor       Professor?
+  notesOwned      Note[]             @relation("NoteOwner")
+  notesShared     NoteCollaborator[]
+  noteVersions    NoteVersion[]      @relation("NoteVersionAuthor")
+  noteActivities  NoteActivity[]     @relation("NoteActivityActor")
+  threadsAuthored Thread[]           @relation("ThreadAuthor")
+  repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
+  threadVotes     ThreadVote[]
+  replyVotes      ThreadReplyVote[]
+  studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
+  studyGroupMemberships StudyGroupMember[]
+  studyGroupPosts       StudyGroupPost[]      @relation("StudyGroupPostAuthor")
+  studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
+  studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
+  studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
+  studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  studyGroupArchives    StudyGroupUserArchive[]
+  geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
+  geoHelpSpotVisits   GeoHelpSpotVisit[]
+  geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
 }
 
 model Student {
-  userId              String @id
-  major               String
-  yearOfGraduation    Int?    @map("year_of_graduation")
-  jobTitle            String? @map("job_title")
-  company             String? 
-  interests           String[]
-  faculty             String? @map("faculty")
-  bio                 String?
-  profilePictureUrl   String? @map("profile_picture_url")
+  userId            String   @id
+  major             String
+  yearOfGraduation  Int?     @map("year_of_graduation")
+  jobTitle          String?  @map("job_title")
+  company           String?
+  interests         String[]
+  faculty           String?  @map("faculty")
+  bio               String?
+  profilePictureUrl String?  @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Alumni {
-  userId            String @id
+  userId            String   @id
   yearOfGraduation  Int?     @map("year_of_graduation")
   major             String?
   company           String?
   jobTitle          String?  @map("job_title")
   bio               String?
   interests         String[]
-  profilePictureUrl String? @map("profile_picture_url")
-  isAnonymous       Boolean @default(false)
-  anonymousName     String? @map("anonymous_name")
+  profilePictureUrl String?  @map("profile_picture_url")
+  isAnonymous       Boolean  @default(false)
+  anonymousName     String?  @map("anonymous_name")
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Professor {
-  userId            String @id
-  faculty           String 
-  jobTitle          String  @map("job_title")
+  userId            String   @id
+  faculty           String
+  jobTitle          String   @map("job_title")
   bio               String?
   interests         String[]
-  profilePictureUrl String? @map("profile_picture_url")
+  profilePictureUrl String?  @map("profile_picture_url")
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -107,18 +123,21 @@ enum NoteLinkSource {
 }
 
 model Note {
-  id        String     @id @default(uuid())
-  title     String
-  ownerId   String
-  status    NoteStatus @default(ACTIVE)
-  contentJson Json?    
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(uuid())
+  title       String
+  ownerId     String
+  status      NoteStatus @default(ACTIVE)
+  contentJson Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  owner     User       @relation("NoteOwner", fields: [ownerId], references: [id])
+  owner         User               @relation("NoteOwner", fields: [ownerId], references: [id])
   collaborators NoteCollaborator[]
-  versions   NoteVersion[]
-  activities NoteActivity[]
+  versions      NoteVersion[]
+  activities    NoteActivity[]
+  linkedThreads  NoteThreadLink[]
+  chunks         NoteChunk[]
+  chunkEmbeddings NoteChunkEmbedding[]
 
   @@index([ownerId])
   @@index([updatedAt])
@@ -128,8 +147,8 @@ model NoteCollaborator {
   noteId    String
   userId    String
   role      NotePermissionRole @default(VIEWER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id])
   note Note @relation(fields: [noteId], references: [id])
@@ -146,8 +165,8 @@ model NoteVersion {
   authorId      String
   createdAt     DateTime @default(now())
 
-  note          Note     @relation(fields: [noteId], references: [id])
-  author        User     @relation("NoteVersionAuthor", fields: [authorId], references: [id])
+  note   Note @relation(fields: [noteId], references: [id])
+  author User @relation("NoteVersionAuthor", fields: [authorId], references: [id])
 
   @@unique([noteId, versionNumber])
   @@index([noteId])
@@ -162,8 +181,8 @@ model NoteActivity {
   metadataJson Json?
   createdAt    DateTime @default(now())
 
-  note         Note     @relation(fields: [noteId], references: [id])
-  actor        User     @relation("NoteActivityActor", fields: [actorId], references: [id])
+  note  Note @relation(fields: [noteId], references: [id])
+  actor User @relation("NoteActivityActor", fields: [actorId], references: [id])
 
   @@index([noteId])
   @@index([actorId])
@@ -180,4 +199,410 @@ model RevokedToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Threads feature
+
+enum ThreadPanel {
+  ACADEMIC
+  ALUMNI
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+  PINNED
+  DELETED
+}
+
+enum ReplyStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+model Thread {
+  id          String       @id @default(uuid())
+  title       String       @db.VarChar(255)
+  description String?
+  panel       ThreadPanel  @default(ACADEMIC)
+  status      ThreadStatus @default(OPEN)
+  authorId    String
+  replyCount  Int          @default(0)
+  lastReplyAt DateTime?
+  viewCount   Int          @default(0)
+  voteScore   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  author          User             @relation("ThreadAuthor", fields: [authorId], references: [id])
+  replies         ThreadReply[]
+  votes           ThreadVote[]
+  threadEmbedding ThreadEmbedding?
+  linkedNotes     NoteThreadLink[]
+
+  @@index([panel, status, createdAt])
+  @@index([authorId])
+  @@index([lastReplyAt])
+  @@index([panel, status, replyCount])
+  @@index([panel, status, voteScore])
+}
+
+model ThreadReply {
+  id            String      @id @default(uuid())
+  threadId      String
+  content       String
+  authorId      String
+  status        ReplyStatus @default(ACTIVE)
+  editedAt      DateTime?
+  voteScore     Int         @default(0)
+  parentReplyId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  thread       Thread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author       User              @relation("ReplyAuthor", fields: [authorId], references: [id])
+  parentReply  ThreadReply?      @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
+  childReplies ThreadReply[]     @relation("ReplyHierarchy")
+  votes        ThreadReplyVote[]
+
+  @@index([threadId, createdAt])
+  @@index([threadId, voteScore])
+  @@index([authorId])
+  @@index([parentReplyId])
+}
+
+model ThreadVote {
+  threadId  String
+  userId    String
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+}
+
+model ThreadReplyVote {
+  replyId   String
+  userId    String
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  reply ThreadReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([replyId, userId])
+}
+
+model ThreadEmbedding {
+  id        String   @id @default(uuid())
+  threadId  String   @unique
+  embedding Unsupported("vector(1024)")?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+}
+
+//Notes - threads linking
+
+model NoteChunk {
+  id         String   @id @default(uuid())
+  noteId     String
+  chunkIndex Int
+  chunkText  String
+  createdAt  DateTime @default(now())
+  
+
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  embedding  NoteChunkEmbedding?
+
+  @@unique([noteId, chunkIndex])
+  @@index([noteId])
+}
+
+model NoteThreadLink {
+  id         String         @id @default(uuid())
+  noteId     String
+  threadId   String
+  confidence Float?
+  source     NoteLinkSource @default(AI)
+  createdAt  DateTime       @default(now())
+
+  note       Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  thread     Thread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, threadId])
+  @@index([noteId])
+  @@index([threadId])
+}
+
+model NoteChunkEmbedding {
+  id        String   @id @default(uuid())
+  chunkId   String   @unique
+  embedding Unsupported("vector(1024)")?
+  noteId    String
+  createdAt DateTime @default(now())
+
+  chunk     NoteChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  note      Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([chunkId])
+  @@index([noteId])
+}
+
+//Study-groups formation
+
+enum studyGroupsVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum studyGroupStatus {
+  ACTIVE
+  ARCHIVE
+  DELETED
+}
+
+enum studyGroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum studyGroupJoinStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+  PENDING
+}
+
+enum studyGroupPostStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+model StudyGroup {
+  id             String               @id @default(uuid())
+  name           String
+  description    String
+  visibility     studyGroupsVisibility
+  status         studyGroupStatus
+  topicTags      String[]             @default([])
+  maxMembers     Int?
+  ownerId        String
+  memberCount    Int                  @default(1)
+  messageCount   Int                  @default(0)
+  lastActivityAt DateTime             @default(now())
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  owner       User                  @relation("StudyGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     StudyGroupMember[]
+  posts       StudyGroupPost[]
+  sessions    StudyGroupSession[]
+  invites     StudyGroupInvite[]
+  auditEvents StudyGroupAuditEvent[]
+  userArchives     StudyGroupUserArchive[]
+  joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
+  recommendedGroups String[] @default([]) // For AI recommendations
+
+  @@index([status, visibility, lastActivityAt])
+  @@index([ownerId])
+}
+
+model StudyGroupUserArchive {
+  id         String   @id @default(uuid())
+  groupId    String
+  userId     String
+  archivedAt DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId, archivedAt])
+}
+
+model StudyGroupMember {
+  groupId    String
+  userId     String
+  role       studyGroupMemberRole @default(MEMBER)
+  joinStatus studyGroupJoinStatus @default(ACTIVE)
+  joinedAt   DateTime             @default(now())
+  leftAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, joinStatus])
+  @@index([groupId, role])
+}
+
+model StudyGroupPost {
+  id         String               @id @default(uuid())
+  groupId    String
+  authorId   String
+  content    String
+  status     studyGroupPostStatus @default(ACTIVE)
+  editedAt   DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User       @relation("StudyGroupPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+}
+
+model StudyGroupSession {
+  id          String   @id @default(uuid())
+  groupId     String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  mode        String
+  location    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator User       @relation("StudyGroupSessionCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([groupId, startsAt])
+  @@index([createdBy])
+}
+
+model StudyGroupInvite {
+  id            String   @id @default(uuid())
+  groupId       String
+  invitedUserId String
+  invitedBy     String
+  token         String   @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User       @relation("StudyGroupInviteSender", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User       @relation("StudyGroupInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, expiresAt])
+  @@index([invitedUserId])
+}
+
+model StudyGroupAuditEvent {
+  id           String   @id @default(uuid())
+  groupId      String
+  actorId      String?
+  action       String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User?      @relation("StudyGroupAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@index([actorId])
+}
+
+// Geo-based help board
+
+enum GeoHelpSpotCategory {
+  UNIVERSITY_SERVICE
+  ACADEMIC_DEPARTMENT
+  ADMIN_OFFICE
+  STUDENT_SUPPORT
+  CAMPUS_FACILITY
+  RESTAURANT
+  CAFE
+  STUDY_SPOT
+  SOCIAL_HANGOUT
+  FITNESS_WELLNESS
+  SHOPPING
+  OTHER
+}
+
+enum GeoHelpSpotSection {
+  OFFICIAL_RESOURCE
+  COMMUNITY_PICK
+}
+
+enum GeoHelpSpotReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model GeoHelpSpot {
+  id          String              @id @default(uuid())
+  title       String
+  description String?
+  city        String
+  address     String?
+  latitude    Decimal             @db.Decimal(9, 6)
+  longitude   Decimal             @db.Decimal(9, 6)
+  section     GeoHelpSpotSection  @default(COMMUNITY_PICK)
+  category    GeoHelpSpotCategory @default(OTHER)
+  createdById String
+  isActive    Boolean             @default(true)
+  reviewStatus GeoHelpSpotReviewStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  visitCount  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("GeoHelpSpotReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  visits    GeoHelpSpotVisit[]
+
+  @@index([city, section, category, reviewStatus])
+  @@index([city, section, visitCount, reviewStatus])
+  @@index([latitude, longitude])
+  @@index([createdById])
+  @@index([reviewedById, reviewedAt])
+}
+
+model GeoHelpSpotVisit {
+  id        String   @id @default(uuid())
+  spotId    String
+  userId    String
+  visitedAt DateTime @default(now())
+
+  spot GeoHelpSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, visitedAt])
+  @@index([userId, visitedAt])
+  @@unique([spotId, userId])
+}
+
+model StudyGroupJoinRequest {
+  id            String   @id @default(uuid())
+  groupId       String
+  userId        String
+  status        String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt     DateTime @default(now())
+
+  group StudyGroup @relation("JoinRequests", fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation("StudyGroupJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([userId])
 }

@@ -1,0 +1,224 @@
+# ─── Threads REST API Tests ───────────────────────────────────────────────────
+# Set your token below after logging in
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1ODc0YWQ3Yy0wN2Q2LTQwNDMtYTVkNC03MGExZDc4Yzc1NDQiLCJyb2xlIjoiQURNSU4iLCJ0b2tlblR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzQwMjEzNzEsImV4cCI6MTc3NDAyNDk3MX0.ygp4heRZTn9DxHaW-sKf9aAC6oHV_iM3pTF1DyxebGs
+@baseUrl = http://localhost:3000
+@threadId = es92yjn3y
+//uiw3hvp0j
+@replyId = 
+
+###
+# ─── CREATE THREAD (ACADEMIC) ────────────────────────────────────────────────
+# Expected: 201 with { threadId: "..." }
+
+POST {{baseUrl}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "How do I prepare for the CS101 midterm exam?",
+  "description": "Looking for tips on what topics to focus on",
+  "panel": "ACADEMIC"
+}
+
+###
+# ─── CREATE THREAD FOR MULTI-USER TEST ───────────────────────────────────────
+
+POST {{baseUrl}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "How do I approach the Intro to Computer Science final exam?",
+  "description": "Looking for advice on the best way to prepare for the ICS final. Specifically struggling with recursion, sorting algorithms, and Big O notation. Any tips from people who have already taken it?",
+  "panel": "ACADEMIC"
+}
+
+###
+# ─── CREATE THREAD (ALUMNI) ──────────────────────────────────────────────────
+# Expected: 201 with { threadId: "..." }
+
+POST {{baseUrl}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "How do I get into FAANG as a fresh grad?",
+  "description": "Any advice from alumni who made it?",
+  "panel": "ALUMNI"
+}
+
+###
+# ─── LIST THREADS (ACADEMIC, newest) ─────────────────────────────────────────
+# Expected: 200 with { threads: [...], total: N }
+
+GET {{baseUrl}}/threads?panel=ACADEMIC&sortBy=newest&skip=0&take=20
+Authorization: Bearer {{token}}
+
+###
+# ─── LIST THREADS (ALUMNI, top voted) ────────────────────────────────────────
+# Expected: 200 with { threads: [...], total: N }
+
+GET {{baseUrl}}/threads?panel=ALUMNI&sortBy=topVoted&skip=0&take=20
+Authorization: Bearer {{token}}
+
+###
+# ─── LIST THREADS (ACADEMIC, most replies) ───────────────────────────────────
+
+GET {{baseUrl}}/threads?panel=ACADEMIC&sortBy=mostReplies&skip=0&take=20
+Authorization: Bearer {{token}}
+
+###
+# ─── GET SINGLE THREAD ───────────────────────────────────────────────────────
+# Expected: 200 with { thread: { id, title, panel, status, voteScore, ... } }
+
+GET {{baseUrl}}/threads/{{threadId}}
+Authorization: Bearer {{token}}
+
+###
+# ─── POST REPLY ──────────────────────────────────────────────────────────────
+# Expected: 200 with { reply: { id, content, authorId, voteScore, ... } }
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "I found some past paper question banks on leetcode and hackerRank really helpful for System Theory!"
+}
+
+###
+# ─── POST NESTED REPLY (reply to a reply) ────────────────────────────────────
+# Expected: 200 with { reply: { id, parentReplyId, ... } }
+
+POST {{baseUrl}}/threads/{{threadId}}/replies
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Agreed — youtube videos are great for understanding concepts",
+  "parentReplyId": "{{replyId}}"
+}
+
+###
+# ─── EDIT REPLY ──────────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/threads/{{threadId}}/replies/{{replyId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "Updated: youtube videos AND Past papers!"
+}
+
+###
+# ─── UPVOTE THREAD ───────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+# Call again with same voteType to toggle off
+
+POST {{baseUrl}}/threads/{{threadId}}/vote
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "voteType": "UPVOTE"
+}
+
+###
+# ─── DOWNVOTE THREAD ─────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+POST {{baseUrl}}/threads/{{threadId}}/vote
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "voteType": "DOWNVOTE"
+}
+
+###
+# ─── UPVOTE REPLY ────────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+POST {{baseUrl}}/threads/{{threadId}}/replies/{{replyId}}/vote
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "voteType": "UPVOTE"
+}
+
+###
+# ─── DOWNVOTE REPLY ──────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/threads/{{threadId}}/replies/{{replyId}}/vote
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "voteType": "DOWNVOTE"
+}
+
+###
+# ─── CLOSE THREAD (author or admin only) ─────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/threads/{{threadId}}/status
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "CLOSED"
+}
+
+###
+# ─── PIN THREAD (admin only) ─────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+# Will return 403 if token is not an ADMIN
+
+PATCH {{baseUrl}}/threads/{{threadId}}/status
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PINNED"
+}
+
+###
+# ─── REOPEN THREAD ───────────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/threads/{{threadId}}/status
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "OPEN"
+}
+
+###
+# ─── SOFT DELETE REPLY ───────────────────────────────────────────────────────
+# Expected: 200 with { success: true }
+
+PATCH {{baseUrl}}/threads/{{threadId}}/replies/{{replyId}}/delete
+Authorization: Bearer {{token}}
+
+###
+# ─── TRY CREATING ACADEMIC THREAD AS ALUMNI (should 403) ─────────────────────
+# Replace token with an ALUMNI token to test panel access control
+
+POST {{baseUrl}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "This should be blocked for alumni",
+  "panel": "ACADEMIC"
+}
+
+###
+# ── DELETE THREAD (admin only, soft delete) ───────────────────────────────────
+# Expected: 200 with { success: true }
+PATCH {{baseUrl}}/threads/{{threadId}}/delete
+Authorization: Bearer {{token}}
