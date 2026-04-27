@@ -102,6 +102,7 @@ export function ThreadDetailPage() {
   const [pendingReplyVoteId, setPendingReplyVoteId] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<ThreadReply | null>(null)
   const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
+  const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -446,6 +447,10 @@ export function ThreadDetailPage() {
     return authorId.slice(0, 2).toUpperCase()
   }
 
+  function toggleThreadCollapse() {
+    setIsThreadCollapsed((prev) => !prev)
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Reddit-style threaded reply renderer
   //
@@ -689,96 +694,115 @@ export function ThreadDetailPage() {
       </header>
 
       <section className="thread-detail-page__content">
-        <article className="thread-detail__header">
-          <div className="thread-votes">
-            <button
-              onClick={() => void handleVoteThread('UPVOTE')}
-              aria-label="Upvote thread"
-              className={thread.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
-            >
-              <ArrowBigUp size={18} />
-            </button>
-            <span>{thread.upvoteCount ?? 0}</span>
-            <button
-              onClick={() => void handleVoteThread('DOWNVOTE')}
-              aria-label="Downvote thread"
-              className={thread.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
-            >
-              <ArrowBigDown size={18} />
-            </button>
-            <span>{thread.downvoteCount ?? 0}</span>
-          </div>
-
-          <div className="thread-main" style={{ cursor: 'default' }}>
-            <h3>{thread.title}</h3>
-            {thread.description && <p>{thread.description}</p>}
-            <div className="thread-meta-row">
-              <span>By {threadAuthorLabel}</span>
-              <span>{formatRelativeDate(thread.createdAt)}</span>
-              <span>{thread.replyCount} comments</span>
-              <span>Status: {thread.status.toLowerCase()}</span>
-            </div>
-
-            {isThreadAuthor && (
-              <div className="thread-owner-actions">
-                <button
-                  className="threads-secondary-btn"
-                  onClick={() => void handleToggleThreadStatus()}
-                  disabled={updatingThreadStatus}
-                >
-                  {updatingThreadStatus
-                    ? 'Updating…'
-                    : thread.status === 'CLOSED'
-                      ? 'Reopen Thread'
-                      : 'Close Thread'}
-                </button>
-              </div>
-            )}
-          </div>
-        </article>
-
-        <section className="thread-reply-box">
-          {actionError && <p className="status-banner status-banner--error">{actionError}</p>}
-          {replyingTo && (
-            <div className="thread-reply-target">
-              Replying to {replyingTo.authorName ?? replyingTo.authorId.slice(0, 8)}
-              <button className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
-          <textarea
-            value={replyDraft}
-            onChange={(e) => setReplyDraft(e.target.value)}
-            placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
-            disabled={!canReplyToThread}
-          />
+        <div className="thread-collapse-shell">
           <button
-            className="threads-primary-btn"
-            disabled={postingReply || !replyDraft.trim() || !canReplyToThread}
-            onClick={() => void handlePostReply()}
+            type="button"
+            className="thread-collapse-toggle"
+            onClick={toggleThreadCollapse}
+            aria-expanded={!isThreadCollapsed}
+            aria-label={isThreadCollapsed ? 'Expand thread' : 'Collapse thread'}
           >
-            <Send size={15} />
-            {postingReply ? 'Posting…' : 'Post Comment'}
+            <span className="thread-collapse-toggle__icon">{isThreadCollapsed ? '+' : '−'}</span>
+            <span className="thread-collapse-toggle__label">
+              {threadAuthorLabel}
+            </span>
           </button>
-        </section>
 
-        <section className="thread-replies">
-          <h4>Comments ({replies.length})</h4>
+          {!isThreadCollapsed && (
+            <>
+              <article className="thread-detail__header">
+                <div className="thread-votes">
+                  <button
+                    onClick={() => void handleVoteThread('UPVOTE')}
+                    aria-label="Upvote thread"
+                    className={thread.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
+                  >
+                    <ArrowBigUp size={18} />
+                  </button>
+                  <span>{thread.upvoteCount ?? 0}</span>
+                  <button
+                    onClick={() => void handleVoteThread('DOWNVOTE')}
+                    aria-label="Downvote thread"
+                    className={thread.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
+                  >
+                    <ArrowBigDown size={18} />
+                  </button>
+                  <span>{thread.downvoteCount ?? 0}</span>
+                </div>
 
-          {replies.length === 0 && (
-            <div className="threads-empty" style={{ minHeight: '8rem' }}>
-              <MessageCircle size={24} />
-              <p>No comments yet. Start the conversation.</p>
-            </div>
+                <div className="thread-main" style={{ cursor: 'default' }}>
+                  <h3>{thread.title}</h3>
+                  {thread.description && <p>{thread.description}</p>}
+                  <div className="thread-meta-row">
+                    <span>By {threadAuthorLabel}</span>
+                    <span>{formatRelativeDate(thread.createdAt)}</span>
+                    <span>{thread.replyCount} comments</span>
+                    <span>Status: {thread.status.toLowerCase()}</span>
+                  </div>
+
+                  {isThreadAuthor && (
+                    <div className="thread-owner-actions">
+                      <button
+                        className="threads-secondary-btn"
+                        onClick={() => void handleToggleThreadStatus()}
+                        disabled={updatingThreadStatus}
+                      >
+                        {updatingThreadStatus
+                          ? 'Updating…'
+                          : thread.status === 'CLOSED'
+                            ? 'Reopen Thread'
+                            : 'Close Thread'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <section className="thread-reply-box">
+                {actionError && <p className="status-banner status-banner--error">{actionError}</p>}
+                {replyingTo && (
+                  <div className="thread-reply-target">
+                    Replying to {replyingTo.authorName ?? replyingTo.authorId.slice(0, 8)}
+                    <button className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  value={replyDraft}
+                  onChange={(e) => setReplyDraft(e.target.value)}
+                  placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
+                  disabled={!canReplyToThread}
+                />
+                <button
+                  className="threads-primary-btn"
+                  disabled={postingReply || !replyDraft.trim() || !canReplyToThread}
+                  onClick={() => void handlePostReply()}
+                >
+                  <Send size={15} />
+                  {postingReply ? 'Posting…' : 'Post Comment'}
+                </button>
+              </section>
+
+              <section className="thread-replies">
+                <h4>Comments ({replies.length})</h4>
+
+                {replies.length === 0 && (
+                  <div className="threads-empty" style={{ minHeight: '8rem' }}>
+                    <MessageCircle size={24} />
+                    <p>No comments yet. Start the conversation.</p>
+                  </div>
+                )}
+
+                {(repliesByParent.get(null) ?? []).map((reply) => (
+                  <div key={reply.id} className="thread-root-reply">
+                    {renderReplyNode(reply, 0)}
+                  </div>
+                ))}
+              </section>
+            </>
           )}
-
-          {(repliesByParent.get(null) ?? []).map((reply) => (
-            <div key={reply.id} className="thread-root-reply">
-              {renderReplyNode(reply, 0)}
-            </div>
-          ))}
-        </section>
+        </div>
       </section>
     </main>
   )
