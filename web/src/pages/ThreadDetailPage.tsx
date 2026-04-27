@@ -704,7 +704,11 @@ export function ThreadDetailPage() {
             </div>
           )}
 
-          {(repliesByParent.get(null) ?? []).map((reply) => renderReplyNode(reply, 0))}
+          {(repliesByParent.get(null) ?? []).map((reply) => (
+            <div key={reply.id} className="thread-root-reply">
+              {renderReplyNode(reply, 0)}
+            </div>
+          ))}
         </section>
       </section>
     </main>

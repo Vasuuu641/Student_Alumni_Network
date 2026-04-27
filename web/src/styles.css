@@ -4278,6 +4278,10 @@
   .thread-replies h4 { margin: 0; color: #17233a; }
   .thread-replies__empty { margin: 0; color: #8391a8; font-size: 0.92rem; }
 
+  .thread-root-reply + .thread-root-reply {
+    margin-top: 0.42rem;
+  }
+
   .thread-reply-item {
     display: grid;
     grid-template-columns: 1rem 1fr;
@@ -4438,29 +4442,26 @@
     position: relative;
   }
 
-  .thread-reply-tree-node--nested::before {
-    content: '';
-    position: absolute;
-    left: -0.52rem;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: #d5deeb;
-  }
-
   .thread-reply-tree-node--nested > .thread-reply-item::before {
     content: '';
     position: absolute;
     left: -0.52rem;
-    top: 0.66rem;
-    width: 0.52rem;
-    height: 1px;
-    background: #d5deeb;
+    top: 0.2rem;
+    width: 0.56rem;
+    height: 0.56rem;
+    border-left: 1px solid #d5deeb;
+    border-bottom: 1px solid #d5deeb;
+    border-bottom-left-radius: 0.56rem;
+    background: transparent;
   }
 
   .thread-reply-children {
     display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;
     padding-left: 0.52rem; border-left: 1px solid #d5deeb;
+  }
+
+  .thread-reply-children > .thread-reply-tree-node:last-child {
+    margin-bottom: 0.05rem;
   }
 
   .thread-reply-target {
