@@ -8,6 +8,14 @@ import { NotesListPage } from './pages/NotesListPage';
 import { NotePage } from './pages/NotePage';
 import { ThreadsPage } from './pages/Threads';
 import { ThreadDetailPage } from './pages/ThreadDetailPage';
+import { StudyGroupsPage } from './pages/StudyGroups';
+import { StudyGroupDetailPage } from './pages/StudyGroupDetailPage';
+import { GeoHelpBoardPage } from './pages/GeoHelpBoardPage';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminGeoModerationPage } from './pages/admin/AdminGeoModerationPage';
+import { AdminThreadsModerationPage } from './pages/admin/AdminThreadsModerationPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
   return (
@@ -21,6 +29,17 @@ export default function App() {
       <Route path="/notes/:noteId" element={<NotePage />} />
       <Route path="/threads" element={<ThreadsPage />} />
       <Route path="/threads/:threadId" element={<ThreadDetailPage />} />
+      <Route path="/study-groups" element={<StudyGroupsPage />} />
+      <Route path="/study-groups/:groupId" element={<StudyGroupDetailPage />} />
+      <Route path="/profile" element={<ProfilePage isOwnProfile={true} />} />
+      <Route path="/profile/:userId" element={<ProfilePage isOwnProfile={false} />} />
+      <Route path="/geo-help-board" element={<GeoHelpBoardPage />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="/admin/users" replace />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="geo-moderation" element={<AdminGeoModerationPage />} />
+        <Route path="threads-moderation" element={<AdminThreadsModerationPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

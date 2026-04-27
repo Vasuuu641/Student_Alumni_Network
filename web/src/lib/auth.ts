@@ -42,6 +42,21 @@ export function getRoleFromAccessToken(token: string): UserRole | null {
   }
 }
 
+export function getUserIdFromAccessToken(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const payloadText = decodeBase64Url(parts[1]);
+    const payload = JSON.parse(payloadText) as AccessTokenPayload;
+    return payload.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function isTokenExpired(token: string): boolean {
   try {
     const parts = token.split('.');

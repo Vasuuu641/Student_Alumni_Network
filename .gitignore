@@ -58,3 +58,5 @@ docker-data/
 # authorized-emails.txt
 # =========================
 backend/authorized-emails.txt
+
+*.tsbuildinfo

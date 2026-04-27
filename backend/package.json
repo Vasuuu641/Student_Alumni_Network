@@ -22,7 +22,9 @@
     "test:ws:threads": "node ./test/threads/ws-threads-test.mjs",
     "test:ws:similarity": "node ./test/threads/ws-threads-similarity-search-test.mjs",
     "reembed:threads": "node ./test/threads/re-embed-threads.mjs",
-    "test:ws:related-threads": "node ./test/notes/ws-notes-related-threads-test.mjs"
+    "test:ws:related-threads": "node ./test/notes/ws-notes-related-threads-test.mjs",
+    "test:ws:study-groups": "node ./test/study-groups/ws-study-groups-test.mjs",
+    "test:study-groups:v2": "node ./test/study-groups/study-groups-v2.e2e.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOnboardingProfile, updateOnboardingProfile } from '../api/onboarding';
-import { getAccessToken, getRoleFromAccessToken, isTokenExpired, type UserRole } from '../lib/auth';
+import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth';
 import Button from '../components/Button';
 
 type EditableRole = Exclude<UserRole, 'ADMIN'>;
@@ -38,6 +38,7 @@ const TOTAL_STEPS = 4;
 
 export function OnboardingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState<OnboardingFormState>(initialState);
   const [profilePicture, setProfilePicture] = useState<File | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState('');
@@ -47,10 +48,13 @@ export function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [interestInput, setInterestInput] = useState('');
 
+  const isEditMode = searchParams.get('mode') === 'edit';
+  const requestedStepRaw = Number(searchParams.get('step'));
+
   const token = getAccessToken();
 
   const role = useMemo(() => {
-    if (!token || isTokenExpired(token)) {
+    if (!token) {
       return null;
     }
     return getRoleFromAccessToken(token);
@@ -67,6 +71,16 @@ export function OnboardingPage() {
   const authToken: string = token;
   const editableRole: EditableRole = role;
   const progressPercent = Math.round((currentStep / TOTAL_STEPS) * 100);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+
+    if (Number.isInteger(requestedStepRaw) && requestedStepRaw >= 1 && requestedStepRaw <= TOTAL_STEPS) {
+      setCurrentStep(requestedStepRaw);
+    }
+  }, [isEditMode, requestedStepRaw]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,7 +100,7 @@ export function OnboardingPage() {
           (profile.interests?.length ?? 0) > 0 ||
           Boolean(profile.company?.trim());
 
-        if (hasExistingProfile) {
+        if (hasExistingProfile && !isEditMode) {
           navigate('/dashboard', { replace: true });
           return;
         }
@@ -127,7 +141,7 @@ export function OnboardingPage() {
     return () => {
       isMounted = false;
     };
-  }, [authToken, editableRole]);
+  }, [authToken, editableRole, isEditMode, navigate]);
 
   function setField<K extends keyof OnboardingFormState>(key: K, value: OnboardingFormState[K]) {
     setSuccessMessage('');
@@ -289,7 +303,7 @@ export function OnboardingPage() {
                     ? 'Interests, media, and privacy'
                     : 'Review and finish'}
             </h1>
-            <p>{roleTitle} onboarding (all fields are optional)</p>
+            <p>{isEditMode ? `${roleTitle} profile editor` : `${roleTitle} onboarding (all fields are optional)`}</p>
           </div>
 
           <form
@@ -565,9 +579,13 @@ export function OnboardingPage() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={currentStep === 1 ? () => navigate('/dashboard') : previousStep}
+                onClick={
+                  currentStep === 1
+                    ? () => navigate(isEditMode ? '/profile' : '/dashboard')
+                    : previousStep
+                }
               >
-                {currentStep === 1 ? 'Skip for now' : 'Back'}
+                {currentStep === 1 ? (isEditMode ? 'Back to profile' : 'Skip for now') : 'Back'}
               </Button>
 
               {currentStep < TOTAL_STEPS ? (
@@ -579,9 +597,11 @@ export function OnboardingPage() {
                   <Button
                     type="button"
                     variant="submit-wide"
-                    onClick={() => navigate('/dashboard', { replace: true })}
+                    onClick={() =>
+                      navigate(isEditMode ? '/profile' : '/dashboard', { replace: true })
+                    }
                   >
-                    Continue to dashboard
+                    {isEditMode ? 'Return to profile' : 'Continue to dashboard'}
                   </Button>
                 ) : (
                   <Button type="submit" variant="submit" disabled={isSubmitting}>

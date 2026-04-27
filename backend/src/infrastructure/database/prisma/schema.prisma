@@ -33,6 +33,18 @@ model User {
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
   replyVotes      ThreadReplyVote[]
+  studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
+  studyGroupMemberships StudyGroupMember[]
+  studyGroupPosts       StudyGroupPost[]      @relation("StudyGroupPostAuthor")
+  studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
+  studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
+  studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
+  studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  studyGroupArchives    StudyGroupUserArchive[]
+  geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
+  geoHelpSpotVisits   GeoHelpSpotVisit[]
+  geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
 }
 
 model Student {
@@ -345,4 +357,252 @@ model NoteChunkEmbedding {
 
   @@index([chunkId])
   @@index([noteId])
+}
+
+//Study-groups formation
+
+enum studyGroupsVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum studyGroupStatus {
+  ACTIVE
+  ARCHIVE
+  DELETED
+}
+
+enum studyGroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum studyGroupJoinStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+  PENDING
+}
+
+enum studyGroupPostStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+model StudyGroup {
+  id             String               @id @default(uuid())
+  name           String
+  description    String
+  visibility     studyGroupsVisibility
+  status         studyGroupStatus
+  topicTags      String[]             @default([])
+  maxMembers     Int?
+  ownerId        String
+  memberCount    Int                  @default(1)
+  messageCount   Int                  @default(0)
+  lastActivityAt DateTime             @default(now())
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  owner       User                  @relation("StudyGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     StudyGroupMember[]
+  posts       StudyGroupPost[]
+  sessions    StudyGroupSession[]
+  invites     StudyGroupInvite[]
+  auditEvents StudyGroupAuditEvent[]
+  userArchives     StudyGroupUserArchive[]
+  joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
+  recommendedGroups String[] @default([]) // For AI recommendations
+
+  @@index([status, visibility, lastActivityAt])
+  @@index([ownerId])
+}
+
+model StudyGroupUserArchive {
+  id         String   @id @default(uuid())
+  groupId    String
+  userId     String
+  archivedAt DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId, archivedAt])
+}
+
+model StudyGroupMember {
+  groupId    String
+  userId     String
+  role       studyGroupMemberRole @default(MEMBER)
+  joinStatus studyGroupJoinStatus @default(ACTIVE)
+  joinedAt   DateTime             @default(now())
+  leftAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, joinStatus])
+  @@index([groupId, role])
+}
+
+model StudyGroupPost {
+  id         String               @id @default(uuid())
+  groupId    String
+  authorId   String
+  content    String
+  status     studyGroupPostStatus @default(ACTIVE)
+  editedAt   DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User       @relation("StudyGroupPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+}
+
+model StudyGroupSession {
+  id          String   @id @default(uuid())
+  groupId     String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  mode        String
+  location    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator User       @relation("StudyGroupSessionCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([groupId, startsAt])
+  @@index([createdBy])
+}
+
+model StudyGroupInvite {
+  id            String   @id @default(uuid())
+  groupId       String
+  invitedUserId String
+  invitedBy     String
+  token         String   @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User       @relation("StudyGroupInviteSender", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User       @relation("StudyGroupInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, expiresAt])
+  @@index([invitedUserId])
+}
+
+model StudyGroupAuditEvent {
+  id           String   @id @default(uuid())
+  groupId      String
+  actorId      String?
+  action       String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User?      @relation("StudyGroupAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@index([actorId])
+}
+
+// Geo-based help board
+
+enum GeoHelpSpotCategory {
+  UNIVERSITY_SERVICE
+  ACADEMIC_DEPARTMENT
+  ADMIN_OFFICE
+  STUDENT_SUPPORT
+  CAMPUS_FACILITY
+  RESTAURANT
+  CAFE
+  STUDY_SPOT
+  SOCIAL_HANGOUT
+  FITNESS_WELLNESS
+  SHOPPING
+  OTHER
+}
+
+enum GeoHelpSpotSection {
+  OFFICIAL_RESOURCE
+  COMMUNITY_PICK
+}
+
+enum GeoHelpSpotReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model GeoHelpSpot {
+  id          String              @id @default(uuid())
+  title       String
+  description String?
+  city        String
+  address     String?
+  latitude    Decimal             @db.Decimal(9, 6)
+  longitude   Decimal             @db.Decimal(9, 6)
+  section     GeoHelpSpotSection  @default(COMMUNITY_PICK)
+  category    GeoHelpSpotCategory @default(OTHER)
+  createdById String
+  isActive    Boolean             @default(true)
+  reviewStatus GeoHelpSpotReviewStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  visitCount  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("GeoHelpSpotReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  visits    GeoHelpSpotVisit[]
+
+  @@index([city, section, category, reviewStatus])
+  @@index([city, section, visitCount, reviewStatus])
+  @@index([latitude, longitude])
+  @@index([createdById])
+  @@index([reviewedById, reviewedAt])
+}
+
+model GeoHelpSpotVisit {
+  id        String   @id @default(uuid())
+  spotId    String
+  userId    String
+  visitedAt DateTime @default(now())
+
+  spot GeoHelpSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, visitedAt])
+  @@index([userId, visitedAt])
+  @@unique([spotId, userId])
+}
+
+model StudyGroupJoinRequest {
+  id            String   @id @default(uuid())
+  groupId       String
+  userId        String
+  status        String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt     DateTime @default(now())
+
+  group StudyGroup @relation("JoinRequests", fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation("StudyGroupJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([userId])
 }
