@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, Send } from 'lucide-react'
 import {
@@ -101,6 +101,8 @@ export function ThreadDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingReplyVoteId, setPendingReplyVoteId] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<ThreadReply | null>(null)
+  const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
+  const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -116,7 +118,6 @@ export function ThreadDetailPage() {
       if (prev.some((reply) => reply.id === incomingReply.id)) {
         return prev
       }
-
       didAppend = true
       return [incomingReply, ...prev]
     })
@@ -133,7 +134,6 @@ export function ThreadDetailPage() {
       if (!prev.some((reply) => reply.id === replyId)) {
         return prev
       }
-
       didRemove = true
       return prev.filter((reply) => reply.id !== replyId)
     })
@@ -170,7 +170,6 @@ export function ThreadDetailPage() {
       navigate('/login', { replace: true })
       return
     }
-
     void loadThread()
   }, [token, navigate, loadThread])
 
@@ -255,7 +254,6 @@ export function ThreadDetailPage() {
 
   const repliesByParent = useMemo(() => {
     const map = new Map<string | null, ThreadReply[]>()
-
     for (const reply of replies) {
       const key = reply.parentReplyId ?? null
       const existing = map.get(key)
@@ -265,7 +263,14 @@ export function ThreadDetailPage() {
         map.set(key, [reply])
       }
     }
+    return map
+  }, [replies])
 
+  const repliesById = useMemo(() => {
+    const map = new Map<string, ThreadReply>()
+    for (const reply of replies) {
+      map.set(reply.id, reply)
+    }
     return map
   }, [replies])
 
@@ -396,11 +401,7 @@ export function ThreadDetailPage() {
       setActionError(null)
       const nextContent = editingReplyDraft.trim()
 
-      await editReply({
-        threadId,
-        replyId,
-        content: nextContent,
-      })
+      await editReply({ threadId, replyId, content: nextContent })
 
       setReplies((prev) => prev.map((reply) => (
         reply.id === replyId
@@ -423,39 +424,93 @@ export function ThreadDetailPage() {
     }
   }
 
+  function toggleReplyChildren(replyId: string) {
+    setCollapsedReplyIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(replyId)) {
+        next.delete(replyId)
+      } else {
+        next.add(replyId)
+      }
+      return next
+    })
+  }
+
+  function buildAvatarInitials(name: string | undefined, authorId: string): string {
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/).filter(Boolean)
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      }
+      return parts[0].slice(0, 2).toUpperCase()
+    }
+    return authorId.slice(0, 2).toUpperCase()
+  }
+
+  function toggleThreadCollapse() {
+    setIsThreadCollapsed((prev) => !prev)
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Reddit-style threaded reply renderer
+  //
+  // Structure per reply:
+  //   [avatar]              ← 32px rail column
+  //   [rail-line + ± icon]  ← stretches alongside children block
+  //     ↳ each child: [SVG elbow] + [vline] + [recursive child]
+  // ─────────────────────────────────────────────────────────────
   function renderReplyNode(reply: ThreadReply, depth: number): JSX.Element {
     const children = repliesByParent.get(reply.id) ?? []
+    const hasChildren = children.length > 0
+    const isCollapsed = collapsedReplyIds.has(reply.id)
+    const parentReply = reply.parentReplyId ? repliesById.get(reply.parentReplyId) : null
+    const parentAuthorLabel = parentReply
+      ? (parentReply.authorName ?? parentReply.authorId.slice(0, 8))
+      : null
+    const authorLabel = reply.authorName ?? reply.authorId.slice(0, 8)
+    const avatarInitials = buildAvatarInitials(reply.authorName, reply.authorId)
 
     return (
-      <div key={reply.id} className="thread-reply-tree-node" style={{ '--reply-depth': depth } as CSSProperties}>
-        <article className="thread-reply-item">
-          <div className="thread-votes thread-votes--reply">
-            <button
-              onClick={() => void handleVoteReply(reply.id, 'UPVOTE')}
-              aria-label="Upvote reply"
-              disabled={pendingReplyVoteId === reply.id}
-              className={reply.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
-            >
-              <ArrowBigUp size={16} />
-            </button>
-            <span>{reply.upvoteCount ?? 0}</span>
-            <button
-              onClick={() => void handleVoteReply(reply.id, 'DOWNVOTE')}
-              aria-label="Downvote reply"
-              disabled={pendingReplyVoteId === reply.id}
-              className={reply.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
-            >
-              <ArrowBigDown size={16} />
-            </button>
-            <span>{reply.downvoteCount ?? 0}</span>
+      <div key={reply.id} className="thread-reply-tree-node">
+
+        {/* ── Main row: [rail col] [content] ── */}
+        <div className="thread-reply-item">
+
+          {/* Rail column: avatar on top, then vertical line + collapse icon below */}
+          <div className="thread-reply-rail">
+            <div className="thread-reply-avatar" aria-hidden="true">
+              {avatarInitials}
+            </div>
+
+            {/* Line + icon only rendered when this reply has children */}
+            {hasChildren && (
+              <div
+                className="thread-reply-rail-wrap"
+                onClick={() => toggleReplyChildren(reply.id)}
+                role="button"
+                aria-expanded={!isCollapsed}
+                aria-label={isCollapsed ? 'Expand replies' : 'Collapse replies'}
+                title={isCollapsed ? 'Expand replies' : 'Collapse replies'}
+              >
+                {/* The vertical line — flex:1 so it stretches to match content height */}
+                <div className="thread-reply-rail-line" />
+                {/* ± icon anchored to the bottom of the line */}
+                <div className="thread-reply-collapse-icon">
+                  {isCollapsed ? '+' : '−'}
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Content area */}
           <div className="thread-reply-content">
-            <div className="thread-meta-row">
-              <span>{reply.authorName ?? reply.authorId.slice(0, 8)}</span>
-              <span>{formatRelativeDate(reply.createdAt)}</span>
-              {reply.status === 'EDITED' && <span>edited</span>}
-              {reply.parentReplyId && <span>reply</span>}
+            <div className="thread-reply-head">
+              <div className="thread-meta-row">
+                <span>{authorLabel}</span>
+                <span>{formatRelativeDate(reply.createdAt)}</span>
+                {parentAuthorLabel && <span>replying to {parentAuthorLabel}</span>}
+                {reply.status === 'EDITED' && <span>edited</span>}
+              </div>
             </div>
 
             {editingReplyId === reply.id ? (
@@ -480,33 +535,130 @@ export function ThreadDetailPage() {
             ) : (
               <>
                 <p>{reply.content}</p>
-                <div className="thread-reply-owner-actions">
-                  {canReplyToThread && (
-                    <button className="threads-secondary-btn" onClick={() => setReplyingTo(reply)}>
-                      Reply
+
+                <div className="thread-reply-actions-row">
+                  {/* Inline vote buttons */}
+                  <div className="thread-votes thread-votes--reply-inline">
+                    <button
+                      type="button"
+                      onClick={() => void handleVoteReply(reply.id, 'UPVOTE')}
+                      aria-label="Upvote reply"
+                      disabled={pendingReplyVoteId === reply.id}
+                      className={reply.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
+                    >
+                      <ArrowBigUp size={14} />
                     </button>
-                  )}
-                  {currentUserId === reply.authorId && (
-                    <>
-                      <button className="threads-secondary-btn" onClick={() => beginEditReply(reply)}>
-                        Edit
+                    <span>{reply.upvoteCount ?? 0}</span>
+                    <button
+                      type="button"
+                      onClick={() => void handleVoteReply(reply.id, 'DOWNVOTE')}
+                      aria-label="Downvote reply"
+                      disabled={pendingReplyVoteId === reply.id}
+                      className={reply.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
+                    >
+                      <ArrowBigDown size={14} />
+                    </button>
+                    <span>{reply.downvoteCount ?? 0}</span>
+                  </div>
+
+                  {/* Reply / Edit / Delete */}
+                  <div className="thread-reply-owner-actions thread-reply-owner-actions--inline">
+                    {canReplyToThread && (
+                      <button
+                        className="thread-reply-inline-btn"
+                        onClick={() => setReplyingTo(reply)}
+                      >
+                        Reply
                       </button>
-                      <button className="threads-secondary-btn" onClick={() => void handleDeleteReply(reply.id)}>
-                        Delete
-                      </button>
-                    </>
-                  )}
+                    )}
+                    {currentUserId === reply.authorId && (
+                      <>
+                        <button
+                          className="thread-reply-inline-btn"
+                          onClick={() => beginEditReply(reply)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="thread-reply-inline-btn"
+                          onClick={() => void handleDeleteReply(reply.id)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )}
           </div>
-        </article>
+        </div>
 
-        {children.length > 0 && (
+        {/* "N replies collapsed" restore link — only visible when collapsed */}
+        {hasChildren && isCollapsed && (
+          <button
+            type="button"
+            className="thread-reply-collapsed-summary"
+            onClick={() => toggleReplyChildren(reply.id)}
+          >
+            + {children.length} {children.length === 1 ? 'reply' : 'replies'} collapsed
+          </button>
+        )}
+
+        {/* ── Children block — hidden when collapsed ── */}
+        {hasChildren && !isCollapsed && (
           <div className="thread-reply-children">
-            {children.map((child) => renderReplyNode(child, depth + 1))}
+            {children.map((child, i) => {
+              const isLast = i === children.length - 1
+              return (
+                <div key={child.id} className="thread-reply-kid-wrap">
+
+                  {/* Elbow gutter: SVG curve + continuing vertical line */}
+                  <div className="thread-reply-kid-rail">
+                    {/*
+                      SVG elbow path:
+                        M16,0  — start at top-center (aligns with parent's rail line)
+                        L16,10 — go straight down
+                        Q16,18 24,18 — quadratic curve bending right
+                        L32,18 — horizontal arm pointing into child content
+                    */}
+                    <svg
+                      width="32"
+                      height="20"
+                      aria-hidden="true"
+                      style={{ display: 'block', overflow: 'visible', flexShrink: 0 }}
+                    >
+                      <path
+                        d="M16,0 L16,10 Q16,18 24,18 L32,18"
+                        fill="none"
+                        stroke="#e2e8f0"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+
+                    {/*
+                      Continuing vertical line between siblings.
+                      Runs from top:20px (below the elbow) to bottom:0,
+                      so it connects this child's elbow to the next sibling's elbow.
+                      Omitted on the last child so the line doesn't dangle.
+                    */}
+                    {!isLast && (
+                      <div className="thread-reply-kid-vline" />
+                    )}
+                  </div>
+
+                  {/* Recursive child node */}
+                  <div className="thread-reply-kid-content">
+                    {renderReplyNode(child, depth + 1)}
+                  </div>
+
+                </div>
+              )
+            })}
           </div>
         )}
+
       </div>
     )
   }
@@ -542,92 +694,115 @@ export function ThreadDetailPage() {
       </header>
 
       <section className="thread-detail-page__content">
-        <article className="thread-detail__header">
-          <div className="thread-votes">
-            <button
-              onClick={() => void handleVoteThread('UPVOTE')}
-              aria-label="Upvote thread"
-              className={thread.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
-            >
-              <ArrowBigUp size={18} />
-            </button>
-            <span>{thread.upvoteCount ?? 0}</span>
-            <button
-              onClick={() => void handleVoteThread('DOWNVOTE')}
-              aria-label="Downvote thread"
-              className={thread.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
-            >
-              <ArrowBigDown size={18} />
-            </button>
-            <span>{thread.downvoteCount ?? 0}</span>
-          </div>
-
-          <div className="thread-main" style={{ cursor: 'default' }}>
-            <h3>{thread.title}</h3>
-            {thread.description && <p>{thread.description}</p>}
-            <div className="thread-meta-row">
-              <span>By {threadAuthorLabel}</span>
-              <span>{formatRelativeDate(thread.createdAt)}</span>
-              <span>{thread.replyCount} comments</span>
-              <span>Status: {thread.status.toLowerCase()}</span>
-            </div>
-
-            {isThreadAuthor && (
-              <div className="thread-owner-actions">
-                <button
-                  className="threads-secondary-btn"
-                  onClick={() => void handleToggleThreadStatus()}
-                  disabled={updatingThreadStatus}
-                >
-                  {updatingThreadStatus
-                    ? 'Updating…'
-                    : thread.status === 'CLOSED'
-                      ? 'Reopen Thread'
-                      : 'Close Thread'}
-                </button>
-              </div>
-            )}
-          </div>
-        </article>
-
-        <section className="thread-reply-box">
-          {actionError && <p className="status-banner status-banner--error">{actionError}</p>}
-          {replyingTo && (
-            <div className="thread-reply-target">
-              Replying to {replyingTo.authorName ?? replyingTo.authorId.slice(0, 8)}
-              <button className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
-          <textarea
-            value={replyDraft}
-            onChange={(e) => setReplyDraft(e.target.value)}
-            placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
-            disabled={!canReplyToThread}
-          />
+        <div className="thread-collapse-shell">
           <button
-            className="threads-primary-btn"
-            disabled={postingReply || !replyDraft.trim() || !canReplyToThread}
-            onClick={() => void handlePostReply()}
+            type="button"
+            className="thread-collapse-toggle"
+            onClick={toggleThreadCollapse}
+            aria-expanded={!isThreadCollapsed}
+            aria-label={isThreadCollapsed ? 'Expand thread' : 'Collapse thread'}
           >
-            <Send size={15} />
-            {postingReply ? 'Posting…' : 'Post Comment'}
+            <span className="thread-collapse-toggle__icon">{isThreadCollapsed ? '+' : '−'}</span>
+            <span className="thread-collapse-toggle__label">
+              {threadAuthorLabel}
+            </span>
           </button>
-        </section>
 
-        <section className="thread-replies">
-          <h4>Comments ({replies.length})</h4>
+          {!isThreadCollapsed && (
+            <>
+              <article className="thread-detail__header">
+                <div className="thread-votes">
+                  <button
+                    onClick={() => void handleVoteThread('UPVOTE')}
+                    aria-label="Upvote thread"
+                    className={thread.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
+                  >
+                    <ArrowBigUp size={18} />
+                  </button>
+                  <span>{thread.upvoteCount ?? 0}</span>
+                  <button
+                    onClick={() => void handleVoteThread('DOWNVOTE')}
+                    aria-label="Downvote thread"
+                    className={thread.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
+                  >
+                    <ArrowBigDown size={18} />
+                  </button>
+                  <span>{thread.downvoteCount ?? 0}</span>
+                </div>
 
-          {replies.length === 0 && (
-            <div className="threads-empty" style={{ minHeight: '8rem' }}>
-              <MessageCircle size={24} />
-              <p>No comments yet. Start the conversation.</p>
-            </div>
+                <div className="thread-main" style={{ cursor: 'default' }}>
+                  <h3>{thread.title}</h3>
+                  {thread.description && <p>{thread.description}</p>}
+                  <div className="thread-meta-row">
+                    <span>By {threadAuthorLabel}</span>
+                    <span>{formatRelativeDate(thread.createdAt)}</span>
+                    <span>{thread.replyCount} comments</span>
+                    <span>Status: {thread.status.toLowerCase()}</span>
+                  </div>
+
+                  {isThreadAuthor && (
+                    <div className="thread-owner-actions">
+                      <button
+                        className="threads-secondary-btn"
+                        onClick={() => void handleToggleThreadStatus()}
+                        disabled={updatingThreadStatus}
+                      >
+                        {updatingThreadStatus
+                          ? 'Updating…'
+                          : thread.status === 'CLOSED'
+                            ? 'Reopen Thread'
+                            : 'Close Thread'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <section className="thread-reply-box">
+                {actionError && <p className="status-banner status-banner--error">{actionError}</p>}
+                {replyingTo && (
+                  <div className="thread-reply-target">
+                    Replying to {replyingTo.authorName ?? replyingTo.authorId.slice(0, 8)}
+                    <button className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  value={replyDraft}
+                  onChange={(e) => setReplyDraft(e.target.value)}
+                  placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
+                  disabled={!canReplyToThread}
+                />
+                <button
+                  className="threads-primary-btn"
+                  disabled={postingReply || !replyDraft.trim() || !canReplyToThread}
+                  onClick={() => void handlePostReply()}
+                >
+                  <Send size={15} />
+                  {postingReply ? 'Posting…' : 'Post Comment'}
+                </button>
+              </section>
+
+              <section className="thread-replies">
+                <h4>Comments ({replies.length})</h4>
+
+                {replies.length === 0 && (
+                  <div className="threads-empty" style={{ minHeight: '8rem' }}>
+                    <MessageCircle size={24} />
+                    <p>No comments yet. Start the conversation.</p>
+                  </div>
+                )}
+
+                {(repliesByParent.get(null) ?? []).map((reply) => (
+                  <div key={reply.id} className="thread-root-reply">
+                    {renderReplyNode(reply, 0)}
+                  </div>
+                ))}
+              </section>
+            </>
           )}
-
-          {(repliesByParent.get(null) ?? []).map((reply) => renderReplyNode(reply, 0))}
-        </section>
+        </div>
       </section>
     </main>
   )

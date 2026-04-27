@@ -4102,9 +4102,15 @@
      THREADS PAGE
   ───────────────────────────────────────────────────────────── */
 
+  .threads-page-shell {
+    min-height: 100vh;
+    background: #f8fafc;
+    color: #17233a;
+  }
+
   .threads-page {
     width: min(1220px, 100%); margin: 0 auto;
-    padding: 2rem 1.25rem 2.5rem; display: flex; flex-direction: column; gap: 1rem;
+    padding: 1.5rem 1.25rem 2.5rem; display: flex; flex-direction: column; gap: 1rem;
   }
 
   .threads-header {
@@ -4256,6 +4262,54 @@
   .thread-detail__header h3 { margin: 0; color: #17233a; font-size: 1.25rem; line-height: 1.28; }
   .thread-detail__header p { margin: 0.5rem 0; color: #52647f; line-height: 1.45; }
 
+  .thread-collapse-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .thread-collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: fit-content;
+    border: 1px solid #dbe4f1;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem 0.35rem 0.45rem;
+    color: #1f2d45;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+  }
+
+  .thread-collapse-toggle:hover {
+    border-color: #b8c7db;
+    background: #f8fbff;
+  }
+
+  .thread-collapse-toggle__icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    border: 1px solid #c8d5eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #5b6f8f;
+    background: #fff;
+    font-size: 0.95rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .thread-collapse-toggle__label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .thread-reply-box {
     border: 1px solid #e5ecf7; border-radius: 0.75rem; padding: 0.75rem;
     display: flex; flex-direction: column; gap: 0.55rem;
@@ -4268,46 +4322,339 @@
 
   .thread-reply-box textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.18); }
 
-  .thread-replies { border-top: 1px solid #e8edf7; padding-top: 0.7rem; display: flex; flex-direction: column; gap: 0.6rem; }
-  .thread-replies h4 { margin: 0; color: #17233a; }
-  .thread-replies__empty { margin: 0; color: #8391a8; font-size: 0.92rem; }
+  /* ─────────────────────────────────────────────────────────────
+     THREAD REPLIES — Reddit-style connector rails
+     Replace the existing thread reply classes in your global CSS
+  ───────────────────────────────────────────────────────────── */
 
+  /* Root reply spacing */
+  .thread-root-reply + .thread-root-reply {
+    margin-top: 0.42rem;
+  }
+
+  /* ── Reply tree node wrapper ── */
+  .thread-reply-tree-node {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .thread-reply-tree-node--nested {
+    margin-left: 0.18rem;
+  }
+
+  .thread-reply-tree-node--collapsed > .thread-reply-children {
+    display: none;
+  }
+
+  /* ── The main row: [rail column] [content] ── */
   .thread-reply-item {
-    border: 1px solid #e5ecf7; border-radius: 0.7rem; padding: 0.65rem;
-    display: grid; grid-template-columns: 2.1rem 1fr; gap: 0.6rem;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
   }
 
-  .thread-votes--reply button { width: 1.5rem; height: 1.5rem; }
-
-  .thread-reply-content p { margin: 0.25rem 0 0; color: #41506a; line-height: 1.4; font-size: 0.9rem; }
-
-  .thread-owner-actions,
-  .thread-reply-owner-actions,
-  .thread-reply-edit-actions {
-    display: flex; align-items: center; gap: 0.45rem; margin-top: 0.45rem; flex-wrap: wrap;
+  /* ── Rail column: holds avatar + vertical line + collapse icon ── */
+  .thread-reply-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 32px;
+    position: relative;
   }
 
-  .thread-reply-owner-actions .threads-secondary-btn,
-  .thread-reply-edit-actions .threads-secondary-btn,
-  .thread-reply-edit-actions .threads-primary-btn,
-  .thread-owner-actions .threads-secondary-btn {
-    min-height: 2rem; padding: 0 0.65rem; font-size: 0.8rem;
+  /* Avatar circle */
+  .thread-reply-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    margin-top: 2px;
   }
 
-  .thread-reply-edit-wrap { margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.45rem; }
+  /* ── Vertical rail line wrapper (contains line + collapse icon) ── */
+  .thread-reply-rail-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 3px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    width: 100%;
+  }
+
+  .thread-reply-rail-wrap:hover .thread-reply-rail-line {
+    background: #94a3b8;
+  }
+
+  .thread-reply-rail-wrap:hover .thread-reply-collapse-btn {
+    border-color: #94a3b8;
+    color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  /* The vertical line itself — flex:1 makes it stretch to match content height */
+  .thread-reply-rail-line {
+    width: 2px;
+    flex: 1;
+    background: #e2e8f0;
+    border-radius: 1px;
+    transition: background 0.15s;
+    min-height: 0.85rem;
+  }
+
+  /* ── Collapse/expand icon — sits at bottom of the rail line ── */
+  .thread-reply-collapse-btn {
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 400;
+    color: #94a3b8;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    z-index: 2;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* ── Reply content area ── */
+  .thread-reply-content {
+    flex: 1;
+    min-width: 0;
+    padding: 0 0 0 8px;
+    padding-bottom: 4px;
+  }
+
+  /* Author + meta row */
+  .thread-reply-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+  }
+
+  .thread-reply-head .thread-meta-row {
+    margin: 0;
+  }
+
+  /* Reply body text */
+  .thread-reply-content p {
+    margin: 0.18rem 0 0;
+    color: #334155;
+    line-height: 1.44;
+    font-size: 0.91rem;
+  }
+
+  /* Actions row (vote + reply/edit/delete) */
+  .thread-reply-actions-row {
+    margin-top: 0.28rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  /* ── Children block ── */
+  .thread-reply-children {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Each child gets a kid-wrap: [elbow gutter] [child node] */
+  .thread-reply-kid-wrap {
+    display: flex;
+    flex-direction: row;
+    position: relative;
+  }
+
+  /* The left gutter that holds the SVG elbow + continuing vline */
+  .thread-reply-kid-rail {
+    width: 32px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* Continuing vertical line between siblings — hidden on last child */
+  .thread-reply-kid-vline {
+    position: absolute;
+    top: 20px;
+    left: 15px;
+    width: 2px;
+    bottom: 0;
+    background: #e2e8f0;
+    border-radius: 0 0 1px 1px;
+  }
+
+  .thread-reply-kid-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .thread-reply-kid-content > .thread-reply-tree-node > .thread-reply-item > .thread-reply-rail > .thread-reply-rail-wrap > .thread-reply-collapse-btn {
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+
+  /* ── Collapsed state ── */
+  .thread-reply-tree-node--collapsed > .thread-reply-children {
+    display: none;
+  }
+
+  .thread-reply-tree-node--collapsed > .thread-reply-item > .thread-reply-rail > .thread-reply-rail-wrap > .thread-reply-rail-line {
+    opacity: 0.3;
+  }
+
+  /* Collapsed restore bar */
+  .thread-reply-collapsed-summary {
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 0.77rem;
+    font-weight: 700;
+    padding: 2px 0 8px 0;
+    cursor: pointer;
+    display: none;
+    text-align: left;
+  }
+
+  .thread-reply-tree-node--collapsed > .thread-reply-collapsed-summary {
+    display: block;
+  }
+
+  .thread-reply-collapsed-summary:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+
+  /* ── Inline vote buttons ── */
+  .thread-votes--reply-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.08rem;
+    color: #64748b;
+  }
+
+  .thread-votes--reply-inline button {
+    width: 1.2rem;
+    height: 1.2rem;
+    border: 0;
+    background: transparent;
+    color: #7d8ba2;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .thread-votes--reply-inline button:hover {
+    background: #eef2ff;
+    color: #3459d3;
+  }
+
+  .thread-votes--reply-inline button.thread-vote-btn--active-up {
+    background: #e7f0ff;
+    color: #1d4ed8;
+  }
+
+  .thread-votes--reply-inline button.thread-vote-btn--active-down {
+    background: #feecec;
+    color: #b91c1c;
+  }
+
+  .thread-votes--reply-inline span {
+    min-width: 1rem;
+    text-align: center;
+    font-size: 0.73rem;
+    font-weight: 700;
+  }
+
+  /* ── Inline action buttons ── */
+  .thread-reply-inline-btn {
+    border: 0;
+    background: transparent;
+    color: #4b5f7e;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border-radius: 0.3rem;
+  }
+
+  .thread-reply-inline-btn:hover {
+    color: #1d4ed8;
+    background: #eef4ff;
+  }
+
+  /* ── Edit mode ── */
+  .thread-reply-edit-wrap {
+    margin-top: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
 
   .thread-reply-edit-wrap textarea {
-    min-height: 5rem; border: 1px solid #dbe4f1; border-radius: 0.55rem;
-    padding: 0.55rem 0.65rem; resize: vertical; outline: none; color: #1c2942;
+    min-height: 5rem;
+    border: 1px solid #dbe4f1;
+    border-radius: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    resize: vertical;
+    outline: none;
+    color: #1c2942;
+    font-family: inherit;
+    font-size: 0.91rem;
   }
 
-  .thread-reply-edit-wrap textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.16); }
+  .thread-reply-edit-wrap textarea:focus {
+    border-color: #7ea1ff;
+    box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.16);
+  }
 
-  .thread-reply-tree-node { margin-left: calc(var(--reply-depth, 0) * 1.1rem); }
+  .thread-reply-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
 
-  .thread-reply-children {
-    display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;
-    padding-left: 0.55rem; border-left: 2px solid #e5ecf7;
+  /* ── Reply-to target banner ── */
+  .thread-reply-target {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    border: 1px solid #d7e3fb;
+    background: #f3f7ff;
+    border-radius: 0.55rem;
+    padding: 0.45rem 0.6rem;
+    color: #27427f;
+    font-size: 0.84rem;
+    font-weight: 600;
   }
 
   .thread-reply-target {
