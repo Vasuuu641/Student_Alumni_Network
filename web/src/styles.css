@@ -4281,11 +4281,72 @@
   .thread-reply-item {
     border: 1px solid #e5ecf7; border-radius: 0.7rem; padding: 0.65rem;
     display: grid; grid-template-columns: 2.1rem 1fr; gap: 0.6rem;
+    background: #fff;
   }
 
   .thread-votes--reply button { width: 1.5rem; height: 1.5rem; }
 
+  .thread-reply-head {
+    display: grid;
+    grid-template-columns: 1.7rem 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .thread-reply-avatar {
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
   .thread-reply-content p { margin: 0.25rem 0 0; color: #41506a; line-height: 1.4; font-size: 0.9rem; }
+
+  .thread-reply-collapse-btn {
+    width: 1.3rem;
+    height: 1.3rem;
+    border: 1px solid #c8d5eb;
+    border-radius: 999px;
+    background: #f8fbff;
+    color: #365da8;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .thread-reply-collapse-btn:hover {
+    background: #eaf1ff;
+    border-color: #93b0e8;
+  }
+
+  .thread-reply-collapsed-summary {
+    margin-top: 0.45rem;
+    border: 0;
+    background: transparent;
+    color: #365da8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .thread-reply-collapsed-summary:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
 
   .thread-owner-actions,
   .thread-reply-owner-actions,
@@ -4309,11 +4370,24 @@
 
   .thread-reply-edit-wrap textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.16); }
 
-  .thread-reply-tree-node { margin-left: calc(var(--reply-depth, 0) * 1.1rem); }
+  .thread-reply-tree-node {
+    margin-left: calc(var(--reply-depth, 0) * 1.1rem);
+    position: relative;
+  }
+
+  .thread-reply-tree-node--nested::before {
+    content: '';
+    position: absolute;
+    left: -0.6rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #d6e1f0;
+  }
 
   .thread-reply-children {
     display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;
-    padding-left: 0.55rem; border-left: 2px solid #e5ecf7;
+    padding-left: 0.65rem; border-left: 2px solid #d6e1f0;
   }
 
   .thread-reply-target {

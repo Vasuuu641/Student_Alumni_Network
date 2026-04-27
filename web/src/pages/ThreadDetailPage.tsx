@@ -101,6 +101,7 @@ export function ThreadDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingReplyVoteId, setPendingReplyVoteId] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<ThreadReply | null>(null)
+  const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -269,6 +270,14 @@ export function ThreadDetailPage() {
     return map
   }, [replies])
 
+  const repliesById = useMemo(() => {
+    const map = new Map<string, ThreadReply>()
+    for (const reply of replies) {
+      map.set(reply.id, reply)
+    }
+    return map
+  }, [replies])
+
   const isThreadAuthor = !!thread && !!currentUserId && thread.authorId === currentUserId
   const canReplyToThread = thread?.status === 'OPEN' || thread?.status === 'PINNED'
 
@@ -423,11 +432,46 @@ export function ThreadDetailPage() {
     }
   }
 
+  function toggleReplyChildren(replyId: string) {
+    setCollapsedReplyIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(replyId)) {
+        next.delete(replyId)
+      } else {
+        next.add(replyId)
+      }
+      return next
+    })
+  }
+
+  function buildAvatarInitials(name: string | undefined, authorId: string): string {
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/).filter(Boolean)
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      }
+      return parts[0].slice(0, 2).toUpperCase()
+    }
+    return authorId.slice(0, 2).toUpperCase()
+  }
+
   function renderReplyNode(reply: ThreadReply, depth: number): JSX.Element {
     const children = repliesByParent.get(reply.id) ?? []
+    const hasChildren = children.length > 0
+    const isCollapsed = collapsedReplyIds.has(reply.id)
+    const parentReply = reply.parentReplyId ? repliesById.get(reply.parentReplyId) : null
+    const parentAuthorLabel = parentReply
+      ? parentReply.authorName ?? parentReply.authorId.slice(0, 8)
+      : null
+    const authorLabel = reply.authorName ?? reply.authorId.slice(0, 8)
+    const avatarInitials = buildAvatarInitials(reply.authorName, reply.authorId)
 
     return (
-      <div key={reply.id} className="thread-reply-tree-node" style={{ '--reply-depth': depth } as CSSProperties}>
+      <div
+        key={reply.id}
+        className={`thread-reply-tree-node ${depth > 0 ? 'thread-reply-tree-node--nested' : ''}`}
+        style={{ '--reply-depth': depth } as CSSProperties}
+      >
         <article className="thread-reply-item">
           <div className="thread-votes thread-votes--reply">
             <button
@@ -451,11 +495,25 @@ export function ThreadDetailPage() {
           </div>
 
           <div className="thread-reply-content">
-            <div className="thread-meta-row">
-              <span>{reply.authorName ?? reply.authorId.slice(0, 8)}</span>
-              <span>{formatRelativeDate(reply.createdAt)}</span>
-              {reply.status === 'EDITED' && <span>edited</span>}
-              {reply.parentReplyId && <span>reply</span>}
+            <div className="thread-reply-head">
+              <div className="thread-reply-avatar" aria-hidden="true">{avatarInitials}</div>
+              <div className="thread-meta-row">
+                <span>{authorLabel}</span>
+                <span>{formatRelativeDate(reply.createdAt)}</span>
+                {parentAuthorLabel && <span>replying to {parentAuthorLabel}</span>}
+                {reply.status === 'EDITED' && <span>edited</span>}
+              </div>
+              {hasChildren && (
+                <button
+                  type="button"
+                  className="thread-reply-collapse-btn"
+                  onClick={() => toggleReplyChildren(reply.id)}
+                  aria-label={isCollapsed ? 'Show replies' : 'Hide replies'}
+                  aria-expanded={!isCollapsed}
+                >
+                  {isCollapsed ? '+' : '-'}
+                </button>
+              )}
             </div>
 
             {editingReplyId === reply.id ? (
@@ -499,10 +557,20 @@ export function ThreadDetailPage() {
                 </div>
               </>
             )}
+
+            {hasChildren && isCollapsed && (
+              <button
+                type="button"
+                className="thread-reply-collapsed-summary"
+                onClick={() => toggleReplyChildren(reply.id)}
+              >
+                + {children.length} {children.length === 1 ? 'reply' : 'replies'}
+              </button>
+            )}
           </div>
         </article>
 
-        {children.length > 0 && (
+        {hasChildren && !isCollapsed && (
           <div className="thread-reply-children">
             {children.map((child) => renderReplyNode(child, depth + 1))}
           </div>
