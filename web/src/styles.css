@@ -4279,16 +4279,48 @@
   .thread-replies__empty { margin: 0; color: #8391a8; font-size: 0.92rem; }
 
   .thread-reply-item {
-    border: 1px solid #e5ecf7; border-radius: 0.7rem; padding: 0.65rem;
-    display: grid; grid-template-columns: 2.1rem 1fr; gap: 0.6rem;
-    background: #fff;
+    display: grid;
+    grid-template-columns: 1rem 1fr;
+    gap: 0.55rem;
   }
 
-  .thread-votes--reply button { width: 1.5rem; height: 1.5rem; }
+  .thread-reply-rail {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 0.2rem;
+  }
+
+  .thread-reply-rail-dot {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: #9fb0cb;
+    margin-top: 0.35rem;
+  }
+
+  .thread-votes--reply-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    color: #64748b;
+  }
+
+  .thread-votes--reply-inline button {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .thread-votes--reply-inline span {
+    min-width: 1rem;
+    text-align: center;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
 
   .thread-reply-head {
     display: grid;
-    grid-template-columns: 1.7rem 1fr auto;
+    grid-template-columns: 1.7rem 1fr;
     align-items: center;
     gap: 0.5rem;
   }
@@ -4308,7 +4340,15 @@
     flex-shrink: 0;
   }
 
-  .thread-reply-content p { margin: 0.25rem 0 0; color: #41506a; line-height: 1.4; font-size: 0.9rem; }
+  .thread-reply-content p { margin: 0.3rem 0 0; color: #334155; line-height: 1.52; font-size: 0.94rem; }
+
+  .thread-reply-actions-row {
+    margin-top: 0.42rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
 
   .thread-reply-collapse-btn {
     width: 1.3rem;
@@ -4325,6 +4365,7 @@
     justify-content: center;
     cursor: pointer;
     padding: 0;
+    margin-top: 0.06rem;
   }
 
   .thread-reply-collapse-btn:hover {
@@ -4354,6 +4395,27 @@
     display: flex; align-items: center; gap: 0.45rem; margin-top: 0.45rem; flex-wrap: wrap;
   }
 
+  .thread-reply-owner-actions--inline {
+    margin-top: 0;
+    gap: 0.35rem;
+  }
+
+  .thread-reply-inline-btn {
+    border: 0;
+    background: transparent;
+    color: #4b5f7e;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border-radius: 0.3rem;
+  }
+
+  .thread-reply-inline-btn:hover {
+    color: #1d4ed8;
+    background: #eef4ff;
+  }
+
   .thread-reply-owner-actions .threads-secondary-btn,
   .thread-reply-edit-actions .threads-secondary-btn,
   .thread-reply-edit-actions .threads-primary-btn,
@@ -4371,23 +4433,23 @@
   .thread-reply-edit-wrap textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.16); }
 
   .thread-reply-tree-node {
-    margin-left: calc(var(--reply-depth, 0) * 1.1rem);
+    margin-left: calc(var(--reply-depth, 0) * 1.05rem);
     position: relative;
   }
 
   .thread-reply-tree-node--nested::before {
     content: '';
     position: absolute;
-    left: -0.6rem;
+    left: -0.55rem;
     top: 0;
     bottom: 0;
     width: 1px;
-    background: #d6e1f0;
+    background: #cfd9e8;
   }
 
   .thread-reply-children {
     display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;
-    padding-left: 0.65rem; border-left: 2px solid #d6e1f0;
+    padding-left: 0.62rem; border-left: 1px solid #cfd9e8;
   }
 
   .thread-reply-target {

@@ -472,26 +472,21 @@ export function ThreadDetailPage() {
         className={`thread-reply-tree-node ${depth > 0 ? 'thread-reply-tree-node--nested' : ''}`}
         style={{ '--reply-depth': depth } as CSSProperties}
       >
-        <article className="thread-reply-item">
-          <div className="thread-votes thread-votes--reply">
-            <button
-              onClick={() => void handleVoteReply(reply.id, 'UPVOTE')}
-              aria-label="Upvote reply"
-              disabled={pendingReplyVoteId === reply.id}
-              className={reply.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
-            >
-              <ArrowBigUp size={16} />
-            </button>
-            <span>{reply.upvoteCount ?? 0}</span>
-            <button
-              onClick={() => void handleVoteReply(reply.id, 'DOWNVOTE')}
-              aria-label="Downvote reply"
-              disabled={pendingReplyVoteId === reply.id}
-              className={reply.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
-            >
-              <ArrowBigDown size={16} />
-            </button>
-            <span>{reply.downvoteCount ?? 0}</span>
+        <div className="thread-reply-item">
+          <div className="thread-reply-rail">
+            {hasChildren ? (
+              <button
+                type="button"
+                className="thread-reply-collapse-btn"
+                onClick={() => toggleReplyChildren(reply.id)}
+                aria-label={isCollapsed ? 'Show replies' : 'Hide replies'}
+                aria-expanded={!isCollapsed}
+              >
+                {isCollapsed ? '+' : '-'}
+              </button>
+            ) : (
+              <span className="thread-reply-rail-dot" />
+            )}
           </div>
 
           <div className="thread-reply-content">
@@ -503,17 +498,6 @@ export function ThreadDetailPage() {
                 {parentAuthorLabel && <span>replying to {parentAuthorLabel}</span>}
                 {reply.status === 'EDITED' && <span>edited</span>}
               </div>
-              {hasChildren && (
-                <button
-                  type="button"
-                  className="thread-reply-collapse-btn"
-                  onClick={() => toggleReplyChildren(reply.id)}
-                  aria-label={isCollapsed ? 'Show replies' : 'Hide replies'}
-                  aria-expanded={!isCollapsed}
-                >
-                  {isCollapsed ? '+' : '-'}
-                </button>
-              )}
             </div>
 
             {editingReplyId === reply.id ? (
@@ -538,22 +522,48 @@ export function ThreadDetailPage() {
             ) : (
               <>
                 <p>{reply.content}</p>
-                <div className="thread-reply-owner-actions">
-                  {canReplyToThread && (
-                    <button className="threads-secondary-btn" onClick={() => setReplyingTo(reply)}>
-                      Reply
+
+                <div className="thread-reply-actions-row">
+                  <div className="thread-votes thread-votes--reply-inline">
+                    <button
+                      type="button"
+                      onClick={() => void handleVoteReply(reply.id, 'UPVOTE')}
+                      aria-label="Upvote reply"
+                      disabled={pendingReplyVoteId === reply.id}
+                      className={reply.viewerVote === 'UPVOTE' ? 'thread-vote-btn--active-up' : ''}
+                    >
+                      <ArrowBigUp size={14} />
                     </button>
-                  )}
-                  {currentUserId === reply.authorId && (
-                    <>
-                      <button className="threads-secondary-btn" onClick={() => beginEditReply(reply)}>
-                        Edit
+                    <span>{reply.upvoteCount ?? 0}</span>
+                    <button
+                      type="button"
+                      onClick={() => void handleVoteReply(reply.id, 'DOWNVOTE')}
+                      aria-label="Downvote reply"
+                      disabled={pendingReplyVoteId === reply.id}
+                      className={reply.viewerVote === 'DOWNVOTE' ? 'thread-vote-btn--active-down' : ''}
+                    >
+                      <ArrowBigDown size={14} />
+                    </button>
+                    <span>{reply.downvoteCount ?? 0}</span>
+                  </div>
+
+                  <div className="thread-reply-owner-actions thread-reply-owner-actions--inline">
+                    {canReplyToThread && (
+                      <button className="thread-reply-inline-btn" onClick={() => setReplyingTo(reply)}>
+                        Reply
                       </button>
-                      <button className="threads-secondary-btn" onClick={() => void handleDeleteReply(reply.id)}>
-                        Delete
-                      </button>
-                    </>
-                  )}
+                    )}
+                    {currentUserId === reply.authorId && (
+                      <>
+                        <button className="thread-reply-inline-btn" onClick={() => beginEditReply(reply)}>
+                          Edit
+                        </button>
+                        <button className="thread-reply-inline-btn" onClick={() => void handleDeleteReply(reply.id)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )}
@@ -568,7 +578,7 @@ export function ThreadDetailPage() {
               </button>
             )}
           </div>
-        </article>
+        </div>
 
         {hasChildren && !isCollapsed && (
           <div className="thread-reply-children">
