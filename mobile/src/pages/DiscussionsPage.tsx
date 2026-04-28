@@ -373,7 +373,7 @@ export function DiscussionsPage({ navigation }: Props) {
             ) : (
               <View className="gap-3">
                 {filteredThreads.map((thread) => (
-                  <DiscussionThreadItem key={thread.id} thread={thread} onPress={() => {}} />
+                  <DiscussionThreadItem key={thread.id} thread={thread} onPress={() => navigation.navigate('ThreadDetail', { threadId: thread.id })} />
                 ))}
               </View>
             )}
