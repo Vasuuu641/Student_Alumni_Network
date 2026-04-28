@@ -21,6 +21,7 @@ import { listThreads, type ThreadPanel, type ThreadSummary } from '../api/thread
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
 import { clearTokens, getAccessToken } from '../lib/auth-storage';
 import type { RootStackParamList } from '../navigation/root-stack';
+import CreateDiscussionModal from '../components/threads/CreateDiscussionModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Discussions'>;
 
@@ -33,10 +34,6 @@ export function DiscussionsPage({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createTitle, setCreateTitle] = useState('');
-  const [createDescription, setCreateDescription] = useState('');
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
 
   // Determine available panels based on role
   const availablePanels = useMemo(() => {
@@ -282,7 +279,7 @@ export function DiscussionsPage({ navigation }: Props) {
 
           {/* New Discussion Button */}
           <View className="px-4 pt-4">
-            <Pressable className="flex-row items-center justify-center gap-2 rounded-[24px] bg-[#2f64f6] px-4 py-3.5">
+            <Pressable onPress={() => setShowCreateModal(true)} className="flex-row items-center justify-center gap-2 rounded-[24px] bg-[#2f64f6] px-4 py-3.5">
               <FontAwesomeIcon icon={faPlus as IconProp} size={18} color="white" />
               <Text className="text-base font-bold text-white">New Discussion</Text>
             </Pressable>
@@ -387,6 +384,23 @@ export function DiscussionsPage({ navigation }: Props) {
           <MobileBottomNav activeTab="discussions" onNavigate={navigateBottom} />
         </View>
       </View>
+
+      {/* Create Discussion Modal */}
+      <CreateDiscussionModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        panel={activePanel}
+        token={accessToken}
+        onCreated={async () => {
+          if (!accessToken) return;
+          const response = await listThreads(accessToken, {
+            panel: activePanel,
+            take: 50,
+            sortBy: 'newest',
+          });
+          setThreads(response.threads);
+        }}
+      />
     </SafeAreaView>
   );
 }
