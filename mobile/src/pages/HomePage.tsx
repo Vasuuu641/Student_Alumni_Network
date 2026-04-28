@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LandingHeader } from '../components/LandingHeader';
 import { InfoCard } from '../components/InfoCard';
+import { getAccessToken } from '../lib/auth-storage';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -83,6 +85,23 @@ const privacyCards = [
 ];
 
 export function HomePage({ navigation }: Props) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkSession() {
+      const token = await getAccessToken();
+      if (token && !cancelled) {
+        navigation.replace('Dashboard');
+      }
+    }
+
+    void checkSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation]);
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
