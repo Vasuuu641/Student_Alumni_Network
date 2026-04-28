@@ -20,7 +20,7 @@ const items: Array<{ key: MobileNavTab; label: string; icon: any }> = [
   { key: 'notes', label: 'Notes', icon: faBookOpen },
   { key: 'discussions', label: 'Discussions', icon: faComments },
   { key: 'geo-board', label: 'Geo Board', icon: faCompass },
-  { key: 'study-groups', label: 'Study Groups', icon: faUsers },
+  { key: 'study-groups', label: 'Groups', icon: faUsers },
 ];
 
 export function MobileBottomNav({ activeTab, onNavigate }: MobileBottomNavProps) {

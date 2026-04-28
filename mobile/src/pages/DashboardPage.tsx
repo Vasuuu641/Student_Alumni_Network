@@ -13,6 +13,7 @@ import {
   faPalette,
   faUser,
   faUsers,
+  faCompass,
 } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
@@ -276,8 +277,8 @@ export function DashboardPage({ navigation }: Props) {
               accent="green"
               icon={faUsers as IconProp}
               actionLabel="Browse groups"
-              onPress={() => openNotice('Study groups will be added in the next mobile update.')}
-            />
+              onPress={() => openNotice('Groups will be added in the next mobile update.')} />
+            /
           </View>
 
           <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
@@ -289,8 +290,8 @@ export function DashboardPage({ navigation }: Props) {
             <View className="flex-row flex-wrap gap-2">
               <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
               <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => openNotice('Discussions will be added in the next mobile update.')} />
-              <ActionPill icon={faUsers as IconProp} label="Study Groups" tone="green" onPress={() => openNotice('Study groups will be added in the next mobile update.')} />
-              <ActionPill icon={faUser as IconProp} label="Profile" tone="blue" onPress={() => navigation.navigate('Profile')} />
+              <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => openNotice('Groups will be added in the next mobile update.')} />
+              <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => openNotice('Geo board will be added in the next mobile update.')} />
             </View>
           </View>
 
@@ -456,7 +457,7 @@ function ActionPill({
 }: {
   icon: IconProp;
   label: string;
-  tone: 'blue' | 'gold' | 'green';
+  tone: 'blue' | 'gold' | 'green' | 'purple';
   onPress: () => void;
 }) {
   const toneClass =
@@ -465,7 +466,7 @@ function ActionPill({
       : tone === 'green'
         ? 'bg-[#e5f9eb] text-[#21894b]'
         : 'bg-[#eaf1ff] text-[#2f64f6]';
-  const iconColor = tone === 'gold' ? '#c07400' : tone === 'green' ? '#21894b' : '#2f64f6';
+  const iconColor = tone === 'gold' ? '#c07400' : tone === 'green' ? '#21894b' : tone === 'purple' ? '#8b45f7' : '#2f64f6';
 
   return (
     <Pressable onPress={onPress} className="min-w-[47%] flex-1 flex-row items-center gap-3 rounded-2xl border border-[#e5ecf7] bg-[#f8fbff] px-3 py-3">
