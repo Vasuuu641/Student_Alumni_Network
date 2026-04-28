@@ -67,12 +67,14 @@ export function DashboardPage({ navigation }: Props) {
       return;
     }
 
+    const token = accessToken;
+
     let cancelled = false;
 
     async function loadDashboard() {
       try {
         setProfileLoading(true);
-        const profile = await loadCurrentUserProfile(accessToken);
+        const profile = await loadCurrentUserProfile(token);
 
         if (cancelled) {
           return;
@@ -85,9 +87,9 @@ export function DashboardPage({ navigation }: Props) {
         setStatsLoading(true);
 
         const [notesResponse, studyGroupsResponse, ...threadResponses] = await Promise.all([
-          listUserNotes(accessToken),
-          profile.role === 'ALUMNI' ? Promise.resolve([]) : listStudyGroups(accessToken),
-          ...panels.map((panel) => listThreads(accessToken, { panel, take: 25, sortBy: 'newest' })),
+          listUserNotes(token),
+          profile.role === 'ALUMNI' ? Promise.resolve([]) : listStudyGroups(token),
+          ...panels.map((panel) => listThreads(token, { panel, take: 25, sortBy: 'newest' })),
         ]);
 
         if (cancelled) {
@@ -146,8 +148,13 @@ export function DashboardPage({ navigation }: Props) {
       return;
     }
 
-    if (tab === 'profile') {
-      navigation.navigate('Profile');
+    if (tab === 'geo-board') {
+      openNotice('Geo Help Board will be added in the next mobile update.');
+      return;
+    }
+
+    if (tab === 'study-groups') {
+      openNotice('Study Groups will be added in the next mobile update.');
       return;
     }
 

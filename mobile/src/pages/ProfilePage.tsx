@@ -169,8 +169,13 @@ export function ProfilePage({ navigation }: Props) {
       return;
     }
 
-    if (tab === 'profile') {
-      navigation.navigate('Profile');
+    if (tab === 'geo-board') {
+      setNotice('Geo Help Board will be added in the next mobile update.');
+      return;
+    }
+
+    if (tab === 'study-groups') {
+      setNotice('Study Groups will be added in the next mobile update.');
       return;
     }
 

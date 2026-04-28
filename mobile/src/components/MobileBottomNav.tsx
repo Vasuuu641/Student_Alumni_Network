@@ -3,11 +3,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
   faBookOpen,
   faComments,
+  faCompass,
   faHouse,
-  faUser,
+  faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 
-export type MobileNavTab = 'home' | 'notes' | 'discussions' | 'profile';
+export type MobileNavTab = 'home' | 'notes' | 'discussions' | 'geo-board' | 'study-groups';
 
 type MobileBottomNavProps = {
   activeTab: MobileNavTab;
@@ -18,7 +19,8 @@ const items: Array<{ key: MobileNavTab; label: string; icon: any }> = [
   { key: 'home', label: 'Home', icon: faHouse },
   { key: 'notes', label: 'Notes', icon: faBookOpen },
   { key: 'discussions', label: 'Discussions', icon: faComments },
-  { key: 'profile', label: 'Profile', icon: faUser },
+  { key: 'geo-board', label: 'Geo Board', icon: faCompass },
+  { key: 'study-groups', label: 'Study Groups', icon: faUsers },
 ];
 
 export function MobileBottomNav({ activeTab, onNavigate }: MobileBottomNavProps) {
