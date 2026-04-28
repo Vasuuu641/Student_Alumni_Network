@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
   faBell,
+  faBridge,
   faBookOpen,
   faBriefcase,
   faChevronDown,
@@ -150,6 +151,11 @@ export function DashboardPage({ navigation }: Props) {
       return;
     }
 
+    if (tab === 'discussions') {
+      navigation.navigate('Discussions');
+      return;
+    }
+
     if (tab === 'geo-board') {
       openNotice('Geo Help Board will be added in the next mobile update.');
       return;
@@ -164,8 +170,6 @@ export function DashboardPage({ navigation }: Props) {
       openNotice('Notes will be added in the next mobile update.');
       return;
     }
-
-    openNotice('Discussions will be added in the next mobile update.');
   }
 
   async function handleLogout() {
@@ -200,7 +204,7 @@ export function DashboardPage({ navigation }: Props) {
         <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
           <View className="flex-row items-center gap-2">
             <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
-              <Text className="text-base font-extrabold text-white">⌂</Text>
+              <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
             <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
           </View>

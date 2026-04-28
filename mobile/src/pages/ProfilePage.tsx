@@ -7,6 +7,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
   faArrowLeft,
   faBookOpen,
+  faBridge,
   faBriefcase,
   faBell,
   faChevronDown,
@@ -16,6 +17,7 @@ import {
   faGraduationCap,
   faPalette,
   faUser,
+  faX,
 } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
@@ -74,6 +76,7 @@ export function ProfilePage({ navigation }: Props) {
     async function loadProfile() {
       try {
         setIsLoading(true);
+        if (!accessToken) return;
         const profile = await loadCurrentUserProfile(accessToken);
 
         if (!cancelled) {
@@ -107,6 +110,9 @@ export function ProfilePage({ navigation }: Props) {
     async function loadActivity() {
       try {
         setActivityLoading(true);
+
+        // profileBundle is guaranteed to exist due to check above
+        if (!accessToken || !profileBundle) return;
 
         const panels = profileBundle.role === 'ALUMNI' ? ['ALUMNI'] as const : ['ACADEMIC', 'ALUMNI'] as const;
         const [threadResponses, noteResponse] = await Promise.all([
@@ -170,6 +176,11 @@ export function ProfilePage({ navigation }: Props) {
       return;
     }
 
+    if (tab === 'discussions') {
+      navigation.navigate('Discussions');
+      return;
+    }
+
     if (tab === 'geo-board') {
       setNotice('Geo Help Board will be added in the next mobile update.');
       return;
@@ -184,8 +195,6 @@ export function ProfilePage({ navigation }: Props) {
       setNotice('Notes will be added in the next mobile update.');
       return;
     }
-
-    setNotice('Discussions will be added in the next mobile update.');
   }
 
   const profile = profileBundle?.profile ?? null;
@@ -219,7 +228,7 @@ export function ProfilePage({ navigation }: Props) {
         <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
           <View className="flex-row items-center gap-2">
             <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
-              <Text className="text-base font-extrabold text-white">⌂</Text>
+              <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
             <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
           </View>
@@ -264,7 +273,7 @@ export function ProfilePage({ navigation }: Props) {
                 }}
                 className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
               >
-                <FontAwesomeIcon icon={faCompass as IconProp} size={14} color="#d24f4f" />
+                <FontAwesomeIcon icon={faX as IconProp} size={14} color="#d24f4f" />
                 <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
               </Pressable>
             </View>
@@ -429,7 +438,7 @@ export function ProfilePage({ navigation }: Props) {
         </ScrollView>
 
         <View className="bg-white">
-          <MobileBottomNav activeTab="profile" onNavigate={navigateBottom} />
+          <MobileBottomNav activeTab="home" onNavigate={navigateBottom} />
         </View>
       </View>
     </SafeAreaView>
