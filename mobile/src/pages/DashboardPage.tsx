@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -39,6 +39,7 @@ export function DashboardPage({ navigation }: Props) {
   const [recentDiscussions, setRecentDiscussions] = useState<ThreadSummary[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [notice, setNotice] = useState<DashboardNotice>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,7 +209,7 @@ export function DashboardPage({ navigation }: Props) {
             <IconButton icon={faPalette as IconProp} onPress={() => openNotice('Theme settings will be available soon.')} />
             <IconButton icon={faBell as IconProp} onPress={() => openNotice('Notifications will be available soon.')} />
             <Pressable
-              onPress={() => navigation.navigate('Profile')}
+              onPress={() => setIsAccountMenuOpen(true)}
               className="h-9 flex-row items-center gap-2 rounded-full bg-[#eaf1ff] pl-1 pr-3"
             >
               <View className="h-7 w-7 items-center justify-center rounded-full bg-white">
@@ -218,6 +219,38 @@ export function DashboardPage({ navigation }: Props) {
             </Pressable>
           </View>
         </View>
+
+        <Modal
+          visible={isAccountMenuOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAccountMenuOpen(false)}
+        >
+          <Pressable className="flex-1 bg-black/20 px-4" onPress={() => setIsAccountMenuOpen(false)}>
+            <View className="mt-20 self-end w-48 overflow-hidden rounded-3xl border border-[#dfe8f4] bg-white shadow-lg">
+              <Pressable
+                onPress={() => {
+                  setIsAccountMenuOpen(false);
+                  navigation.navigate('Profile');
+                }}
+                className="flex-row items-center gap-3 px-4 py-4"
+              >
+                <FontAwesomeIcon icon={faUser as IconProp} size={14} color="#2f64f6" />
+                <Text className="text-sm font-semibold text-[#13233e]">Visit Profile</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setIsAccountMenuOpen(false);
+                  void handleLogout();
+                }}
+                className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
+              >
+                <FontAwesomeIcon icon={faCompass as IconProp} size={14} color="#d24f4f" />
+                <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
 
         <ScrollView contentContainerClassName="px-4 pb-36 pt-4" showsVerticalScrollIndicator={false}>
           {notice ? (
@@ -278,7 +311,6 @@ export function DashboardPage({ navigation }: Props) {
               icon={faUsers as IconProp}
               actionLabel="Browse groups"
               onPress={() => openNotice('Groups will be added in the next mobile update.')} />
-            /
           </View>
 
           <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
@@ -396,9 +428,6 @@ export function DashboardPage({ navigation }: Props) {
             </View>
           </View>
 
-          <Pressable onPress={handleLogout} className="mt-4 self-center rounded-full px-4 py-2">
-            <Text className="text-sm font-semibold text-[#7a8aa7]">Log out</Text>
-          </Pressable>
         </ScrollView>
 
         <View className="bg-white">
