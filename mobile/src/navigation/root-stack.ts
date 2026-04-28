@@ -5,4 +5,5 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Profile: undefined;
   Discussions: undefined;
+  ThreadDetail: { threadId: string };
 };
