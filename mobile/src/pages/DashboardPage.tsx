@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
   faBell,
+  faBridge,
   faBookOpen,
   faBriefcase,
   faChevronDown,
@@ -14,6 +15,7 @@ import {
   faUser,
   faUsers,
   faCompass,
+  faSignOutAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
@@ -150,6 +152,11 @@ export function DashboardPage({ navigation }: Props) {
       return;
     }
 
+    if (tab === 'discussions') {
+      navigation.navigate('Discussions');
+      return;
+    }
+
     if (tab === 'geo-board') {
       openNotice('Geo Help Board will be added in the next mobile update.');
       return;
@@ -164,8 +171,6 @@ export function DashboardPage({ navigation }: Props) {
       openNotice('Notes will be added in the next mobile update.');
       return;
     }
-
-    openNotice('Discussions will be added in the next mobile update.');
   }
 
   async function handleLogout() {
@@ -200,7 +205,7 @@ export function DashboardPage({ navigation }: Props) {
         <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
           <View className="flex-row items-center gap-2">
             <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
-              <Text className="text-base font-extrabold text-white">⌂</Text>
+              <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
             <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
           </View>
@@ -245,7 +250,7 @@ export function DashboardPage({ navigation }: Props) {
                 }}
                 className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
               >
-                <FontAwesomeIcon icon={faCompass as IconProp} size={14} color="#d24f4f" />
+                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color="#d24f4f" />
                 <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
               </Pressable>
             </View>
@@ -320,7 +325,7 @@ export function DashboardPage({ navigation }: Props) {
 
             <View className="flex-row flex-wrap gap-2">
               <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
-              <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => openNotice('Discussions will be added in the next mobile update.')} />
+              <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => navigation.navigate('Discussions')} />
               <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => openNotice('Groups will be added in the next mobile update.')} />
               <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => openNotice('Geo board will be added in the next mobile update.')} />
             </View>

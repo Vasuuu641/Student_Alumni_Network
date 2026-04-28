@@ -1,5 +1,6 @@
-import { requestJson } from '../lib/api';
+import { requestJson, API_BASE_URL } from '../lib/api';
 import type { UserRole } from './profile.api';
+import { io, type Socket } from 'socket.io-client';
 
 export type ThreadPanel = 'ACADEMIC' | 'ALUMNI';
 
@@ -36,4 +37,28 @@ export async function listThreads(
   params.set('sortBy', options.sortBy ?? 'newest');
 
   return requestJson<ListThreadsResponse>(`/threads?${params.toString()}`, { token });
+}
+
+export async function createThread(
+  token: string,
+  payload: {
+    title: string;
+    description?: string;
+    panel: ThreadPanel;
+  },
+): Promise<{ threadId: string }> {
+  return requestJson<{ threadId: string }>('/threads', { token, body: payload, method: 'POST' });
+}
+
+export function createThreadsSocket(token: string): Socket {
+  const base = API_BASE_URL.replace(/\/$/, '');
+  return io(`${base}/threads`, {
+    transports: ['websocket', 'polling'],
+    timeout: 10000,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 8000,
+    auth: { token },
+  });
 }
