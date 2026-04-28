@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
   faBookOpen,
@@ -7,6 +7,7 @@ import {
   faHouse,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type MobileNavTab = 'home' | 'notes' | 'discussions' | 'geo-board' | 'study-groups';
 
@@ -15,18 +16,20 @@ type MobileBottomNavProps = {
   onNavigate: (tab: MobileNavTab) => void;
 };
 
-const items: Array<{ key: MobileNavTab; label: string; icon: any }> = [
-  { key: 'home', label: 'Home', icon: faHouse },
-  { key: 'notes', label: 'Notes', icon: faBookOpen },
-  { key: 'discussions', label: 'Discussions', icon: faComments },
-  { key: 'geo-board', label: 'Geo Board', icon: faCompass },
-  { key: 'study-groups', label: 'Groups', icon: faUsers },
+const items: Array<{ key: MobileNavTab; icon: any }> = [
+  { key: 'home', icon: faHouse },
+  { key: 'notes', icon: faBookOpen },
+  { key: 'discussions', icon: faComments },
+  { key: 'geo-board', icon: faCompass },
+  { key: 'study-groups', icon: faUsers },
 ];
 
 export function MobileBottomNav({ activeTab, onNavigate }: MobileBottomNavProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View className="border-t border-[#e3ebf7] bg-white px-2 pt-2">
-      <View className="flex-row items-stretch gap-1 pb-1">
+    <View className="bg-[#f5f8ff] px-3 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
+      <View className="flex-row items-stretch gap-1 rounded-[24px] border border-[#dfe8f4] bg-white px-2 py-2 shadow-sm">
         {items.map((item) => {
           const isActive = item.key === activeTab;
 
@@ -34,24 +37,22 @@ export function MobileBottomNav({ activeTab, onNavigate }: MobileBottomNavProps)
             <Pressable
               key={item.key}
               onPress={() => onNavigate(item.key)}
+              accessibilityRole="button"
               className={`flex-1 items-center justify-center rounded-2xl py-2.5 ${
                 isActive ? 'bg-[#eaf1ff]' : 'bg-transparent'
               }`}
             >
               <View
-                className={`mb-1 h-8 w-8 items-center justify-center rounded-xl ${
+                className={`h-9 w-9 items-center justify-center rounded-2xl ${
                   isActive ? 'bg-[#2f64f6]' : 'bg-[#f2f6fd]'
                 }`}
               >
                 <FontAwesomeIcon
                   icon={item.icon}
-                  size={14}
+                  size={15}
                   color={isActive ? '#ffffff' : '#7082a1'}
                 />
               </View>
-              <Text className={`text-[11px] font-semibold ${isActive ? 'text-[#2452c2]' : 'text-[#6a7b98]'}`}>
-                {item.label}
-              </Text>
             </Pressable>
           );
         })}

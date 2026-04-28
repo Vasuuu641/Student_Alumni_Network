@@ -284,7 +284,6 @@ export function DashboardPage({ navigation }: Props) {
           <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]">Quick Actions</Text>
-              <Text className="text-xs font-semibold text-[#6f829f]">Same structure as web</Text>
             </View>
 
             <View className="flex-row flex-wrap gap-2">
