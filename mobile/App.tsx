@@ -1,9 +1,7 @@
 import './global.css';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomePage } from './src/pages/HomePage';
-import { LoginPage } from './src/pages/LoginPage';
-import { RegisterPage } from './src/pages/RegisterPage';
+import { DashboardPage, HomePage, LoginPage, ProfilePage, RegisterPage } from './src/pages';
 import type { RootStackParamList } from './src/navigation/root-stack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -21,6 +19,8 @@ export default function App() {
         <Stack.Screen name="Home" component={HomePage} />
         <Stack.Screen name="Login" component={LoginPage} />
         <Stack.Screen name="Register" component={RegisterPage} />
+        <Stack.Screen name="Dashboard" component={DashboardPage} />
+        <Stack.Screen name="Profile" component={ProfilePage} />
       </Stack.Navigator>
     </NavigationContainer>
   );
