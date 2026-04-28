@@ -15,6 +15,7 @@ import {
   faUser,
   faUsers,
   faCompass,
+  faSignOutAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
@@ -249,7 +250,7 @@ export function DashboardPage({ navigation }: Props) {
                 }}
                 className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
               >
-                <FontAwesomeIcon icon={faCompass as IconProp} size={14} color="#d24f4f" />
+                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color="#d24f4f" />
                 <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
               </Pressable>
             </View>
