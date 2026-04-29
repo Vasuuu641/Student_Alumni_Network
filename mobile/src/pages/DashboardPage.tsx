@@ -25,6 +25,7 @@ import { listUserNotes } from '../api/notes.api';
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
 import { clearTokens, getAccessToken } from '../lib/auth-storage';
 import { API_BASE_URL } from '../lib/api';
+import { isJwtExpired } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
@@ -49,8 +50,18 @@ export function DashboardPage({ navigation }: Props) {
     async function initialize() {
       const token = await getAccessToken();
 
+      if (cancelled) {
+        return;
+      }
+
       if (!token) {
-        navigation.replace('Login');
+        navigation.replace('Home');
+        return;
+      }
+
+      if (isJwtExpired(token)) {
+        await clearTokens();
+        navigation.replace('Home');
         return;
       }
 
@@ -109,8 +120,21 @@ export function DashboardPage({ navigation }: Props) {
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 3),
         );
-      } catch {
+      } catch (error) {
         if (!cancelled) {
+          const message = error instanceof Error ? error.message : '';
+          const isAuthFailure =
+            message.includes('Unauthorized') ||
+            message.includes('expired token') ||
+            message.includes('Missing Authorization header') ||
+            message.includes('Invalid Authorization header');
+
+          if (isAuthFailure) {
+            await clearTokens();
+            navigation.replace('Home');
+            return;
+          }
+
           setProfileBundle(null);
           setNotesCount(0);
           setDiscussionCount(0);
