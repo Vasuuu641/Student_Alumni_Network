@@ -1,4 +1,6 @@
 import { requestJson, API_BASE_URL } from '../lib/api';
+import { refreshStoredSession } from '../lib/auth-session';
+import { isJwtExpired } from '../lib/jwt';
 import type { UserRole } from './profile.api';
 import { io, type Socket } from 'socket.io-client';
 
@@ -183,13 +185,73 @@ export async function deleteReply(
 
 export function createThreadsSocket(token: string): Socket {
   const base = API_BASE_URL.replace(/\/$/, '');
-  return io(`${base}/threads`, {
+  const socket = io(`${base}/threads`, {
     transports: ['websocket', 'polling'],
     timeout: 10000,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 8000,
+    autoConnect: false,
     auth: { token },
   });
+
+  let refreshInProgress = false;
+
+  const updateSocketToken = (nextToken: string) => {
+    socket.auth = { token: nextToken };
+  };
+
+  const connectWithFreshToken = async () => {
+    if (refreshInProgress) {
+      return;
+    }
+
+    refreshInProgress = true;
+
+    try {
+      let nextToken = token;
+
+      if (isJwtExpired(nextToken)) {
+        const refreshedToken = await refreshStoredSession();
+        if (!refreshedToken) {
+          socket.disconnect();
+          return;
+        }
+
+        nextToken = refreshedToken;
+      }
+
+      updateSocketToken(nextToken);
+
+      if (!socket.connected) {
+        socket.connect();
+      }
+    } finally {
+      refreshInProgress = false;
+    }
+  };
+
+  const isAuthFailure = (error: unknown) => {
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+
+    return (
+      message.includes('Unauthorized') ||
+      message.includes('invalid or missing token') ||
+      message.includes('Invalid or expired token') ||
+      message.includes('expired')
+    );
+  };
+
+  socket.on('connect_error', (error) => {
+    if (!isAuthFailure(error)) {
+      return;
+    }
+
+    void connectWithFreshToken();
+  });
+
+  void connectWithFreshToken();
+
+  return socket;
 }
