@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE_URL } from '../lib/api-base';
 
 export interface LoginRequest {
   email: string;
@@ -38,6 +38,24 @@ export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
 
   if (!response.ok) {
     throw new Error(getErrorMessage(data, 'Unable to sign in.'));
+  }
+
+  return data as LoginResponse;
+}
+
+export async function refreshSession(refreshToken: string): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  const data = await readJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, 'Unable to refresh session.'));
   }
 
   return data as LoginResponse;

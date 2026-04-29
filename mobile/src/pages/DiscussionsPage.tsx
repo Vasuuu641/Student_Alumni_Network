@@ -20,7 +20,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
 import { listThreads, type ThreadPanel, type ThreadSummary } from '../api/threads.api';
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
-import { clearTokens, getAccessToken } from '../lib/auth-storage';
+import { clearTokens } from '../lib/auth-storage';
+import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 import CreateDiscussionModal from '../components/threads/CreateDiscussionModal';
 
@@ -45,7 +46,11 @@ export function DiscussionsPage({ navigation }: Props) {
     let cancelled = false;
 
     async function initialize() {
-      const token = await getAccessToken();
+      const token = await getValidAccessToken();
+
+      if (cancelled) {
+        return;
+      }
 
       if (!token) {
         navigation.replace('Login');

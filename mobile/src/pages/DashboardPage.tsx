@@ -23,9 +23,9 @@ import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes } from '../api/notes.api';
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
-import { clearTokens, getAccessToken } from '../lib/auth-storage';
+import { clearTokens } from '../lib/auth-storage';
 import { API_BASE_URL } from '../lib/api';
-import { isJwtExpired } from '../lib/jwt';
+import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
@@ -48,7 +48,7 @@ export function DashboardPage({ navigation }: Props) {
     let cancelled = false;
 
     async function initialize() {
-      const token = await getAccessToken();
+      const token = await getValidAccessToken();
 
       if (cancelled) {
         return;
@@ -59,15 +59,7 @@ export function DashboardPage({ navigation }: Props) {
         return;
       }
 
-      if (isJwtExpired(token)) {
-        await clearTokens();
-        navigation.replace('Home');
-        return;
-      }
-
-      if (!cancelled) {
-        setAccessToken(token);
-      }
+      setAccessToken(token);
     }
 
     void initialize();
