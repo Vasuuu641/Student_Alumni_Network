@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faPencil, faTrash2, faPlus, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faPencil, faTrash, faPlus, faSearch } from '@fortawesome/free-solid-svg-icons';
 import {
   listAuthorizedUsers,
   createAuthorizedUser,
@@ -203,7 +203,7 @@ export function AdminUsersPage({ token }: AdminUsersPageProps) {
                   paddingVertical: 6,
                   marginRight: 8,
                   borderRadius: 16,
-                  backgroundColor: roleFilter === role ? '#007AFF' : '#e8e8e8',
+                   backgroundColor: roleFilter === role ? '#1e40af' : '#e8e8e8',
                 }}
               >
                 <Text style={{ fontSize: 12, color: roleFilter === role ? '#fff' : '#333', fontWeight: '500' }}>
@@ -259,7 +259,7 @@ export function AdminUsersPage({ token }: AdminUsersPageProps) {
                   disabled={submitting}
                   style={{ paddingHorizontal: 8, paddingVertical: 6, backgroundColor: '#ffe0e0', borderRadius: 4 }}
                 >
-                  <FontAwesomeIcon icon={faTrash2} size={12} color="#c00" />
+                  <FontAwesomeIcon icon={faTrash} size={12} color="#c00" />
                 </Pressable>
               </View>
             </View>
@@ -298,7 +298,7 @@ export function AdminUsersPage({ token }: AdminUsersPageProps) {
                     paddingVertical: 8,
                     marginRight: 8,
                     borderRadius: 6,
-                    backgroundColor: newRole === role ? '#007AFF' : '#e8e8e8',
+                     backgroundColor: newRole === role ? '#1e40af' : '#e8e8e8',
                   }}
                 >
                   <Text style={{ fontSize: 13, color: newRole === role ? '#fff' : '#333', fontWeight: '500' }}>

@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faCheckCircle, faTimesCircle, faTrash2, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faTimesCircle, faTrash, faSearch } from '@fortawesome/free-solid-svg-icons';
 import {
   listGeoReviewQueue,
   reviewGeoSpot,
@@ -212,7 +212,7 @@ export function AdminGeoModerationPage({ token }: AdminGeoModerationPageProps) {
                 paddingVertical: 6,
                 marginRight: 8,
                 borderRadius: 16,
-                backgroundColor: statusFilter === status ? '#007AFF' : '#e8e8e8',
+                 backgroundColor: statusFilter === status ? '#1e40af' : '#e8e8e8',
               }}
             >
               <Text style={{ fontSize: 12, color: statusFilter === status ? '#fff' : '#333', fontWeight: '500' }}>
@@ -236,7 +236,7 @@ export function AdminGeoModerationPage({ token }: AdminGeoModerationPageProps) {
                 paddingVertical: 6,
                 marginRight: 8,
                 borderRadius: 16,
-                backgroundColor: sectionFilter === section ? '#007AFF' : '#e8e8e8',
+                 backgroundColor: sectionFilter === section ? '#1e40af' : '#e8e8e8',
               }}
             >
               <Text style={{ fontSize: 12, color: sectionFilter === section ? '#fff' : '#333', fontWeight: '500' }}>
@@ -260,7 +260,7 @@ export function AdminGeoModerationPage({ token }: AdminGeoModerationPageProps) {
                 paddingVertical: 6,
                 marginRight: 8,
                 borderRadius: 16,
-                backgroundColor: categoryFilter === category ? '#007AFF' : '#e8e8e8',
+                 backgroundColor: categoryFilter === category ? '#1e40af' : '#e8e8e8',
               }}
             >
               <Text style={{ fontSize: 12, color: categoryFilter === category ? '#fff' : '#333', fontWeight: '500' }}>
@@ -366,7 +366,7 @@ export function AdminGeoModerationPage({ token }: AdminGeoModerationPageProps) {
                     <ActivityIndicator size="small" color="#ad1457" />
                   ) : (
                     <>
-                      <FontAwesomeIcon icon={faTrash2} size={12} color="#ad1457" />
+                      <FontAwesomeIcon icon={faTrash} size={12} color="#ad1457" />
                       <Text style={{ fontSize: 12, color: '#ad1457', fontWeight: '600' }}>Deactivate</Text>
                     </>
                   )}

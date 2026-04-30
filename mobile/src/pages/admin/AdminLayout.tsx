@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faShieldAlt, faUsers, faMapMarked, faPushpin, faSignOutAlt, faUser } from '@fortawesome/free-solid-svg-icons';
+import type { IconProp } from '@fortawesome/fontawesome-svg-core';
+import { faShieldAlt, faUsers, faMapMarked, faThumbTack, faSignOutAlt, faUser } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/root-stack';
 import { getValidAccessToken } from '../../lib/auth-session';
@@ -78,38 +79,42 @@ export function AdminLayout({ navigation }: Props) {
     );
   }
 
-  const TAB_CONFIG: Array<{ id: Tab; label: string; icon: any }> = [
-    { id: 'users', label: 'Users', icon: faUsers },
-    { id: 'geo', label: 'Geo', icon: faMapMarked },
-    { id: 'threads', label: 'Threads', icon: faPushpin },
+  const TAB_CONFIG: Array<{ id: Tab; label: string; icon: IconProp }> = [
+    { id: 'users', label: 'Users', icon: faUsers as IconProp },
+    { id: 'geo', label: 'Geo', icon: faMapMarked as IconProp },
+    { id: 'threads', label: 'Threads', icon: faThumbTack as IconProp },
   ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Admin Header */}
-      <View style={{ backgroundColor: '#1a1a2e', paddingHorizontal: 16, paddingVertical: 12 }}>
+      <View style={{ backgroundColor: '#2f64f6', paddingHorizontal: 16, paddingVertical: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <FontAwesomeIcon icon={faShieldAlt} size={16} color="#fff" />
+            <FontAwesomeIcon icon={faShieldAlt as IconProp} size={16} color="#fff" />
             <View>
               <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>UniBridge</Text>
-              <Text style={{ fontSize: 12, color: '#aaa' }}>Admin Console</Text>
+              <Text style={{ fontSize: 12, color: '#dbeafe' }}>Admin Console</Text>
             </View>
           </View>
-          <Pressable
-            onPress={handleLogout}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}
-          >
-            <FontAwesomeIcon icon={faSignOutAlt} size={12} color="#fff" />
-            <Text style={{ fontSize: 12, color: '#fff' }}>Logout</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('Profile')}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#2a2f45' }}
-          >
-            <FontAwesomeIcon icon={faUser} size={12} color="#fff" />
-            <Text style={{ fontSize: 12, color: '#fff' }}>Profile</Text>
-          </Pressable>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={() => navigation.navigate('Profile')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#1f4fd1' }}
+            >
+              <FontAwesomeIcon icon={faUser as IconProp} size={12} color="#fff" />
+              <Text style={{ fontSize: 12, color: '#fff' }}>Profile</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleLogout}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}
+            >
+              <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={12} color="#fff" />
+              <Text style={{ fontSize: 12, color: '#fff' }}>Logout</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -124,17 +129,20 @@ export function AdminLayout({ navigation }: Props) {
                 flex: 1,
                 paddingVertical: 12,
                 borderBottomWidth: activeTab === tab.id ? 2 : 0,
-                borderBottomColor: activeTab === tab.id ? '#007AFF' : '#e0e0e0',
+                borderBottomColor: activeTab === tab.id ? '#2f64f6' : '#e0e0e0',
                 alignItems: 'center',
               }}
             >
               <FontAwesomeIcon
                 icon={tab.icon}
                 size={14}
-                color={activeTab === tab.id ? '#007AFF' : '#666'}
+                color={activeTab === tab.id ? '#2f64f6' : '#666'}
                 style={{ marginBottom: 4 }}
               />
-              <Text style={{ fontSize: 12, color: activeTab === tab.id ? '#007AFF' : '#666', fontWeight: activeTab === tab.id ? '600' : '400' }}>
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 12, color: activeTab === tab.id ? '#2f64f6' : '#666', fontWeight: activeTab === tab.id ? '600' : '400' }}
+              >
                 {tab.label}
               </Text>
             </Pressable>

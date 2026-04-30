@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faSearch, faPushpin, faLock, faUnlock } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faLock, faUnlock } from '@fortawesome/free-solid-svg-icons';
 import {
   listThreadsForAdmin,
   setThreadStatus,
@@ -169,7 +169,7 @@ export function AdminThreadsModerationPage({ token }: AdminThreadsModerationPage
                 paddingVertical: 8,
                 paddingHorizontal: 12,
                 borderRadius: 6,
-                backgroundColor: panelFilter === panel ? '#007AFF' : '#e8e8e8',
+                 backgroundColor: panelFilter === panel ? '#1e40af' : '#e8e8e8',
               }}
             >
               <Text style={{ fontSize: 13, color: panelFilter === panel ? '#fff' : '#333', fontWeight: '600', textAlign: 'center' }}>
@@ -203,7 +203,7 @@ export function AdminThreadsModerationPage({ token }: AdminThreadsModerationPage
                 paddingVertical: 6,
                 marginRight: 8,
                 borderRadius: 16,
-                backgroundColor: statusFilter === status ? '#007AFF' : '#e8e8e8',
+                 backgroundColor: statusFilter === status ? '#1e40af' : '#e8e8e8',
               }}
             >
               <Text style={{ fontSize: 12, color: statusFilter === status ? '#fff' : '#333', fontWeight: '500' }}>
@@ -330,7 +330,7 @@ export function AdminThreadsModerationPage({ token }: AdminThreadsModerationPage
                   ) : (
                     <>
                       <FontAwesomeIcon
-                        icon={faPushpin}
+                        icon={faLock}
                         size={10}
                         color={item.status === 'PINNED' ? '#1565c0' : '#666'}
                       />

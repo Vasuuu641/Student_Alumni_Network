@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
