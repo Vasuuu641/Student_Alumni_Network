@@ -81,6 +81,7 @@ export function AdminGeoModerationPage() {
         reviewStatus: statusFilter === 'ALL' ? undefined : statusFilter,
         section: sectionFilter === 'ALL' ? undefined : sectionFilter,
         category: categoryFilter === 'ALL' ? undefined : categoryFilter,
+        isActive: true,
         limit: 100,
       });
       setSpots(data);

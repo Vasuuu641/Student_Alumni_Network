@@ -12,6 +12,8 @@ import {
   Sparkles,
   GraduationCap,
   ArrowLeft,
+  Save,
+  Shield,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -279,10 +281,21 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
             </div>
 
             <div className="profile-actions">
-              <button type="button" className="submit-button" onClick={() => void handleSaveAdminProfile()} disabled={adminSaving}>
+              <button 
+                type="button" 
+                className="profile-submit-button" 
+                onClick={() => void handleSaveAdminProfile()} 
+                disabled={adminSaving}
+              >
+                <Save size={18} />
                 {adminSaving ? 'Saving...' : 'Save name changes'}
               </button>
-              <button type="button" className="button-secondary" onClick={() => navigate('/admin/users')}>
+              <button 
+                type="button" 
+                className="profile-console-button" 
+                onClick={() => navigate('/admin/users')}
+              >
+                <Shield size={18} />
                 Open Admin Console
               </button>
             </div>

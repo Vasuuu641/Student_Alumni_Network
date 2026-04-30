@@ -5369,6 +5369,63 @@
     font-size: 1rem;
   }
 
+  /* Profile Actions */
+  .profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e8edf4;
+  }
+
+  .profile-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    border-radius: 0.65rem;
+    padding: 0.625rem 1.5rem;
+    font-size: 0.92rem;
+    transition: all 0.2s ease;
+  }
+
+  .profile-submit-button {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.24);
+    min-height: 2.65rem;
+    padding: 0.75rem 1.75rem;
+  }
+
+  .profile-submit-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.32);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  }
+
+  .profile-submit-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .profile-console-button {
+    background: #f0f4f9;
+    color: #0a66c2;
+    border: 1.5px solid #d0dae7;
+    min-height: 2.65rem;
+    padding: 0.75rem 1.75rem;
+  }
+
+  .profile-console-button:hover {
+    background: #e8f2fd;
+    border-color: #a8c5dd;
+    transform: translateY(-2px);
+  }
+
   /* ─────────────────────────────────────────────────────────────
      GEO HELP BOARD
   ───────────────────────────────────────────────────────────── */

@@ -159,7 +159,7 @@ export function AdminUsersPage() {
             <input
               type="email"
               value={newEmail}
-              placeholder="name@university.edu"
+              placeholder="neptun-code@tr.pte.hu"
               onChange={(event) => setNewEmail(event.target.value)}
               required
             />
