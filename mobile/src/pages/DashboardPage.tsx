@@ -342,7 +342,7 @@ export function DashboardPage({ navigation }: Props) {
             <View className="flex-row flex-wrap gap-2">
               <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
               <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => navigation.navigate('Discussions')} />
-              <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => openNotice('Groups will be added in the next mobile update.')} />
+              <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => navigation.navigate('StudyGroups')} />
               <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => openNotice('Geo board will be added in the next mobile update.')} />
             </View>
           </View>

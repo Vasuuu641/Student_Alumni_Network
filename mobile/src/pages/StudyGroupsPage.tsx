@@ -431,11 +431,11 @@ export function StudyGroupsPage({ navigation }: Props) {
               >
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1">
-                    <View className="flex-row items-center gap-2">
-                      <Text className="text-lg font-semibold text-gray-900">{group.name}</Text>
+                    <View className="flex-row items-start justify-between gap-2">
+                      <Text className="flex-1 text-lg font-semibold text-gray-900">{group.name}</Text>
                       <View
                         style={{ backgroundColor: VISIBILITY_COLORS[group.visibility] + '20' }}
-                        className="rounded px-2 py-1"
+                        className="shrink-0 rounded px-2 py-1"
                       >
                         <View className="flex-row items-center gap-1">
                           <FontAwesomeIcon
