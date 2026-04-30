@@ -1,5 +1,9 @@
+export type UserRole = 'STUDENT' | 'ALUMNI' | 'PROFESSOR' | 'ADMIN';
+
 type JwtPayload = {
   exp?: number;
+  userId?: string;
+  role?: string;
 };
 
 function decodeJwtPayload(token: string): JwtPayload | null {
@@ -26,4 +30,32 @@ export function isJwtExpired(token: string, now = Date.now()): boolean {
   }
 
   return payload.exp * 1000 <= now;
+}
+
+export function getRoleFromAccessToken(token: string): UserRole | null {
+  try {
+    const payload = decodeJwtPayload(token);
+
+    if (
+      payload?.role === 'STUDENT' ||
+      payload?.role === 'ALUMNI' ||
+      payload?.role === 'PROFESSOR' ||
+      payload?.role === 'ADMIN'
+    ) {
+      return payload.role;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function getUserIdFromAccessToken(token: string): string | null {
+  try {
+    const payload = decodeJwtPayload(token);
+    return payload?.userId ?? null;
+  } catch {
+    return null;
+  }
 }

@@ -1,6 +1,6 @@
 import { requestJson } from '../lib/api';
 
-export type UserRole = 'STUDENT' | 'PROFESSOR' | 'ALUMNI';
+export type UserRole = 'STUDENT' | 'PROFESSOR' | 'ALUMNI' | 'ADMIN';
 
 export interface UserProfileData {
   userId: string;
@@ -24,8 +24,16 @@ export interface CurrentUserProfile {
   profile: UserProfileData;
 }
 
+export interface AdminProfileData {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  role: 'ADMIN';
+}
+
 export async function loadCurrentUserProfile(token: string): Promise<CurrentUserProfile> {
   const candidates: Array<{ role: UserRole; path: string }> = [
+    { role: 'ADMIN', path: '/auth/me' },
     { role: 'STUDENT', path: '/students/profile' },
     { role: 'PROFESSOR', path: '/professors/profile' },
     { role: 'ALUMNI', path: '/alumni/profile' },
@@ -50,6 +58,23 @@ export async function loadCurrentUserProfile(token: string): Promise<CurrentUser
   }
 
   throw new Error('Unable to load profile.');
+}
+
+export async function loadAdminProfile(token: string): Promise<AdminProfileData> {
+  const profile = await requestJson<AdminProfileData>('/auth/me', { token });
+  return profile;
+}
+
+export async function updateAdminProfile(
+  token: string,
+  payload: { firstName?: string; lastName?: string },
+): Promise<AdminProfileData> {
+  const profile = await requestJson<AdminProfileData>('/auth/me', {
+    token,
+    method: 'PUT',
+    body: payload,
+  });
+  return profile;
 }
 
 function normalizeProfile(profile: UserProfileData): UserProfileData {

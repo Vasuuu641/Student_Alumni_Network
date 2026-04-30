@@ -1,8 +1,13 @@
-import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, HttpStatus, BadRequestException, HttpCode, Put, Get, Req, UseGuards, BadRequestException as NestBadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
 import { RefreshTokenRequestDto } from './dto/refresh-token-request.dto';
+import { JwtStrategy } from './jwt.strategy';
+import { RolesGuard } from './roles.guard';
+import { Roles } from './roles.decorator';
+import { Role } from '../domain/entities/user.entity';
+import { UpdateMeRequestDto } from './dto/update-me-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -66,6 +71,31 @@ export class AuthController {
     } catch (error: any) {
       if (error.status === 401 || error.message?.includes('Invalid')) {
         throw new BadRequestException('Invalid or expired refresh token');
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('me')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles(Role.ADMIN)
+  async me(@Req() request: any) {
+    try {
+      return await this.authService.getCurrentUserProfile(request.user.userId);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Put('me')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @Roles(Role.ADMIN)
+  async updateMe(@Req() request: any, @Body() updateDto: UpdateMeRequestDto) {
+    try {
+      return await this.authService.updateCurrentUserProfile(request.user.userId, updateDto);
+    } catch (error: any) {
+      if (error.message?.includes('not found')) {
+        throw new NestBadRequestException('User not found');
       }
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

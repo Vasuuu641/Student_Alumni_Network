@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import { Mail, Lock} from 'lucide-react';
 import Button from '../components/Button';
+import { getRoleFromAccessToken } from '../lib/auth';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -29,7 +30,8 @@ export function LoginPage() {
       const response = await loginUser({ email, password });
       localStorage.setItem('unibridge.accessToken', response.accessToken);
       localStorage.setItem('unibridge.refreshToken', response.refreshToken);
-      navigate('/onboarding', { replace: true });
+      const role = getRoleFromAccessToken(response.accessToken);
+      navigate(role === 'ADMIN' ? '/admin/users' : '/onboarding', { replace: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in.');
     } finally {

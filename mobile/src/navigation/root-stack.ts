@@ -8,4 +8,8 @@ export type RootStackParamList = {
   ThreadDetail: { threadId: string };
   StudyGroups: undefined;
   StudyGroupDetail: { groupId: string };
+  AdminLayout: undefined;
+  AdminUsers: undefined;
+  AdminGeoModeration: undefined;
+  AdminThreadsModeration: undefined;
 };

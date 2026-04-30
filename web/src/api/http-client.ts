@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isTokenExpired } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 const NORMALIZED_API_BASE = API_BASE_URL.replace(/\/$/, '');
@@ -80,8 +81,15 @@ export const api = axios.create({
   baseURL: NORMALIZED_API_BASE,
 });
 
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
+api.interceptors.request.use(async (config) => {
+  let token = getAccessToken();
+  
+  // If token is expired, refresh it before making the request
+  if (token && isTokenExpired(token)) {
+    const newToken = await refreshAccessToken();
+    token = newToken;
+  }
+  
   if (!token) return config;
 
   const headers = (config.headers ?? {}) as Record<string, string>;
@@ -122,7 +130,14 @@ api.interceptors.response.use(
 
 export async function authFetch(input: string, init?: RequestInit): Promise<Response> {
   const requestHeaders = new Headers(init?.headers ?? {});
-  const token = getAccessToken();
+  let token = getAccessToken();
+  
+  // If token is expired, refresh it before making the request
+  if (token && isTokenExpired(token)) {
+    const newToken = await refreshAccessToken();
+    token = newToken;
+  }
+  
   if (token) {
     requestHeaders.set('Authorization', `Bearer ${token}`);
   }

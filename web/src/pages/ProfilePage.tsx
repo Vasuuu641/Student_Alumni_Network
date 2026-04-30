@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth';
-import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api';
+import { getAdminProfile, getCurrentUserProfile, updateAdminProfile, type AdminProfileData, type UserProfileData } from '../api/profile.api';
 import { listThreads, type Thread } from '../api/threads.api';
 import { listUserNotes, type Note } from '../api/notes.api';
 import Button from '../components/Button';
@@ -12,6 +12,8 @@ import {
   Sparkles,
   GraduationCap,
   ArrowLeft,
+  Save,
+  Shield,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -66,9 +68,52 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
   const [activity, setActivity] = useState<ActivityState>({ recentThreads: [], recentNotes: [] });
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
   const [activityError, setActivityError] = useState('');
+  const [adminProfile, setAdminProfile] = useState<AdminProfileData | null>(null);
+  const [adminFirstName, setAdminFirstName] = useState('');
+  const [adminLastName, setAdminLastName] = useState('');
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminNotice, setAdminNotice] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   const token = getAccessToken();
   const role = token ? getRoleFromAccessToken(token) : null;
+
+  useEffect(() => {
+    if (!token || !role || role !== 'ADMIN') {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadAdminProfile() {
+      try {
+        setIsLoading(true);
+        const data = await getAdminProfile();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAdminProfile(data);
+        setAdminFirstName(data.firstName);
+        setAdminLastName(data.lastName);
+      } catch (error) {
+        if (isMounted) {
+          setAdminError(error instanceof Error ? error.message : 'Unable to load admin profile data.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadAdminProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token, role]);
 
   useEffect(() => {
     if (!token || !role || role === 'ADMIN') {
@@ -141,6 +186,120 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
       <main className="profile-page">
         <div className="profile-loading">
           <p>Loading profile...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (role === 'ADMIN') {
+    const adminDisplayName = `${adminFirstName} ${adminLastName}`.trim() || 'Admin User';
+    const adminRoleLabel = adminProfile?.role ?? 'ADMIN';
+
+    async function handleSaveAdminProfile() {
+      try {
+        setAdminSaving(true);
+        setAdminError('');
+        const updated = await updateAdminProfile({
+          firstName: adminFirstName.trim(),
+          lastName: adminLastName.trim(),
+        });
+
+        setAdminProfile(updated);
+        setAdminFirstName(updated.firstName);
+        setAdminLastName(updated.lastName);
+        setAdminNotice('Admin name updated successfully.');
+      } catch (error) {
+        setAdminError(error instanceof Error ? error.message : 'Unable to save admin profile.');
+      } finally {
+        setAdminSaving(false);
+      }
+    }
+
+    return (
+      <main className="profile-page">
+        <button className="profile-back-button" onClick={() => navigate(-1)}>
+          <ArrowLeft size={20} />
+          Go Back
+        </button>
+
+        <div className="profile-container">
+          <div className="profile-header">
+            <div className="profile-header__cover" aria-hidden="true" />
+            <div className="profile-header__content">
+              <div className="profile-avatar">
+                <div className="profile-avatar__placeholder">{adminDisplayName.charAt(0).toUpperCase()}</div>
+              </div>
+
+              <div className="profile-header__info">
+                <h1 className="profile-name">{adminDisplayName}</h1>
+                <p className="profile-headline">Admin console access</p>
+                <p className="profile-role">{adminRoleLabel}</p>
+                <p className="profile-meta">Shared account profile</p>
+              </div>
+            </div>
+          </div>
+
+          <section className="profile-card">
+            <div className="profile-card__header">
+              <div className="profile-card__title-wrap">
+                <Sparkles size={20} />
+                <h2>Admin profile</h2>
+              </div>
+            </div>
+
+            <p className="helper-text">Admin users do not have a student, professor, or alumni profile. Only the shared name fields can be edited here.</p>
+
+            {adminError ? <p className="status-banner status-banner--error">{adminError}</p> : null}
+            {adminNotice ? <p className="status-banner status-banner--success">{adminNotice}</p> : null}
+
+            <div className="profile-grid profile-grid--single">
+              <label className="field">
+                <span>First name</span>
+                <div className="input-shell">
+                  <input
+                    className="input"
+                    type="text"
+                    value={adminFirstName}
+                    onChange={(event) => setAdminFirstName(event.target.value)}
+                    placeholder="First name"
+                  />
+                </div>
+              </label>
+
+              <label className="field">
+                <span>Last name</span>
+                <div className="input-shell">
+                  <input
+                    className="input"
+                    type="text"
+                    value={adminLastName}
+                    onChange={(event) => setAdminLastName(event.target.value)}
+                    placeholder="Last name"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div className="profile-actions">
+              <button 
+                type="button" 
+                className="profile-submit-button" 
+                onClick={() => void handleSaveAdminProfile()} 
+                disabled={adminSaving}
+              >
+                <Save size={18} />
+                {adminSaving ? 'Saving...' : 'Save name changes'}
+              </button>
+              <button 
+                type="button" 
+                className="profile-console-button" 
+                onClick={() => navigate('/admin/users')}
+              >
+                <Shield size={18} />
+                Open Admin Console
+              </button>
+            </div>
+          </section>
         </div>
       </main>
     );

@@ -16,6 +16,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { loginUser } from '../api/auth.api';
 import { storeTokens, storeUserEmail } from '../lib/auth-storage';
+import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -47,7 +48,7 @@ export function LoginPage({ navigation, route }: Props) {
       const response = await loginUser({ email, password });
       await storeTokens(response.accessToken, response.refreshToken);
       await storeUserEmail(email.trim().toLowerCase());
-      navigation.replace('Dashboard');
+      navigation.replace(getRoleFromAccessToken(response.accessToken) === 'ADMIN' ? 'AdminLayout' : 'Dashboard');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in.');
     } finally {

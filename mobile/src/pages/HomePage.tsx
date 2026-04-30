@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LandingHeader } from '../components/LandingHeader';
 import { InfoCard } from '../components/InfoCard';
 import { getValidAccessToken } from '../lib/auth-session';
+import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -99,7 +100,7 @@ export function HomePage({ navigation }: Props) {
         return;
       }
 
-      navigation.replace('Dashboard');
+      navigation.replace(getRoleFromAccessToken(token) === 'ADMIN' ? 'AdminLayout' : 'Dashboard');
     }
 
     void checkSession();

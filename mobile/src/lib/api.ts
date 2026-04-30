@@ -1,5 +1,5 @@
 import { API_BASE_URL as API_BASE_URL_VALUE } from './api-base';
-import { refreshStoredSession } from './auth-session';
+import { refreshStoredSession, getValidAccessToken } from './auth-session';
 
 export { API_BASE_URL } from './api-base';
 
@@ -10,13 +10,19 @@ type JsonRequestOptions = {
 };
 
 export async function requestJson<T>(path: string, options: JsonRequestOptions = {}): Promise<T> {
-  const response = await fetchJson(path, options, options.token);
+  // Get a fresh/valid token - this will auto-refresh if the current token is expired
+  let token = options.token;
+  if (!token) {
+    token = await getValidAccessToken();
+  }
+
+  const response = await fetchJson(path, options, token);
   const data = await readJsonSafely(response);
 
-  if (response.status === 401 && options.token) {
+  if (response.status === 401 && token) {
     const refreshedToken = await refreshStoredSession();
 
-    if (refreshedToken && refreshedToken !== options.token) {
+    if (refreshedToken && refreshedToken !== token) {
       const retryResponse = await fetchJson(path, options, refreshedToken);
       const retryData = await readJsonSafely(retryResponse);
 
