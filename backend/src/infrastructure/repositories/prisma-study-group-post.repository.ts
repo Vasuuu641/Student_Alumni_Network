@@ -21,7 +21,7 @@ export class PrismaStudyGroupPostRepository implements StudyGroupPostRepository 
     const created = await this.prisma.studyGroupPost.create({
       data: { groupId: post.studyGroupId, authorId: post.authorId, content: post.content } as any,
     });
-    return { id: created.id, studyGroupId: created.groupId, authorId: created.authorId, content: created.content, status: studyGroupPostStatus[created.status as unknown as keyof typeof studyGroupPostStatus] };
+    return this.toDomain(created);
   }
 
   async update(postId: string, content: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date }> {

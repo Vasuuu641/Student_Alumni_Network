@@ -117,6 +117,20 @@ function getBubbleAccent(authorId: string, currentUserId: string | null): string
   return palette[index];
 }
 
+function getPostTimestamp(post: StudyGroupPost): string {
+  const createdAt = post.createdAt ? new Date(post.createdAt) : null;
+  if (createdAt && !Number.isNaN(createdAt.getTime())) {
+    return post.createdAt;
+  }
+
+  const updatedAt = post.updatedAt ? new Date(post.updatedAt) : null;
+  if (updatedAt && !Number.isNaN(updatedAt.getTime())) {
+    return post.updatedAt;
+  }
+
+  return '';
+}
+
 export function StudyGroupDetailPage({ route, navigation }: Props) {
   const groupId = route.params?.groupId ?? '';
   const resolvedGroupId = groupId as string;
@@ -183,8 +197,8 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
             postsData
               .slice()
               .sort((a, b) => {
-                const aTime = new Date(a.createdAt).getTime();
-                const bTime = new Date(b.createdAt).getTime();
+                const aTime = new Date(getPostTimestamp(a)).getTime();
+                const bTime = new Date(getPostTimestamp(b)).getTime();
                 return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
               }),
           );
@@ -220,9 +234,10 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
     let previousDayKey = '';
 
     for (const post of posts) {
-      const dayKey = new Date(post.createdAt).toDateString();
+      const timestamp = getPostTimestamp(post);
+      const dayKey = timestamp ? new Date(timestamp).toDateString() : 'invalid';
       if (dayKey !== previousDayKey) {
-        items.push({ type: 'date', key: `date-${dayKey}`, label: formatDateLabel(post.createdAt) });
+        items.push({ type: 'date', key: `date-${dayKey}-${post.id}`, label: timestamp ? formatDateLabel(timestamp) : 'Date unavailable' });
         previousDayKey = dayKey;
       }
 
@@ -279,8 +294,8 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
           postsData
             .slice()
             .sort((a, b) => {
-              const aTime = new Date(a.createdAt).getTime();
-              const bTime = new Date(b.createdAt).getTime();
+              const aTime = new Date(getPostTimestamp(a)).getTime();
+              const bTime = new Date(getPostTimestamp(b)).getTime();
               return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
             }),
         );
@@ -321,7 +336,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
   const titleInitials = getInitials(group.name);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#edf3ee]" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-[#edf3ee]" edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar style="dark" />
 
       <View className="absolute left-[-40px] top-20 h-32 w-32 rounded-full bg-white/40" />
@@ -330,8 +345,8 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
 
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 100}
       >
       <View className="flex-1">
         <View className="border-b border-[#dce6dd] bg-white px-4 py-3 shadow-sm">
@@ -466,6 +481,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
               const authorId = post.authorId;
               const isCurrentUser = authorId === currentUserId;
               const author = getDisplayName(authorId, currentUserId);
+              const timestamp = getPostTimestamp(post);
 
               return (
                 <View className={`mb-3 flex-row ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
@@ -493,7 +509,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
                           <Text className="text-[10px] font-semibold text-[#8a97ab]">{post.status}</Text>
                         )}
                             <Text className={`text-[10px] ${isCurrentUser ? 'text-[#4a7d60]' : 'text-[#8b99ad]'}`}>
-                              {formatTime(post.createdAt)}
+                          {timestamp ? formatTime(timestamp) : ''}
                         </Text>
                       </View>
                     </View>
