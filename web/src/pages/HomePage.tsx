@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
+import { ThemePicker } from '../components/ThemePicker';
 
 const purposeCards = [
   {
@@ -79,6 +80,7 @@ export function HomePage() {
           </Link>
 
           <nav className="landing-header__actions" aria-label="Primary">
+            <ThemePicker compact />
             <Link to="/login" className="text-link text-link--muted">
               Sign In
             </Link>

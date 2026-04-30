@@ -18,10 +18,13 @@ import { loginUser } from '../api/auth.api';
 import { storeTokens, storeUserEmail } from '../lib/auth-storage';
 import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme, useThemePicker } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export function LoginPage({ navigation, route }: Props) {
+  const { tokens } = useTheme();
+  const { openThemePicker } = useThemePicker();
   const [email, setEmail] = useState(route.params?.registeredEmail ?? '');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -57,7 +60,7 @@ export function LoginPage({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f4f7ff]">
+    <SafeAreaView className="flex-1 bg-[#f4f7ff]" style={{ backgroundColor: tokens.background }}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', android: undefined })}
@@ -68,18 +71,22 @@ export function LoginPage({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           <Pressable onPress={() => navigation.goBack()} className="self-start rounded-lg px-2 py-1.5">
-            <Text className="text-sm font-semibold text-[#3a5fba]">← Back</Text>
+            <Text className="text-sm font-semibold text-[#3a5fba]" style={{ color: tokens.primaryStrong }}>← Back</Text>
+          </Pressable>
+
+          <Pressable onPress={openThemePicker} className="mt-2 self-start rounded-full px-3 py-1.5">
+            <Text className="text-xs font-bold uppercase tracking-[0.12em] text-[#3a5fba]" style={{ color: tokens.primary }}>Theme</Text>
           </Pressable>
 
           <View className="mt-4 items-center">
-            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-primary" style={{ backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={24} color="#ffffff" />
             </View>
-            <Text className="mt-3 text-[30px] font-extrabold text-ink">Welcome back</Text>
-            <Text className="mt-1 text-center text-sm text-muted">Sign in to continue to UniBridge</Text>
+            <Text className="mt-3 text-[30px] font-extrabold text-ink" style={{ color: tokens.text }}>Welcome back</Text>
+            <Text className="mt-1 text-center text-sm text-muted" style={{ color: tokens.muted }}>Sign in to continue to UniBridge</Text>
           </View>
 
-          <View className="mt-6 rounded-3xl border border-[#dce5f8] bg-white p-4">
+          <View className="mt-6 rounded-3xl border border-[#dce5f8] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             {successMessage ? (
               <Text className="mb-3 rounded-xl bg-[#e9f8ef] px-3 py-2 text-sm font-medium text-[#20653a]">
                 {successMessage}
@@ -122,6 +129,7 @@ export function LoginPage({ navigation, route }: Props) {
               className={`mt-5 min-h-12 items-center justify-center rounded-xl px-4 ${
                 !canSubmit || isSubmitting ? 'bg-[#98b4ff]' : 'bg-primary'
               }`}
+              style={{ backgroundColor: !canSubmit || isSubmitting ? tokens.primarySoft : tokens.primary }}
             >
               <Text className="text-[15px] font-bold text-white">
                 {isSubmitting ? 'Signing in...' : 'Sign in'}
@@ -134,9 +142,9 @@ export function LoginPage({ navigation, route }: Props) {
           </View>
 
           <View className="mt-5 flex-row items-center justify-center">
-            <Text className="text-sm text-muted">Don&apos;t have an account? </Text>
+            <Text className="text-sm text-muted" style={{ color: tokens.muted }}>Don&apos;t have an account? </Text>
             <Pressable onPress={() => navigation.replace('Register')}>
-              <Text className="text-sm font-bold text-[#2d63e5]">Create one</Text>
+              <Text className="text-sm font-bold text-[#2d63e5]" style={{ color: tokens.primary }}>Create one</Text>
             </Pressable>
           </View>
         </ScrollView>
