@@ -160,7 +160,7 @@ export function DiscussionsPage({ navigation }: Props) {
     }
 
     if (tab === 'study-groups') {
-      // TODO: Navigate to Study Groups
+      navigation.navigate('StudyGroups');
       return;
     }
 

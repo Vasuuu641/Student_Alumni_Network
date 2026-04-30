@@ -272,8 +272,26 @@ export function StudyGroupsPage({ navigation }: Props) {
       // Already on this page
       return;
     }
-    // Handle other navigation
-    navigation.navigate('Home' as any);
+
+    if (navTab === 'home') {
+      navigation.navigate('Dashboard');
+      return;
+    }
+
+    if (navTab === 'discussions') {
+      navigation.navigate('Discussions');
+      return;
+    }
+
+    if (navTab === 'geo-board') {
+      // TODO: Navigate to Geo Board
+      return;
+    }
+
+    if (navTab === 'notes') {
+      // TODO: Navigate to Notes
+      return;
+    }
   };
 
   if (!accessToken) {
