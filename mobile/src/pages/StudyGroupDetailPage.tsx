@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -54,6 +54,8 @@ function decodeUserId(token: string): string | null {
 
 function formatDateLabel(isoDate: string): string {
   const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -74,7 +76,10 @@ function formatDateLabel(isoDate: string): string {
 }
 
 function formatTime(isoDate: string): string {
-  return new Date(isoDate).toLocaleTimeString(undefined, {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
   });
@@ -127,6 +132,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
   const [postingMessage, setPostingMessage] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +179,15 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
 
           setGroup(groupData);
           setMembers(membersData);
-          setPosts(postsData.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+          setPosts(
+            postsData
+              .slice()
+              .sort((a, b) => {
+                const aTime = new Date(a.createdAt).getTime();
+                const bTime = new Date(b.createdAt).getTime();
+                return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+              }),
+          );
         } catch (err) {
           if (!cancelled) {
             setError(err instanceof Error ? err.message : 'Failed to load group details.');
@@ -261,7 +275,15 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
         ]);
 
         setMembers(membersData);
-        setPosts(postsData.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+        setPosts(
+          postsData
+            .slice()
+            .sort((a, b) => {
+              const aTime = new Date(a.createdAt).getTime();
+              const bTime = new Date(b.createdAt).getTime();
+              return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+            }),
+        );
       } catch (err) {
         setActionError(err instanceof Error ? err.message : `Failed to ${action} group.`);
       } finally {
@@ -306,6 +328,11 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
       <View className="absolute right-[-50px] top-36 h-40 w-40 rounded-full bg-[#cfe8d7]/40" />
       <View className="absolute bottom-32 left-10 h-24 w-24 rounded-full bg-white/25" />
 
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
       <View className="flex-1">
         <View className="border-b border-[#dce6dd] bg-white px-4 py-3 shadow-sm">
           <View className="flex-row items-center gap-3">
@@ -405,6 +432,8 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
             data={timelineItems}
             keyExtractor={(item) => item.key}
             contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             ListEmptyComponent={() => (
               <View className="flex-1 items-center justify-center px-4 py-12">
                 <View className="max-w-[300px] rounded-[28px] border border-dashed border-[#cfd9c9] bg-white/80 px-5 py-6 shadow-sm">
@@ -463,8 +492,8 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
                         {post.status !== 'ACTIVE' && (
                           <Text className="text-[10px] font-semibold text-[#8a97ab]">{post.status}</Text>
                         )}
-                        <Text className={`text-[10px] ${isCurrentUser ? 'text-[#4a7d60]' : 'text-[#8b99ad]'}`}>
-                          {formatTime(post.createdAt)}
+                            <Text className={`text-[10px] ${isCurrentUser ? 'text-[#4a7d60]' : 'text-[#8b99ad]'}`}>
+                              {formatTime(post.createdAt)}
                         </Text>
                       </View>
                     </View>
@@ -477,7 +506,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
           />
         </View>
 
-        <View className="border-t border-[#d9e3dc] bg-white px-3 pt-3">
+        <View className="border-t border-[#d9e3dc] bg-white px-3 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
           {isMember ? (
             <View className="mb-2 flex-row items-end gap-2 rounded-[28px] border border-[#d9e3ec] bg-[#f8fbff] px-3 py-2 shadow-sm">
               <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-[#eef4ff]">
@@ -493,6 +522,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
                 placeholderTextColor="#8ea0b8"
                 className="min-h-10 flex-1 rounded-2xl bg-white px-4 py-3 text-[15px] text-[#101c33]"
                 style={{ maxHeight: 120 }}
+                textAlignVertical="top"
               />
 
               <Pressable
@@ -516,6 +546,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
 
       <Modal visible={showMembersModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView className="flex-1 bg-white">
