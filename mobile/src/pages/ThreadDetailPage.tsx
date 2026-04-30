@@ -25,7 +25,7 @@ import {
   type ThreadReply,
   type VoteType,
 } from '../api/threads.api';
-import { getAccessToken } from '../lib/auth-storage';
+import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ThreadDetail'>;
@@ -107,14 +107,18 @@ export function ThreadDetailPage({ route, navigation }: Props) {
   // Initialize token and userId
   useEffect(() => {
     const initToken = async () => {
-      const token = await getAccessToken();
-      setAccessToken(token);
-      if (token) {
-        setCurrentUserId(decodeUserId(token));
+      const token = await getValidAccessToken();
+
+      if (!token) {
+        navigation.replace('Login');
+        return;
       }
+
+      setAccessToken(token);
+      setCurrentUserId(decodeUserId(token));
     };
     void initToken();
-  }, []);
+  }, [navigation]);
 
   // Load thread and replies
   useEffect(() => {

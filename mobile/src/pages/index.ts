@@ -5,3 +5,5 @@ export { ProfilePage } from './ProfilePage';
 export { RegisterPage } from './RegisterPage';
 export { DiscussionsPage } from './DiscussionsPage';
 export { ThreadDetailPage } from './ThreadDetailPage';
+export { StudyGroupsPage } from './StudyGroupsPage';
+export { StudyGroupDetailPage } from './StudyGroupDetailPage';

@@ -6,4 +6,6 @@ export type RootStackParamList = {
   Profile: undefined;
   Discussions: undefined;
   ThreadDetail: { threadId: string };
+  StudyGroups: undefined;
+  StudyGroupDetail: { groupId: string };
 };

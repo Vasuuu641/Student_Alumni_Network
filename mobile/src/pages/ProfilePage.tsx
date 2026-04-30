@@ -21,8 +21,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
-import { clearTokens, getAccessToken } from '../lib/auth-storage';
-import { getUserEmail } from '../lib/auth-storage';
+import { clearTokens, getUserEmail } from '../lib/auth-storage';
+import { getValidAccessToken } from '../lib/auth-session';
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes, type NoteSummary } from '../api/notes.api';
@@ -46,7 +46,11 @@ export function ProfilePage({ navigation }: Props) {
     let cancelled = false;
 
     async function initialize() {
-      const [token, storedEmail] = await Promise.all([getAccessToken(), getUserEmail()]);
+      const [token, storedEmail] = await Promise.all([getValidAccessToken(), getUserEmail()]);
+
+      if (cancelled) {
+        return;
+      }
 
       if (!token) {
         navigation.replace('Login');

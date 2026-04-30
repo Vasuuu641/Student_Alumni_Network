@@ -23,8 +23,9 @@ import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes } from '../api/notes.api';
 import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
-import { clearTokens, getAccessToken } from '../lib/auth-storage';
+import { clearTokens } from '../lib/auth-storage';
 import { API_BASE_URL } from '../lib/api';
+import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
@@ -47,16 +48,18 @@ export function DashboardPage({ navigation }: Props) {
     let cancelled = false;
 
     async function initialize() {
-      const token = await getAccessToken();
+      const token = await getValidAccessToken();
 
-      if (!token) {
-        navigation.replace('Login');
+      if (cancelled) {
         return;
       }
 
-      if (!cancelled) {
-        setAccessToken(token);
+      if (!token) {
+        navigation.replace('Home');
+        return;
       }
+
+      setAccessToken(token);
     }
 
     void initialize();
@@ -109,8 +112,21 @@ export function DashboardPage({ navigation }: Props) {
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 3),
         );
-      } catch {
+      } catch (error) {
         if (!cancelled) {
+          const message = error instanceof Error ? error.message : '';
+          const isAuthFailure =
+            message.includes('Unauthorized') ||
+            message.includes('expired token') ||
+            message.includes('Missing Authorization header') ||
+            message.includes('Invalid Authorization header');
+
+          if (isAuthFailure) {
+            await clearTokens();
+            navigation.replace('Home');
+            return;
+          }
+
           setProfileBundle(null);
           setNotesCount(0);
           setDiscussionCount(0);
@@ -163,7 +179,7 @@ export function DashboardPage({ navigation }: Props) {
     }
 
     if (tab === 'study-groups') {
-      openNotice('Study Groups will be added in the next mobile update.');
+      navigation.navigate('StudyGroups');
       return;
     }
 
@@ -326,7 +342,7 @@ export function DashboardPage({ navigation }: Props) {
             <View className="flex-row flex-wrap gap-2">
               <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
               <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => navigation.navigate('Discussions')} />
-              <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => openNotice('Groups will be added in the next mobile update.')} />
+              <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => navigation.navigate('StudyGroups')} />
               <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => openNotice('Geo board will be added in the next mobile update.')} />
             </View>
           </View>

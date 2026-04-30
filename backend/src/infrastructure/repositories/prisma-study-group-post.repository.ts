@@ -7,31 +7,31 @@ import { studyGroupPostStatus } from "src/domain/entities/study-group.entity";
 export class PrismaStudyGroupPostRepository implements StudyGroupPostRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus } | null> {
+  async findById(id: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date } | null> {
     const found = await this.prisma.studyGroupPost.findUnique({ where: { id } });
     return found ? this.toDomain(found) : null;
   }
 
-  async findByStudyGroupId(studyGroupId: string): Promise<{ id: string; authorId: string; content: string; status: studyGroupPostStatus }[]> {
+  async findByStudyGroupId(studyGroupId: string): Promise<{ id: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date }[]> {
     const records = await this.prisma.studyGroupPost.findMany({ where: { groupId: studyGroupId } });
-    return records.map((r) => ({ id: r.id, authorId: r.authorId, content: r.content, status: studyGroupPostStatus[r.status as unknown as keyof typeof studyGroupPostStatus] }));
+    return records.map((record) => this.toDomain(record));
   }
 
-  async create(post: { studyGroupId: string; authorId: string; content: string }): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }> {
+  async create(post: { studyGroupId: string; authorId: string; content: string }): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date }> {
     const created = await this.prisma.studyGroupPost.create({
       data: { groupId: post.studyGroupId, authorId: post.authorId, content: post.content } as any,
     });
-    return { id: created.id, studyGroupId: created.groupId, authorId: created.authorId, content: created.content, status: studyGroupPostStatus[created.status as unknown as keyof typeof studyGroupPostStatus] };
+    return this.toDomain(created);
   }
 
-  async update(postId: string, content: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }> {
+  async update(postId: string, content: string): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date }> {
     const updated = await this.prisma.studyGroupPost.update({ where: { id: postId }, data: { content } });
-    return { id: updated.id, studyGroupId: updated.groupId, authorId: updated.authorId, content: updated.content, status: studyGroupPostStatus[updated.status as unknown as keyof typeof studyGroupPostStatus] };
+    return this.toDomain(updated);
   }
 
-  async updateStatus(postId: string, status: studyGroupPostStatus): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus }> {
+  async updateStatus(postId: string, status: studyGroupPostStatus): Promise<{ id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date }> {
     const updated = await this.prisma.studyGroupPost.update({ where: { id: postId }, data: { status: status as any } });
-    return { id: updated.id, studyGroupId: updated.groupId, authorId: updated.authorId, content: updated.content, status: studyGroupPostStatus[updated.status as unknown as keyof typeof studyGroupPostStatus] };
+    return this.toDomain(updated);
   }
 
   async delete(postId: string): Promise<{ id: string; groupId: string }> {
@@ -42,7 +42,15 @@ export class PrismaStudyGroupPostRepository implements StudyGroupPostRepository 
     return { id: post.id, groupId: post.groupId };
   }
 
-  private toDomain(record: any): { id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus } {
-    return { id: record.id, studyGroupId: record.groupId, authorId: record.authorId, content: record.content, status: studyGroupPostStatus[record.status as unknown as keyof typeof studyGroupPostStatus] };
+  private toDomain(record: any): { id: string; studyGroupId: string; authorId: string; content: string; status: studyGroupPostStatus; createdAt: Date; updatedAt: Date } {
+    return {
+      id: record.id,
+      studyGroupId: record.groupId,
+      authorId: record.authorId,
+      content: record.content,
+      status: studyGroupPostStatus[record.status as unknown as keyof typeof studyGroupPostStatus],
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
   }
 }

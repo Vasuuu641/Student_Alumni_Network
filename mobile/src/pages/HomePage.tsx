@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LandingHeader } from '../components/LandingHeader';
 import { InfoCard } from '../components/InfoCard';
-import { getAccessToken } from '../lib/auth-storage';
+import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -89,10 +89,17 @@ export function HomePage({ navigation }: Props) {
     let cancelled = false;
 
     async function checkSession() {
-      const token = await getAccessToken();
-      if (token && !cancelled) {
-        navigation.replace('Dashboard');
+      const token = await getValidAccessToken();
+
+      if (cancelled) {
+        return;
       }
+
+      if (!token) {
+        return;
+      }
+
+      navigation.replace('Dashboard');
     }
 
     void checkSession();
