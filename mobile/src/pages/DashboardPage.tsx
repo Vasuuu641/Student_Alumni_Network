@@ -179,7 +179,7 @@ export function DashboardPage({ navigation }: Props) {
     }
 
     if (tab === 'study-groups') {
-      openNotice('Study Groups will be added in the next mobile update.');
+      navigation.navigate('StudyGroups');
       return;
     }
 

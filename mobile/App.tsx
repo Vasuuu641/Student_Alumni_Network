@@ -1,7 +1,7 @@
 import './global.css';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { DashboardPage, DiscussionsPage, HomePage, LoginPage, ProfilePage, RegisterPage, ThreadDetailPage } from './src/pages';
+import { DashboardPage, DiscussionsPage, HomePage, LoginPage, ProfilePage, RegisterPage, ThreadDetailPage, StudyGroupsPage, StudyGroupDetailPage } from './src/pages';
 import type { RootStackParamList } from './src/navigation/root-stack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -23,6 +23,8 @@ export default function App() {
         <Stack.Screen name="Profile" component={ProfilePage} />
         <Stack.Screen name="Discussions" component={DiscussionsPage} />
         <Stack.Screen name="ThreadDetail" component={ThreadDetailPage} />
+        <Stack.Screen name="StudyGroups" component={StudyGroupsPage} />
+        <Stack.Screen name="StudyGroupDetail" component={StudyGroupDetailPage} />
       </Stack.Navigator>
     </NavigationContainer>
   );
