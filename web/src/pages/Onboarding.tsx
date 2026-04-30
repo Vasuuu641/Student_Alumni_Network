@@ -65,7 +65,7 @@ export function OnboardingPage() {
   }
 
   if (role === 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/admin/users" replace />;
   }
 
   const authToken: string = token;

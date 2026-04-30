@@ -23,7 +23,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
 import { clearTokens, getUserEmail } from '../lib/auth-storage';
 import { getValidAccessToken } from '../lib/auth-session';
-import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.api';
+import { loadCurrentUserProfile, updateAdminProfile, type CurrentUserProfile } from '../api/profile.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes, type NoteSummary } from '../api/notes.api';
 import type { RootStackParamList } from '../navigation/root-stack';
@@ -41,6 +41,11 @@ export function ProfilePage({ navigation }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [emailAddress, setEmailAddress] = useState<string | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [adminFirstName, setAdminFirstName] = useState('');
+  const [adminLastName, setAdminLastName] = useState('');
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminNotice, setAdminNotice] = useState<string | null>(null);
+  const [adminError, setAdminError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +90,10 @@ export function ProfilePage({ navigation }: Props) {
 
         if (!cancelled) {
           setProfileBundle(profile);
+          if (profile.role === 'ADMIN') {
+            setAdminFirstName(profile.profile.firstName);
+            setAdminLastName(profile.profile.lastName);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -105,7 +114,7 @@ export function ProfilePage({ navigation }: Props) {
   }, [accessToken]);
 
   useEffect(() => {
-    if (!accessToken || !profileBundle || activeTab !== 'activity') {
+    if (!accessToken || !profileBundle || activeTab !== 'activity' || profileBundle.role === 'ADMIN') {
       return;
     }
 
@@ -174,6 +183,27 @@ export function ProfilePage({ navigation }: Props) {
     navigation.replace('Login');
   }
 
+  async function handleSaveAdminProfile() {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      setAdminSaving(true);
+      setAdminError('');
+      const updated = await updateAdminProfile(accessToken, {
+        firstName: adminFirstName.trim(),
+        lastName: adminLastName.trim(),
+      });
+      setProfileBundle({ role: 'ADMIN', profile: updated });
+      setAdminNotice('Admin name updated successfully.');
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Unable to save admin profile.');
+    } finally {
+      setAdminSaving(false);
+    }
+  }
+
   function navigateBottom(tab: MobileNavTab) {
     if (tab === 'home') {
       navigation.navigate('Dashboard');
@@ -212,6 +242,90 @@ export function ProfilePage({ navigation }: Props) {
     profile?.faculty?.trim() || undefined,
     getGraduationYear(profile) ? `Class of ${getGraduationYear(profile)}` : undefined,
   ].filter(Boolean) as string[];
+
+  if (role === 'ADMIN') {
+    const adminDisplayName = `${adminFirstName} ${adminLastName}`.trim() || 'Admin User';
+
+    return (
+      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" />
+
+        <View className="flex-1">
+          <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
+            <View className="flex-row items-center gap-2">
+              <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
+                <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
+              </View>
+              <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
+            </View>
+
+            <Pressable onPress={handleLogout} className="rounded-full bg-[#eef3ff] px-3 py-2">
+              <Text className="text-xs font-semibold text-[#2f64f6]">Logout</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerClassName="px-4 pb-36 pt-4" showsVerticalScrollIndicator={false}>
+            <View className="overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white p-4">
+              <Text className="text-xs font-bold uppercase tracking-[0.18em] text-[#5d7ccf]">Admin profile</Text>
+              <Text className="mt-2 text-[28px] font-extrabold tracking-[-0.04em] text-[#101d36]">
+                {adminDisplayName}
+              </Text>
+              <Text className="mt-2 text-sm leading-6 text-[#5f7090]">
+                Admins only edit the shared account name fields here.
+              </Text>
+
+              {adminError ? (
+                <Text className="mt-4 rounded-2xl bg-[#ffecef] px-3 py-2 text-sm font-medium text-[#9c2f3f]">
+                  {adminError}
+                </Text>
+              ) : null}
+
+              {adminNotice ? (
+                <Text className="mt-4 rounded-2xl bg-[#e9f8ef] px-3 py-2 text-sm font-medium text-[#20653a]">
+                  {adminNotice}
+                </Text>
+              ) : null}
+
+              <Text className="mb-1 mt-5 text-sm font-semibold text-[#344867]">First name</Text>
+              <TextInput
+                value={adminFirstName}
+                onChangeText={setAdminFirstName}
+                placeholder="First name"
+                className="rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
+                placeholderTextColor="#7c8ba3"
+              />
+
+              <Text className="mb-1 mt-4 text-sm font-semibold text-[#344867]">Last name</Text>
+              <TextInput
+                value={adminLastName}
+                onChangeText={setAdminLastName}
+                placeholder="Last name"
+                className="rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
+                placeholderTextColor="#7c8ba3"
+              />
+
+              <Pressable
+                onPress={() => void handleSaveAdminProfile()}
+                disabled={adminSaving}
+                className={`mt-5 min-h-12 items-center justify-center rounded-xl px-4 ${adminSaving ? 'bg-[#98b4ff]' : 'bg-primary'}`}
+              >
+                <Text className="text-[15px] font-bold text-white">
+                  {adminSaving ? 'Saving...' : 'Save name changes'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => navigation.navigate('AdminLayout')}
+                className="mt-3 min-h-12 items-center justify-center rounded-xl border border-[#d8e1f3] bg-white px-4"
+              >
+                <Text className="text-[15px] font-bold text-[#1f2f4a]">Open Admin Console</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (isLoading) {
     return (

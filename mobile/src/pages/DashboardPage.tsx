@@ -26,6 +26,7 @@ import { loadCurrentUserProfile, type CurrentUserProfile } from '../api/profile.
 import { clearTokens } from '../lib/auth-storage';
 import { API_BASE_URL } from '../lib/api';
 import { getValidAccessToken } from '../lib/auth-session';
+import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
@@ -56,6 +57,11 @@ export function DashboardPage({ navigation }: Props) {
 
       if (!token) {
         navigation.replace('Home');
+        return;
+      }
+
+      if (getRoleFromAccessToken(token) === 'ADMIN') {
+        navigation.replace('AdminLayout');
         return;
       }
 

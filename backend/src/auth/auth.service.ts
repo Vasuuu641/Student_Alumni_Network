@@ -8,7 +8,9 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { RegisterUserUseCase } from '../application/auth/register-user.usecase';
 import { LoginUserUseCase } from '../application/auth/login-user.usecase';
 import { LogoutUserUseCase } from '../application/auth/logout-user.usecase';
+import { User } from '../domain/entities/user.entity';
 import type { TokenService } from '../domain/services/token-service';
+import type { UserRepository } from '../domain/repositories/user.repository';
 import type { RevokedTokenRepository } from '../domain/repositories/revoked-token.repository';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
@@ -19,6 +21,8 @@ export class AuthService {
     private registerUserUseCase: RegisterUserUseCase,
     private loginUserUseCase: LoginUserUseCase,
     private logoutUserUseCase: LogoutUserUseCase,
+    @Inject('UserRepository')
+    private readonly userRepository: UserRepository,
     @Inject('TokenService')
     private tokenService: TokenService,
     @Inject('RevokedTokenRepository')
@@ -68,9 +72,53 @@ export class AuthService {
     await this.logoutUserUseCase.execute(refreshToken);
   }
 
+  async getCurrentUserProfile(userId: string) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return this.toProfileResponse(user);
+  }
+
+  async updateCurrentUserProfile(
+    userId: string,
+    request: { firstName?: string; lastName?: string },
+  ) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const nextFirstName = request.firstName?.trim();
+    const nextLastName = request.lastName?.trim();
+
+    if (nextFirstName) {
+      user.firstName = nextFirstName;
+    }
+
+    if (nextLastName) {
+      user.lastName = nextLastName;
+    }
+
+    const updatedUser = await this.userRepository.update(user);
+    return this.toProfileResponse(updatedUser);
+  }
+
   private issueTokens(userId: string, role: any) {
     const accessToken = this.tokenService.generateAccessToken({ userId, role });
     const refreshToken = this.tokenService.generateRefreshToken({ userId, role });
     return { accessToken, refreshToken };
+  }
+
+  private toProfileResponse(user: User) {
+    return {
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+    };
   }
 }

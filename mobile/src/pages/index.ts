@@ -7,3 +7,7 @@ export { DiscussionsPage } from './DiscussionsPage';
 export { ThreadDetailPage } from './ThreadDetailPage';
 export { StudyGroupsPage } from './StudyGroupsPage';
 export { StudyGroupDetailPage } from './StudyGroupDetailPage';
+export { AdminLayout } from './admin/AdminLayout';
+export { AdminUsersPage } from './admin/AdminUsersPage';
+export { AdminGeoModerationPage } from './admin/AdminGeoModerationPage';
+export { AdminThreadsModerationPage } from './admin/AdminThreadsModerationPage';

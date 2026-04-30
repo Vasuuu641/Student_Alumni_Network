@@ -202,6 +202,10 @@ export function DashboardPage() {
     return <Navigate to="/login" replace />;
   }
 
+  if (isAdmin) {
+    return <Navigate to="/admin/users" replace />;
+  }
+
   const displayName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : 'John Doe';
   const firstName = displayName.split(' ')[0] || 'John';
   const profilePictureSrc = resolveProfilePictureUrl(profile?.profilePictureUrl);

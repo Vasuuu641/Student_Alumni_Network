@@ -32,6 +32,13 @@ export interface UserProfileData {
 	anonymousName?: string | null;
 }
 
+export interface AdminProfileData {
+	userId: string;
+	firstName: string;
+	lastName: string;
+	role: 'ADMIN';
+}
+
 /**
  * Fetches the current user's profile data
  * Determines the role-specific endpoint and retrieves full profile
@@ -48,6 +55,39 @@ export async function getCurrentUserProfile(role: Exclude<UserRole, 'ADMIN'>): P
 	}
 
 	return (data as UserProfileData) ?? {};
+}
+
+export async function getAdminProfile(): Promise<AdminProfileData> {
+	const response = await authFetch(`${API_BASE_URL}/auth/me`, {
+		method: 'GET',
+	});
+
+	const data = await readJsonSafely(response);
+	if (!response.ok) {
+		throw new Error(getErrorMessage(data, 'Unable to load profile data.'));
+	}
+
+	return (data as AdminProfileData) ?? {} as AdminProfileData;
+}
+
+export async function updateAdminProfile(payload: {
+	firstName?: string;
+	lastName?: string;
+}): Promise<AdminProfileData> {
+	const response = await authFetch(`${API_BASE_URL}/auth/me`, {
+		method: 'PUT',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify(payload),
+	});
+
+	const data = await readJsonSafely(response);
+	if (!response.ok) {
+		throw new Error(getErrorMessage(data, 'Unable to save profile data.'));
+	}
+
+	return (data as AdminProfileData) ?? {} as AdminProfileData;
 }
 
 /**

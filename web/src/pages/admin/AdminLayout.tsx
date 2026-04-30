@@ -36,12 +36,14 @@ export function AdminLayout() {
           </div>
           <div>
             <p className="admin-brand">UniBridge</p>
-            <p className="admin-brand-sub">Admin Console</p>
           </div>
         </div>
 
         <div className="admin-topbar__right">
           <span className="admin-pill">Admin</span>
+          <button className="admin-ghost-btn" onClick={() => navigate('/profile')}>
+            Profile
+          </button>
           <button className="admin-ghost-btn" onClick={handleSignOut}>
             <LogOut size={14} />
             Sign Out
@@ -69,6 +71,27 @@ export function AdminLayout() {
         </aside>
 
         <section className="admin-content">
+          <div
+            style={{
+              border: '1px solid #d8e2f0',
+              borderRadius: '0.85rem',
+              background: '#fff',
+              boxShadow: '0 6px 20px rgba(15, 36, 76, 0.06)',
+              padding: '0.95rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <p className="admin-brand" style={{ marginBottom: '0.15rem' }}>Admin Console</p>
+              <p className="admin-brand-sub">Review users, the geo board, and discussion moderation.</p>
+            </div>
+            <button className="admin-ghost-btn" onClick={() => navigate('/profile')}>
+              Edit Name
+            </button>
+          </div>
           <Outlet />
         </section>
       </section>
