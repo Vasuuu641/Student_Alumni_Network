@@ -1292,13 +1292,13 @@ export function GeoHelpBoardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="geo-help-board-page min-h-screen bg-slate-50 text-slate-900">
       <PlatformTopNav />
 
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Campus Resources</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-50">Campus Resources</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Browse official university resources and student-loved community picks around campus.
             </p>

@@ -6168,6 +6168,90 @@
     color: var(--theme-muted);
   }
 
+  /* Force common utility backgrounds inside geo-help board to dark surfaces */
+  :root[data-theme='midnight'] .geo-help-board-page .bg-white,
+  :root[data-theme='midnight'] .geo-help-board-page .bg-slate-50,
+  :root[data-theme='midnight'] .geo-help-board-page .rounded-3xl,
+  :root[data-theme='midnight'] .geo-help-board-page .rounded-2xl,
+  :root[data-theme='midnight'] .geo-help-board-page .border-dashed,
+  :root[data-theme='midnight'] .geo-help-board-page .border-slate-200,
+  :root[data-theme='midnight'] .geo-help-board-page .border-slate-300 {
+    background: var(--theme-surface);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    box-shadow: none;
+  }
+
+  /* Hero: blue gradient strip */
+  :root[data-theme='midnight'] .geo-help-board-hero {
+    background: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-primary-strong) 100%);
+    color: #ffffff;
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-hero h1 {
+    color: #d4d4d4;
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-hero p {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-hero .geo-help-board-hero__actions button {
+    background: color-mix(in srgb, var(--theme-accent) 88%, black 12%);
+    color: #111827;
+  }
+
+  /* Map container: keep a light-ish canvas but within dark shell */
+  :root[data-theme='midnight'] .geo-help-board-map-container,
+  :root[data-theme='midnight'] .geo-help-board-map {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 96%, white 4%), color-mix(in srgb, var(--theme-surface) 90%, white 10%));
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--theme-border) 90%, transparent 10%);
+  }
+
+  /* Legend: small dark card with soft border */
+  :root[data-theme='midnight'] .geo-help-board-legend {
+    background: color-mix(in srgb, var(--theme-bg) 88%, var(--theme-surface) 12%);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    box-shadow: 0 4px 18px rgba(2,6,23,0.55);
+  }
+
+  /* Toolbar chips / tabs */
+  :root[data-theme='midnight'] .geo-help-board-toolbar button,
+  :root[data-theme='midnight'] .geo-help-board-toolbar .tag {
+    background: color-mix(in srgb, var(--theme-surface) 92%, var(--theme-bg) 8%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-toolbar button.active,
+  :root[data-theme='midnight'] .geo-help-board-toolbar .tag.active {
+    background: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, var(--theme-primary) 24%, var(--theme-border) 76%);
+    color: var(--theme-text);
+  }
+
+  /* Location cards: dark cards with light badges */
+  :root[data-theme='midnight'] .geo-help-board-card {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-bg) 6%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__head h3,
+  :root[data-theme='midnight'] .geo-help-board-card p,
+  :root[data-theme='midnight'] .geo-help-board-card__meta {
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__badge {
+    background: color-mix(in srgb, var(--theme-surface) 86%, var(--theme-bg) 14%);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+  }
+
+
   :root[data-theme='midnight'] .dashboard-v2__nav-item,
   :root[data-theme='midnight'] .dashboard-v2__profile-chip,
   :root[data-theme='midnight'] .dashboard-v2__profile-btn,
