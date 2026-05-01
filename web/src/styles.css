@@ -6236,6 +6236,181 @@
     box-shadow: none;
   }
 
+  /* Study Groups page — midnight overrides */
+  :root[data-theme='midnight'] .study-groups-page {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell .bg-white,
+  :root[data-theme='midnight'] .study-groups-shell .bg-slate-50,
+  :root[data-theme='midnight'] .study-groups-shell .rounded-3xl,
+  :root[data-theme='midnight'] .study-groups-shell article,
+  :root[data-theme='midnight'] .study-groups-shell .rounded-2xl,
+  :root[data-theme='midnight'] .study-groups-shell .border-slate-200,
+  :root[data-theme='midnight'] .study-groups-shell .border-slate-300,
+  :root[data-theme='midnight'] .study-groups-shell .border-dashed {
+    background: color-mix(in srgb, var(--theme-surface) 90%, var(--theme-bg) 10%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    box-shadow: none;
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell h1,
+  :root[data-theme='midnight'] .study-groups-shell h2,
+  :root[data-theme='midnight'] .study-groups-shell .text-slate-900 {
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell p,
+  :root[data-theme='midnight'] .study-groups-shell .text-slate-600,
+  :root[data-theme='midnight'] .study-groups-shell .text-slate-500 {
+    color: var(--theme-muted);
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell .bg-sky-100 {
+    background: color-mix(in srgb, var(--theme-primary) 8%, var(--theme-surface) 92%);
+    color: var(--theme-primary);
+  }
+
+  /* Sidebar list — reduce bright whites and add smooth transitions */
+  :root[data-theme='midnight'] .study-groups-shell aside,
+  :root[data-theme='midnight'] .study-group-detail-shell aside {
+    background: color-mix(in srgb, var(--theme-surface) 96%, var(--theme-bg) 4%);
+    border-color: color-mix(in srgb, var(--theme-border) 90%, transparent 10%);
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell aside button,
+  :root[data-theme='midnight'] .study-group-detail-shell aside button {
+    background: transparent;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+    color: var(--theme-text);
+    border-color: transparent;
+  }
+
+  :root[data-theme='midnight'] .study-groups-shell aside button:hover,
+  :root[data-theme='midnight'] .study-group-detail-shell aside button:hover {
+    background: color-mix(in srgb, var(--theme-primary) 6%, var(--theme-surface) 94%);
+  }
+
+  /* Selected item: subtle highlight instead of bright blue */
+  :root[data-theme='midnight'] .study-groups-shell aside button.bg-blue-50,
+  :root[data-theme='midnight'] .study-group-detail-shell aside button.bg-blue-50,
+  :root[data-theme='midnight'] .study-groups-shell aside button[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--theme-primary) 8%, var(--theme-surface) 92%);
+    color: var(--theme-text);
+  }
+
+  /* Search input darker */
+  :root[data-theme='midnight'] .study-groups-shell aside input,
+  :root[data-theme='midnight'] .study-group-detail-shell aside input {
+    background: color-mix(in srgb, var(--theme-surface) 92%, var(--theme-bg) 8%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  /* Smooth content fade for group detail area */
+  :root[data-theme='midnight'] .study-group-detail-shell .flex-1.overflow-y-auto {
+    transition: opacity 180ms ease, background-color 180ms ease;
+  }
+
+  /* Study Group Detail page — midnight overrides */
+  :root[data-theme='midnight'] .study-group-detail-page {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell,
+  :root[data-theme='midnight'] .study-group-detail-shell .bg-white,
+  :root[data-theme='midnight'] .study-group-detail-shell .bg-slate-50,
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-3xl,
+  :root[data-theme='midnight'] .study-group-detail-shell aside,
+  :root[data-theme='midnight'] .study-group-detail-shell section {
+    background: var(--theme-surface);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    box-shadow: none;
+  }
+
+  /* Header and visibility/status chips */
+  :root[data-theme='midnight'] .study-group-detail-shell .text-slate-900,
+  :root[data-theme='midnight'] .study-group-detail-shell h1,
+  :root[data-theme='midnight'] .study-group-detail-shell h2 {
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-full.border.px-2,
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-full.border.px-2.py-0\.5 {
+    color: var(--theme-text);
+  }
+
+  /* Visibility chips mapping — override utility colors within detail shell */
+  :root[data-theme='midnight'] .study-group-detail-shell .border-emerald-200,
+  :root[data-theme='midnight'] .study-group-detail-shell .bg-emerald-50,
+  :root[data-theme='midnight'] .study-group-detail-shell .text-emerald-700 {
+    border-color: color-mix(in srgb, var(--theme-primary) 6%, var(--theme-border) 94%);
+    background: color-mix(in srgb, var(--theme-surface) 88%, var(--theme-primary) 12%);
+    color: color-mix(in srgb, var(--theme-accent) 70%, #d1fae5 30%);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell .border-amber-200,
+  :root[data-theme='midnight'] .study-group-detail-shell .bg-amber-50,
+  :root[data-theme='midnight'] .study-group-detail-shell .text-amber-700 {
+    border-color: color-mix(in srgb, #d97706 10%, var(--theme-border) 90%);
+    background: color-mix(in srgb, var(--theme-surface) 88%, #fef3c7 12%);
+    color: color-mix(in srgb, #fbbf24 60%, var(--theme-text) 40%);
+  }
+
+  /* Posts and message bubbles */
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-2xl.bg-white {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-bg) 6%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-2xl.bg-blue-600 {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-strong) 100%);
+    color: #fff;
+  }
+
+  /* Composer, inputs, buttons */
+  :root[data-theme='midnight'] .study-group-detail-shell form textarea,
+  :root[data-theme='midnight'] .study-group-detail-shell .study-group-detail-shell input,
+  :root[data-theme='midnight'] .study-group-detail-shell input,
+  :root[data-theme='midnight'] .study-group-detail-shell .min-h-\[44px\] {
+    background: var(--theme-surface);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell .inline-flex.h-10.w-10,
+  :root[data-theme='midnight'] .study-group-detail-shell .inline-flex.h-10.w-10[disabled] {
+    background: color-mix(in srgb, var(--theme-surface) 88%, var(--theme-bg) 12%);
+    border-color: var(--theme-border);
+    color: var(--theme-muted);
+  }
+
+  :root[data-theme='midnight'] .study-group-detail-shell .text-slate-500,
+  :root[data-theme='midnight'] .study-group-detail-shell .text-slate-400,
+  :root[data-theme='midnight'] .study-group-detail-shell .text-slate-600 {
+    color: var(--theme-muted);
+  }
+
+  /* Members list */
+  :root[data-theme='midnight'] .study-group-detail-shell .rounded-xl.border.bg-white {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-bg) 6%);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  /* Action buttons in header */
+  :root[data-theme='midnight'] .study-group-detail-shell .hero-button--secondary,
+  :root[data-theme='midnight'] .study-group-detail-shell .hero-button--primary,
+  :root[data-theme='midnight'] .study-group-detail-shell .submit-button {
+    box-shadow: none;
+  }
+
+
   :root[data-theme='midnight'] .note-card:hover {
     border-color: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-border) 82%);
     box-shadow: none;
