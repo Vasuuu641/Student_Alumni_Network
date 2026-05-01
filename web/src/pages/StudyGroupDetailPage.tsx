@@ -243,13 +243,7 @@ export function StudyGroupDetailPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
-        <Loader2 className="mr-2 animate-spin" size={18} /> Loading study group...
-      </main>
-    );
-  }
+  
 
   if (!group) {
     return (
@@ -265,9 +259,17 @@ export function StudyGroupDetailPage() {
   }
 
   return (
-    <main className="h-dvh overflow-hidden bg-slate-100 text-slate-900">
+    <main className="h-dvh overflow-hidden bg-slate-100 text-slate-900 study-group-detail-page">
       <PlatformTopNav />
-      <section className="mx-auto grid h-[calc(100dvh-56px)] w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+      <section className="mx-auto relative grid h-[calc(100dvh-56px)] w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px] study-group-detail-shell">
+        {loading && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center" style={{ background: 'rgba(2,6,23,0.45)' }}>
+            <div className="flex items-center gap-2 rounded-md bg-black/30 px-4 py-3 text-white">
+              <Loader2 className="animate-spin" size={18} />
+              Loading group…
+            </div>
+          </div>
+        )}
         <aside className="hidden h-full flex-col border-r border-slate-200 bg-slate-50 md:flex">
           <div className="border-b border-slate-200 px-4 py-4">
             <div className="mb-3 flex items-center justify-between">

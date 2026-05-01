@@ -19,6 +19,7 @@ import { listUserNotes } from '../api/notes.api';
 import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
 import { PlatformTopNav } from '../components/PlatformTopNav';
+import { ThemePicker } from '../components/ThemePicker';
 
 function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
   if (!profilePictureUrl) {
@@ -238,9 +239,7 @@ export function DashboardPage() {
       <PlatformTopNav
         rightContent={(
           <div className="dashboard-v2__topbar-actions">
-            <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Theme settings')}>
-              <Sparkles size={14} />
-            </button>
+            <ThemePicker compact />
             <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Notifications')}>
               <Bell size={14} />
             </button>
@@ -422,7 +421,7 @@ export function DashboardPage() {
               <h3>Smart Notes</h3>
               <p>AI-Powered</p>
               <small>Write notes and discover related discussions from your academic community in real-time.</small>
-              <button type="button" onClick={() => openPlaceholder('Smart Notes')}>Try Smart Notes</button>
+              <button type="button" onClick={() => navigate('/notes')}>Try Smart Notes</button>
             </section>
           </aside>
         </section>

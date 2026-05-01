@@ -1292,13 +1292,13 @@ export function GeoHelpBoardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="geo-help-board-page min-h-screen bg-slate-50 text-slate-900">
       <PlatformTopNav />
 
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Campus Resources</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-50">Campus Resources</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Browse official university resources and student-loved community picks around campus.
             </p>
@@ -1539,7 +1539,7 @@ export function GeoHelpBoardPage() {
                     <div className="min-w-[170px]">
                       <p className="text-sm font-bold text-slate-900">{infoSpot.title}</p>
                       <p className="mt-1 text-xs text-slate-600">{infoSpot.city}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(infoSpot.distanceKm)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-700">{formatDistance(haversineDistanceKm(point, { latitude: infoSpot.latitude, longitude: infoSpot.longitude }))}</p>
                     </div>
                   </InfoWindowF>
                 );
@@ -1655,10 +1655,10 @@ export function GeoHelpBoardPage() {
                     ref={(node) => {
                       cardRefs.current[spot.id] = node;
                     }}
-                    className={`rounded-xl border p-3 transition ${
+                    className={`geo-help-board-card overflow-hidden rounded-xl border transition ${
                       isSelected
-                        ? 'border-sky-300 bg-sky-50/50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
+                        ? 'border-sky-300 bg-sky-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                     }`}
                   >
                     <button
@@ -1666,48 +1666,53 @@ export function GeoHelpBoardPage() {
                       onClick={() => selectSpot(spot.id, true)}
                       className="w-full text-left"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">{spot.title}</h3>
-                        <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                          {categoryLabel(spot.category)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-600">
-                        {spot.address ? `${spot.address}, ${spot.city}` : spot.city}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                          {formatDistance(spot.distanceKm)}
-                        </span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${reviewBadgeClass(spot.reviewStatus)}`}>
-                          {spot.reviewStatus}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                          {spot.visitCount} visits
-                        </span>
+                      <div className="flex gap-3 p-3">
+                        <div className="geo-help-board-card__icon flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100">
+                          <Building2 size={20} className="text-blue-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="geo-help-board-card__title text-sm font-bold text-slate-900 line-clamp-2">{spot.title}</h3>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="geo-help-board-card__category inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                              {categoryLabel(spot.category)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                       {spot.description ? (
-                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{spot.description}</p>
+                        <div className="px-3 pb-3">
+                          <p className="geo-help-board-card__description line-clamp-2 text-xs text-slate-600">{spot.description}</p>
+                        </div>
                       ) : null}
+                                              <div className="geo-help-board-card__address border-t border-slate-100 px-3 py-2 text-xs text-slate-600">
+                        <div className="flex items-center gap-1">
+                          <MapPinned size={14} className="flex-shrink-0 text-slate-500" />
+                          <span>{spot.address ? `${spot.address}, ${spot.city}` : spot.city}</span>
+                        </div>
+                      </div>
+                      <div className="geo-help-board-card__distance border-t border-slate-100 px-3 py-2">
+                        <span className="text-xs font-semibold text-slate-700">
+                            {formatDistance(haversineDistanceKm(point, { latitude: spot.latitude, longitude: spot.longitude }))}
+                        </span>
+                      </div>
                     </button>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="flex gap-2 border-t border-slate-100 p-2">
                       <button
                         type="button"
                         onClick={() => selectSpot(spot.id, true)}
-                        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                       >
                         View details
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          void handleRecordVisit(spot.id);
+                          window.open(buildDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude }), '_blank');
                         }}
-                        disabled={workingSpotId === spot.id}
-                        className="inline-flex items-center rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="flex-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        {workingSpotId === spot.id ? 'Saving...' : 'Mark visited'}
+                        Get directions
                       </button>
                       {canDeleteSpot(spot) ? (
                         <button
@@ -1716,9 +1721,9 @@ export function GeoHelpBoardPage() {
                             void handleDeleteSpot(spot.id);
                           }}
                           disabled={workingSpotId === spot.id}
-                          className="inline-flex items-center rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70"
+                          className="rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          {workingSpotId === spot.id ? 'Deleting...' : 'Delete'}
+                          {workingSpotId === spot.id ? '…' : '×'}
                         </button>
                       ) : null}
                     </div>
@@ -1761,7 +1766,7 @@ export function GeoHelpBoardPage() {
                 {selectedSpot.reviewStatus}
               </span>
               <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                {formatDistance(selectedSpot.distanceKm)}
+                {formatDistance(haversineDistanceKm(point, { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude }))}
               </span>
             </div>
 

@@ -313,9 +313,6 @@ export function ThreadsPage() {
 						<p>{pageSubtitle}</p>
 					</div>
 					<div className="threads-header__actions">
-						<button className="threads-secondary-btn" onClick={() => navigate('/dashboard')}>
-							Back to Dashboard
-						</button>
 						<button className="threads-primary-btn" onClick={() => setShowCreateModal(true)}>
 							<Plus size={16} />
 							New Discussion

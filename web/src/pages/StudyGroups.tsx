@@ -309,9 +309,9 @@ export function StudyGroupsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-900">
+    <main className="min-h-screen bg-slate-100 text-slate-900 study-groups-page">
       <PlatformTopNav />
-      <section className="mx-auto w-full max-w-6xl px-4 py-8">
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 study-groups-shell">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Study Groups</h1>

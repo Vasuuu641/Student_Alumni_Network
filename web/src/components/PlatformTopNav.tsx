@@ -26,16 +26,16 @@ interface PlatformTopNavProps {
 
 export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: PlatformTopNavProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4">
-        <div className="mr-3 inline-flex items-center gap-2">
+    <header className="platform-top-nav">
+      <div className="platform-top-nav__inner">
+        <div className="platform-top-nav__brand">
           <div className="brand-icon !h-8 !w-8" aria-hidden="true">
             <FontAwesomeIcon icon={faBridge} />
           </div>
-          <span className="text-base font-extrabold tracking-tight text-slate-900">UniBridge</span>
+          <span className="platform-top-nav__brand-name">UniBridge</span>
         </div>
-        <div className="flex flex-1 items-center justify-between gap-2">
-          <nav className="flex items-center gap-1">
+        <div className="platform-top-nav__actions">
+          <nav className="platform-top-nav__nav">
             {items.map((item) => {
               const Icon = item.icon;
 
@@ -45,7 +45,7 @@ export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: Platform
                     key={item.label}
                     type="button"
                     onClick={item.onClick}
-                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="platform-top-nav__button"
                   >
                     <Icon size={14} />
                     {item.label}
@@ -62,11 +62,7 @@ export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: Platform
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                      isActive
-                        ? 'bg-sky-100 text-sky-800'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    }`
+                    `platform-top-nav__link ${isActive ? 'platform-top-nav__link--active' : ''}`
                   }
                 >
                   <Icon size={14} />
@@ -75,7 +71,7 @@ export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: Platform
               );
             })}
           </nav>
-          {rightContent ? <div>{rightContent}</div> : null}
+          {rightContent ? <div className="platform-top-nav__right">{rightContent}</div> : null}
         </div>
       </div>
     </header>

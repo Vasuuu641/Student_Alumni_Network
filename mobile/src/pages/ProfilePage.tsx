@@ -27,10 +27,13 @@ import { loadCurrentUserProfile, updateAdminProfile, type CurrentUserProfile } f
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes, type NoteSummary } from '../api/notes.api';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme, useThemePicker } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export function ProfilePage({ navigation }: Props) {
+  const { tokens } = useTheme();
+  const { openThemePicker } = useThemePicker();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [profileBundle, setProfileBundle] = useState<CurrentUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -247,21 +250,26 @@ export function ProfilePage({ navigation }: Props) {
     const adminDisplayName = `${adminFirstName} ${adminLastName}`.trim() || 'Admin User';
 
     return (
-      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
+      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
         <StatusBar style="dark" />
 
         <View className="flex-1">
-          <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
+          <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4" style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}>
             <View className="flex-row items-center gap-2">
-              <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
+              <View className="h-9 w-9 items-center justify-center rounded-[12px]" style={{ backgroundColor: tokens.primary }}>
                 <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
               </View>
-              <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
+              <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]" style={{ color: tokens.text }}>UniBridge</Text>
             </View>
 
-            <Pressable onPress={handleLogout} className="rounded-full bg-[#eef3ff] px-3 py-2">
-              <Text className="text-xs font-semibold text-[#2f64f6]">Logout</Text>
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              <Pressable onPress={openThemePicker} className="rounded-full bg-[#eef3ff] px-3 py-2" style={{ backgroundColor: tokens.primarySoft }}>
+                <Text className="text-xs font-semibold text-[#2f64f6]" style={{ color: tokens.primary }}>Theme</Text>
+              </Pressable>
+              <Pressable onPress={handleLogout} className="rounded-full bg-[#eef3ff] px-3 py-2" style={{ backgroundColor: tokens.primarySoft }}>
+                <Text className="text-xs font-semibold text-[#2f64f6]" style={{ color: tokens.primary }}>Logout</Text>
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerClassName="px-4 pb-36 pt-4" showsVerticalScrollIndicator={false}>
@@ -329,7 +337,7 @@ export function ProfilePage({ navigation }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
+      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
         <StatusBar style="dark" />
         <View className="flex-1 items-center justify-center px-4">
           <Text className="text-base font-semibold text-[#5f7291]">Loading profile...</Text>
@@ -339,27 +347,28 @@ export function ProfilePage({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
       <StatusBar style="dark" />
 
       <View className="flex-1">
-        <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
+        <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4" style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}>
           <View className="flex-row items-center gap-2">
-            <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
+            <View className="h-9 w-9 items-center justify-center rounded-[12px]" style={{ backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
-            <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
+            <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]" style={{ color: tokens.text }}>UniBridge</Text>
           </View>
 
           <View className="flex-row items-center gap-2">
-            <IconButton icon={faPalette as IconProp} onPress={() => setNotice('Theme settings will be available soon.')} />
+            <IconButton icon={faPalette as IconProp} onPress={openThemePicker} />
             <IconButton icon={faBell as IconProp} onPress={() => setNotice('Notifications will be available soon.')} />
             <Pressable
               onPress={() => setIsAccountMenuOpen(true)}
               className="h-9 flex-row items-center gap-2 rounded-full bg-[#eaf1ff] pl-1 pr-3"
+              style={{ backgroundColor: tokens.primarySoft }}
             >
               <View className="h-7 w-7 items-center justify-center rounded-full bg-white">
-                <Text className="text-[11px] font-extrabold text-[#2f64f6]">{getInitials(displayName) || 'JD'}</Text>
+                <Text className="text-[11px] font-extrabold text-[#2f64f6]" style={{ color: tokens.primary }}>{getInitials(displayName) || 'JD'}</Text>
               </View>
               <FontAwesomeIcon icon={faChevronDown as IconProp} size={11} color="#6a7b98" />
             </Pressable>
@@ -405,13 +414,13 @@ export function ProfilePage({ navigation }: Props) {
             </View>
           ) : null}
 
-          <Pressable onPress={() => navigation.navigate('Dashboard')} className="mb-3 self-start flex-row items-center gap-2 rounded-full border border-[#dce5f8] bg-white px-3 py-2">
+          <Pressable onPress={() => navigation.navigate('Dashboard')} className="mb-3 self-start flex-row items-center gap-2 rounded-full border border-[#dce5f8] bg-white px-3 py-2" style={{ borderColor: tokens.border, backgroundColor: tokens.surface }}>
             <FontAwesomeIcon icon={faArrowLeft as IconProp} size={12} color="#3a5fba" />
-            <Text className="text-sm font-semibold text-[#3a5fba]">Back to dashboard</Text>
+            <Text className="text-sm font-semibold text-[#3a5fba]" style={{ color: tokens.primaryStrong }}>Back to dashboard</Text>
           </Pressable>
 
-          <View className="overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white">
-            <View className="h-[124px] bg-[#2f64f6]" />
+          <View className="overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
+            <View className="h-[124px]" style={{ backgroundColor: tokens.primary }} />
             <View className="-mt-12 px-4 pb-4">
               <View className="h-[94px] w-[94px] items-center justify-center overflow-hidden rounded-full border-[4px] border-white bg-[#dce8ff] shadow-sm">
                 {profilePictureSrc ? (
@@ -421,14 +430,14 @@ export function ProfilePage({ navigation }: Props) {
                     resizeMode="cover"
                   />
                 ) : (
-                  <Text className="text-[24px] font-extrabold text-[#2f64f6]">{getInitials(displayName) || 'JD'}</Text>
+                  <Text className="text-[24px] font-extrabold text-[#2f64f6]" style={{ color: tokens.primary }}>{getInitials(displayName) || 'JD'}</Text>
                 )}
               </View>
 
               <Text className="mt-4 text-[24px] font-extrabold tracking-[-0.04em] text-[#101d36]">{displayName}</Text>
               <View className="mt-2 flex-row flex-wrap items-center gap-2">
-                <View className="rounded-full bg-[#eef4ff] px-3 py-1">
-                  <Text className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#2f64f6]">{isAnonymous ? 'Anonymous' : roleLabel}</Text>
+                <View className="rounded-full bg-[#eef4ff] px-3 py-1" style={{ backgroundColor: tokens.primarySoft }}>
+                  <Text className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#2f64f6]" style={{ color: tokens.primary }}>{isAnonymous ? 'Anonymous' : roleLabel}</Text>
                 </View>
                 {profileMetaParts.length > 0 ? (
                   <Text className="text-sm text-[#61738f]">{profileMetaParts.join(' • ')}</Text>

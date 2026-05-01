@@ -28,12 +28,15 @@ import { API_BASE_URL } from '../lib/api';
 import { getValidAccessToken } from '../lib/auth-session';
 import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme, useThemePicker } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 type DashboardNotice = string | null;
 
 export function DashboardPage({ navigation }: Props) {
+  const { tokens } = useTheme();
+  const { openThemePicker } = useThemePicker();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [profileBundle, setProfileBundle] = useState<CurrentUserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -220,27 +223,28 @@ export function DashboardPage({ navigation }: Props) {
   const profileHeadline = buildProfileHeadline(profile, role);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
       <StatusBar style="dark" />
 
       <View className="flex-1">
-        <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
+        <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4" style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}>
           <View className="flex-row items-center gap-2">
-            <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
+            <View className="h-9 w-9 items-center justify-center rounded-[12px]" style={{ backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
-            <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
+            <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]" style={{ color: tokens.text }}>UniBridge</Text>
           </View>
 
           <View className="flex-row items-center gap-2">
-            <IconButton icon={faPalette as IconProp} onPress={() => openNotice('Theme settings will be available soon.')} />
+            <IconButton icon={faPalette as IconProp} onPress={openThemePicker} />
             <IconButton icon={faBell as IconProp} onPress={() => openNotice('Notifications will be available soon.')} />
             <Pressable
               onPress={() => setIsAccountMenuOpen(true)}
               className="h-9 flex-row items-center gap-2 rounded-full bg-[#eaf1ff] pl-1 pr-3"
+              style={{ backgroundColor: tokens.primarySoft }}
             >
               <View className="h-7 w-7 items-center justify-center rounded-full bg-white">
-                <Text className="text-[11px] font-extrabold text-[#2f64f6]">{profileInitials || 'JD'}</Text>
+                <Text className="text-[11px] font-extrabold text-[#2f64f6]" style={{ color: tokens.primary }}>{profileInitials || 'JD'}</Text>
               </View>
               <FontAwesomeIcon icon={faChevronDown as IconProp} size={11} color="#6a7b98" />
             </Pressable>
@@ -286,15 +290,15 @@ export function DashboardPage({ navigation }: Props) {
             </View>
           ) : null}
 
-          <View className="mb-4 rounded-[28px] border border-[#e4ecfb] bg-[#f3f7ff] px-4 py-5">
+          <View className="mb-4 rounded-[28px] border border-[#e4ecfb] bg-[#f3f7ff] px-4 py-5" style={{ backgroundColor: tokens.primarySoft, borderColor: tokens.border }}>
             <View className="mb-3 self-start rounded-full border border-[#d7e4ff] bg-white px-3 py-1.5">
-              <Text className="text-[11px] font-bold text-[#2d58a7]">✨ Built for universities</Text>
+              <Text className="text-[11px] font-bold text-[#2d58a7]" style={{ color: tokens.primaryStrong }}>✨ Built for universities</Text>
             </View>
 
-            <Text className="text-[28px] font-extrabold leading-[34px] tracking-[-0.04em] text-[#101d36]">
+            <Text className="text-[28px] font-extrabold leading-[34px] tracking-[-0.04em] text-[#101d36]" style={{ color: tokens.text }}>
               Welcome back, {firstName}!
             </Text>
-            <Text className="mt-2 text-[15px] leading-6 text-[#5f7291]">
+            <Text className="mt-2 text-[15px] leading-6 text-[#5f7291]" style={{ color: tokens.muted }}>
               Here&apos;s what&apos;s happening in your academic community
             </Text>
 
@@ -306,7 +310,7 @@ export function DashboardPage({ navigation }: Props) {
                 <Text className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6d7fa1]">Quick access</Text>
                 <Text className="mt-1 text-sm font-bold text-[#13233e]">Open your profile</Text>
               </View>
-              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#eaf1ff]">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#eaf1ff]" style={{ backgroundColor: tokens.primarySoft }}>
                 <FontAwesomeIcon icon={faUser as IconProp} size={15} color="#2f64f6" />
               </View>
             </Pressable>
@@ -340,9 +344,9 @@ export function DashboardPage({ navigation }: Props) {
               onPress={() => openNotice('Groups will be added in the next mobile update.')} />
           </View>
 
-          <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
+            <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]">Quick Actions</Text>
+              <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]" style={{ color: tokens.text }}>Quick Actions</Text>
             </View>
 
             <View className="flex-row flex-wrap gap-2">
@@ -353,11 +357,11 @@ export function DashboardPage({ navigation }: Props) {
             </View>
           </View>
 
-          <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
+          <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]">Recent Discussions</Text>
+              <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]" style={{ color: tokens.text }}>Recent Discussions</Text>
               <Pressable onPress={() => openNotice('Discussion details will be added in the next mobile update.')}>
-                <Text className="text-sm font-semibold text-[#2f64f6]">View all</Text>
+                <Text className="text-sm font-semibold text-[#2f64f6]" style={{ color: tokens.primary }}>View all</Text>
               </Pressable>
             </View>
 
@@ -395,8 +399,8 @@ export function DashboardPage({ navigation }: Props) {
             </View>
           </View>
 
-          <View className="mt-4 overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white">
-            <View className="h-[92px] bg-[#2f64f6]" />
+          <View className="mt-4 overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
+            <View className="h-[92px]" style={{ backgroundColor: tokens.primary }} />
             <View className="-mt-11 px-4 pb-4">
               <View className="h-[88px] w-[88px] items-center justify-center self-start rounded-full border-[4px] border-white bg-[#dce8ff] shadow-sm">
                 {profileLoading ? (
@@ -408,15 +412,15 @@ export function DashboardPage({ navigation }: Props) {
                     resizeMode="cover"
                   />
                 ) : (
-                  <Text className="text-[24px] font-extrabold text-[#2f64f6]">{profileInitials || 'JD'}</Text>
+                  <Text className="text-[24px] font-extrabold text-[#2f64f6]" style={{ color: tokens.primary }}>{profileInitials || 'JD'}</Text>
                 )}
               </View>
 
               <Text className="mt-3 text-[18px] font-extrabold tracking-[-0.03em] text-[#10213a]">{displayName}</Text>
               <Text className="mt-1 text-[14px] leading-5 text-[#5f7090]">{profileHeadline}</Text>
               <View className="mt-2 flex-row flex-wrap gap-2">
-                <View className="rounded-full bg-[#eef4ff] px-3 py-1">
-                  <Text className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#2f64f6]">{roleBadge}</Text>
+                <View className="rounded-full bg-[#eef4ff] px-3 py-1" style={{ backgroundColor: tokens.primarySoft }}>
+                  <Text className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#2f64f6]" style={{ color: tokens.primary }}>{roleBadge}</Text>
                 </View>
                 {profile?.faculty ? (
                   <View className="rounded-full bg-[#f2f6fd] px-3 py-1">
@@ -434,20 +438,21 @@ export function DashboardPage({ navigation }: Props) {
             </View>
           </View>
 
-          <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4">
+          <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             <View className="flex-row items-start gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#f3e9ff]">
-                <FontAwesomeIcon icon={faBriefcase as IconProp} size={15} color="#8b45f7" />
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#f3e9ff]" style={{ backgroundColor: tokens.primarySoft }}>
+                <FontAwesomeIcon icon={faBriefcase as IconProp} size={15} color={tokens.primary} />
               </View>
               <View className="flex-1">
-                <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]">Smart Notes</Text>
-                <Text className="mt-1 text-sm font-semibold text-[#7b45d9]">AI-Powered</Text>
-                <Text className="mt-2 text-sm leading-5 text-[#5f7090]">
+                <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]" style={{ color: tokens.text }}>Smart Notes</Text>
+                <Text className="mt-1 text-sm font-semibold text-[#7b45d9]" style={{ color: tokens.primaryStrong }}>AI-Powered</Text>
+                <Text className="mt-2 text-sm leading-5 text-[#5f7090]" style={{ color: tokens.muted }}>
                   Write notes and discover related discussions from your academic community in real time.
                 </Text>
                 <Pressable
                   onPress={() => openNotice('Smart Notes will be added in the next mobile update.')}
                   className="mt-3 self-start rounded-2xl bg-[#2f64f6] px-4 py-2.5"
+                  style={{ backgroundColor: tokens.primary }}
                 >
                   <Text className="text-sm font-bold text-white">Try Smart Notes</Text>
                 </Pressable>
