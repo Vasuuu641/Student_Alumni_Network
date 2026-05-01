@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, Send } from 'lucide-react'
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2 } from 'lucide-react'
 import {
   createThreadsSocket,
   deleteReply,
@@ -565,25 +565,34 @@ export function ThreadDetailPage() {
                   <div className="thread-reply-owner-actions thread-reply-owner-actions--inline">
                     {canReplyToThread && (
                       <button
-                        className="thread-reply-inline-btn"
+                        type="button"
+                        className="thread-reply-action-btn"
                         onClick={() => setReplyingTo(reply)}
+                        aria-label="Reply to comment"
+                        title="Reply"
                       >
-                        Reply
+                        <Reply size={14} />
                       </button>
                     )}
                     {currentUserId === reply.authorId && (
                       <>
                         <button
-                          className="thread-reply-inline-btn"
+                          type="button"
+                          className="thread-reply-action-btn"
                           onClick={() => beginEditReply(reply)}
+                          aria-label="Edit comment"
+                          title="Edit"
                         >
-                          Edit
+                          <PencilLine size={14} />
                         </button>
                         <button
-                          className="thread-reply-inline-btn"
+                          type="button"
+                          className="thread-reply-action-btn thread-reply-action-btn--danger"
                           onClick={() => void handleDeleteReply(reply.id)}
+                          aria-label="Delete comment"
+                          title="Delete"
                         >
-                          Delete
+                          <Trash2 size={14} />
                         </button>
                       </>
                     )}

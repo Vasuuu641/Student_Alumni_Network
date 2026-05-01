@@ -4958,6 +4958,41 @@
     margin-bottom: 6px;
   }
 
+  .thread-reply-owner-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .thread-reply-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid #dbe4f1;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+    flex-shrink: 0;
+  }
+
+  .thread-reply-action-btn:hover {
+    background: #eef4ff;
+    border-color: #bfd0f6;
+    color: #2f55d4;
+    transform: translateY(-1px);
+  }
+
+  .thread-reply-action-btn--danger:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+  }
+
   /* ── Children block ── */
   .thread-reply-children {
     display: flex;
@@ -5952,6 +5987,138 @@
     background: var(--theme-surface);
     border-color: var(--theme-border);
     box-shadow: none;
+  }
+
+  :root[data-theme='midnight'] .threads-toolbar,
+  :root[data-theme='midnight'] .threads-search,
+  :root[data-theme='midnight'] .threads-sort,
+  :root[data-theme='midnight'] .threads-tab,
+  :root[data-theme='midnight'] .threads-secondary-btn,
+  :root[data-theme='midnight'] .threads-panel-intro,
+  :root[data-theme='midnight'] .threads-recommend-banner,
+  :root[data-theme='midnight'] .threads-list,
+  :root[data-theme='midnight'] .thread-detail,
+  :root[data-theme='midnight'] .thread-card,
+  :root[data-theme='midnight'] .thread-detail-page__content,
+  :root[data-theme='midnight'] .thread-detail-page__state,
+  :root[data-theme='midnight'] .thread-detail__header,
+  :root[data-theme='midnight'] .thread-reply-box,
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='midnight'] .thread-reply-action-btn,
+  :root[data-theme='midnight'] .thread-collapse-toggle,
+  :root[data-theme='midnight'] .thread-open-btn,
+  :root[data-theme='midnight'] .thread-reply-collapse-btn,
+  :root[data-theme='midnight'] .thread-reply-avatar,
+  :root[data-theme='midnight'] .thread-reply-collapsed-summary {
+    background: var(--theme-surface);
+    border-color: var(--theme-border);
+    box-shadow: none;
+  }
+
+  :root[data-theme='midnight'] .thread-reply-box textarea,
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='midnight'] .threads-search input,
+  :root[data-theme='midnight'] .threads-sort,
+  :root[data-theme='midnight'] .threads-panel-intro h2,
+  :root[data-theme='midnight'] .thread-main h3,
+  :root[data-theme='midnight'] .thread-detail__header h3,
+  :root[data-theme='midnight'] .thread-reply-content p,
+  :root[data-theme='midnight'] .thread-reply-target,
+  :root[data-theme='midnight'] .thread-reply-owner-actions,
+  :root[data-theme='midnight'] .thread-reply-actions-row,
+  :root[data-theme='midnight'] .thread-meta-row,
+  :root[data-theme='midnight'] .threads-list__meta,
+  :root[data-theme='midnight'] .thread-votes,
+  :root[data-theme='midnight'] .thread-votes--reply-inline,
+  :root[data-theme='midnight'] .thread-collapse-toggle,
+  :root[data-theme='midnight'] .thread-open-btn {
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .threads-panel-intro p,
+  :root[data-theme='midnight'] .thread-main p,
+  :root[data-theme='midnight'] .thread-detail__header p,
+  :root[data-theme='midnight'] .thread-meta-row,
+  :root[data-theme='midnight'] .thread-reply-head .thread-meta-row,
+  :root[data-theme='midnight'] .thread-reply-collapsed-summary,
+  :root[data-theme='midnight'] .thread-reply-target,
+  :root[data-theme='midnight'] .thread-votes,
+  :root[data-theme='midnight'] .thread-votes--reply-inline,
+  :root[data-theme='midnight'] .threads-recommend-banner p {
+    color: var(--theme-muted);
+  }
+
+  :root[data-theme='midnight'] .threads-search svg,
+  :root[data-theme='midnight'] .thread-open-btn,
+  :root[data-theme='midnight'] .thread-collapse-toggle__icon,
+  :root[data-theme='midnight'] .thread-reply-collapse-btn,
+  :root[data-theme='midnight'] .thread-reply-avatar,
+  :root[data-theme='midnight'] .thread-votes button,
+  :root[data-theme='midnight'] .thread-votes--reply-inline button,
+  :root[data-theme='midnight'] .thread-reply-action-btn {
+    color: var(--theme-muted);
+  }
+
+  :root[data-theme='midnight'] .thread-reply-action-btn:hover,
+  :root[data-theme='midnight'] .thread-open-btn:hover,
+  :root[data-theme='midnight'] .thread-collapse-toggle:hover,
+  :root[data-theme='midnight'] .thread-votes button:hover,
+  :root[data-theme='midnight'] .thread-votes--reply-inline button:hover,
+  :root[data-theme='midnight'] .thread-reply-collapsed-summary:hover {
+    background: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, var(--theme-primary) 24%, var(--theme-border) 76%);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .thread-reply-action-btn--danger:hover {
+    background: color-mix(in srgb, #ef4444 16%, var(--theme-surface) 84%);
+    border-color: color-mix(in srgb, #ef4444 30%, var(--theme-border) 70%);
+    color: #fecaca;
+  }
+
+  :root[data-theme='midnight'] .thread-card--selected,
+  :root[data-theme='midnight'] .thread-votes button.thread-vote-btn--active-up,
+  :root[data-theme='midnight'] .thread-votes button.thread-vote-btn--active-down,
+  :root[data-theme='midnight'] .thread-votes--reply-inline button.thread-vote-btn--active-up,
+  :root[data-theme='midnight'] .thread-votes--reply-inline button.thread-vote-btn--active-down {
+    box-shadow: none;
+  }
+
+  :root[data-theme='midnight'] .thread-reply-rail-line,
+  :root[data-theme='midnight'] .thread-reply-kid-vline,
+  :root[data-theme='midnight'] .thread-reply-collapse-btn {
+    background: color-mix(in srgb, var(--theme-border) 80%, var(--theme-surface) 20%);
+    border-color: color-mix(in srgb, var(--theme-border) 80%, var(--theme-surface) 20%);
+  }
+
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea:focus,
+  :root[data-theme='midnight'] .threads-search:focus-within,
+  :root[data-theme='midnight'] .thread-reply-box textarea:focus {
+    border-color: color-mix(in srgb, var(--theme-primary) 36%, var(--theme-border) 64%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent);
+  }
+
+  :root[data-theme='midnight'] .thread-reply-box textarea,
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='midnight'] .threads-search,
+  :root[data-theme='midnight'] .threads-sort,
+  :root[data-theme='midnight'] .thread-open-btn,
+  :root[data-theme='midnight'] .thread-collapse-toggle,
+  :root[data-theme='midnight'] .thread-reply-action-btn {
+    color: var(--theme-text);
+}
+
+  :root[data-theme='midnight'] .thread-reply-box textarea,
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea {
+    background: var(--theme-surface);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .threads-search input::placeholder,
+  :root[data-theme='midnight'] .thread-reply-box textarea::placeholder,
+  :root[data-theme='midnight'] .thread-reply-edit-wrap textarea::placeholder {
+    color: var(--theme-muted);
   }
 
   :root[data-theme='midnight'] .dashboard-v2__hero-row h1,
