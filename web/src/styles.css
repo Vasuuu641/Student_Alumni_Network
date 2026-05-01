@@ -6245,6 +6245,33 @@
     color: var(--theme-text);
   }
 
+  :root[data-theme='midnight'] .geo-help-board-card__icon {
+    background: color-mix(in srgb, var(--theme-primary) 24%, var(--theme-surface) 76%);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__title {
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__category {
+    background: color-mix(in srgb, var(--theme-accent) 22%, var(--theme-surface) 78%);
+    border-color: color-mix(in srgb, var(--theme-accent) 32%, var(--theme-border) 68%);
+    color: var(--theme-accent);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__description {
+    color: var(--theme-muted);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__address {
+    color: var(--theme-muted);
+    border-color: var(--theme-border);
+  }
+
+  :root[data-theme='midnight'] .geo-help-board-card__distance {
+    color: var(--theme-text);
+    border-color: var(--theme-border);
+  }
   :root[data-theme='midnight'] .geo-help-board-card__badge {
     background: color-mix(in srgb, var(--theme-surface) 86%, var(--theme-bg) 14%);
     border: 1px solid var(--theme-border);
