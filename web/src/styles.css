@@ -735,7 +735,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    background: #ffffff;
+    background: var(--theme-bg);
     overflow-x: hidden;
     overflow-y: auto;
     scroll-snap-type: y mandatory;
@@ -798,7 +798,7 @@
     top: 0;
     z-index: 50;
     min-height: var(--landing-header-height);
-    background: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--theme-surface) 92%, transparent);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--theme-border);
     padding: 0.85rem 1.5rem;
@@ -808,6 +808,94 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .platform-top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    min-height: 3.5rem;
+    border-bottom: 1px solid var(--theme-border);
+    background: color-mix(in srgb, var(--theme-surface) 92%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .platform-top-nav__inner {
+    width: min(1120px, calc(100% - 2rem));
+    min-height: 3.5rem;
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .platform-top-nav__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .platform-top-nav__brand-name {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--theme-text);
+  }
+
+  .platform-top-nav__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex: 1;
+  }
+
+  .platform-top-nav__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .platform-top-nav__button,
+  .platform-top-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 0.75rem;
+    border: 1px solid transparent;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--theme-muted);
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .platform-top-nav__button {
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .platform-top-nav__button:hover,
+  .platform-top-nav__link:hover {
+    background: var(--theme-primary-soft);
+    color: var(--theme-text);
+  }
+
+  .platform-top-nav__link--active {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  .platform-top-nav__right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
   }
 
   /* ── Brand lockup ── */
@@ -910,7 +998,7 @@
 
   .section-copy {
     margin: 0 auto 2.5rem;
-    color: #64748b;
+    color: var(--theme-muted);
     font-size: 1.05rem;
     line-height: 1.65;
     text-align: center;
@@ -1165,14 +1253,15 @@
     text-align: center;
     gap: 0.65rem;
     padding: 2rem 1.5rem;
-    border: 1px solid #e8eef8;
+    border: 1px solid var(--theme-border);
     border-radius: 1rem;
-    background: #ffffff;
-    transition: box-shadow 0.2s, transform 0.2s;
+    background: var(--theme-surface);
+    box-shadow: var(--theme-shadow);
+    transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   }
 
   .purpose-card:hover {
-    box-shadow: 0 10px 28px rgba(38, 58, 115, 0.1);
+    border-color: color-mix(in srgb, var(--theme-primary) 22%, var(--theme-border) 78%);
     transform: translateY(-2px);
   }
 
@@ -1212,13 +1301,13 @@
     margin: 0;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #17233a;
+    color: var(--theme-text);
   }
 
   .purpose-card p {
     margin: 0;
     font-size: 0.92rem;
-    color: #64748b;
+    color: var(--theme-muted);
     line-height: 1.55;
   }
 
@@ -1235,14 +1324,15 @@
     flex-direction: column;
     gap: 0.65rem;
     padding: 1.5rem;
-    border: 1px solid #e8eef8;
+    border: 1px solid var(--theme-border);
     border-radius: 0.9rem;
-    background: #ffffff;
-    transition: box-shadow 0.2s, transform 0.2s;
+    background: var(--theme-surface);
+    box-shadow: var(--theme-shadow);
+    transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   }
 
   .feature-card:hover {
-    box-shadow: 0 8px 24px rgba(38, 58, 115, 0.09);
+    border-color: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-border) 82%);
     transform: translateY(-2px);
   }
 
@@ -1292,21 +1382,21 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: #17233a;
+    color: var(--theme-text);
   }
 
   .feature-card p {
     margin: 0;
     font-size: 0.88rem;
-    color: #64748b;
+    color: var(--theme-muted);
     line-height: 1.6;
   }
 
   /* ── Privacy panel ── */
   .privacy-panel {
     width: min(820px, 100%);
-    background: #f9fbff;
-    border: 1px solid #dce8fb;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
     border-radius: 1.25rem;
     padding: 2.75rem 2.5rem 2rem;
     display: flex;
@@ -1336,12 +1426,12 @@
     margin: 0;
     font-size: 1.7rem;
     font-weight: 700;
-    color: #17233a;
+    color: var(--theme-text);
   }
 
   .privacy-panel__subtitle {
     margin: -1rem 0 0;
-    color: #64748b;
+    color: var(--theme-muted);
     font-size: 0.95rem;
   }
 
@@ -1410,23 +1500,23 @@
     margin: 0;
     font-size: 0.92rem;
     font-weight: 700;
-    color: #17233a;
+    color: var(--theme-text);
   }
 
   .privacy-item p {
     margin: 0;
     font-size: 0.83rem;
-    color: #475569;
+    color: var(--theme-muted);
     line-height: 1.55;
   }
 
   .privacy-panel__fineprint {
     margin: 0;
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: var(--theme-muted);
     line-height: 1.6;
     max-width: 46rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--theme-border);
     padding-top: 1.25rem;
     width: 100%;
   }
@@ -1454,13 +1544,13 @@
     margin: 0;
     font-size: clamp(1.7rem, 3vw, 2.2rem);
     font-weight: 700;
-    color: #17233a;
+    color: var(--theme-text);
     letter-spacing: -0.03em;
   }
 
   .landing-section--cta p {
     margin: 0;
-    color: #64748b;
+    color: var(--theme-muted);
     font-size: 1rem;
     max-width: 30rem;
   }
@@ -1475,20 +1565,20 @@
 
   .cta-link {
     font-size: 0.9rem;
-    color: #64748b;
+    color: var(--theme-muted);
     text-decoration: none;
     font-weight: 500;
     transition: color 0.15s;
   }
 
   .cta-link:hover {
-    color: #3571f6;
+    color: var(--theme-primary);
   }
 
   /* ── Footer ── */
   .landing-footer {
-    background: #ffffff;
-    border-top: 1px solid #e8eef8;
+    background: var(--theme-surface);
+    border-top: 1px solid var(--theme-border);
     padding: 1.5rem 1.5rem;
   }
 
@@ -1501,19 +1591,19 @@
 
   .footer-links a {
     font-size: 0.85rem;
-    color: #64748b;
+    color: var(--theme-muted);
     text-decoration: none;
     transition: color 0.15s;
   }
 
   .footer-links a:hover {
-    color: #3571f6;
+    color: var(--theme-primary);
   }
 
   .footer-copy {
     margin: 0;
     font-size: 0.82rem;
-    color: #94a3b8;
+    color: var(--theme-muted);
   }
 
   /* ── Text link (nav Sign In) ── */
@@ -1530,12 +1620,87 @@
   }
 
   .text-link--muted {
-    color: #64748b;
+    color: var(--theme-muted);
     font-weight: 500;
   }
 
   .text-link--muted:hover {
-    color: #17233a;
+    color: var(--theme-text);
+  }
+
+  :root[data-theme='midnight'] .purpose-card__icon--students {
+    background: color-mix(in srgb, #16a34a 18%, var(--theme-surface) 82%);
+    color: #86efac;
+  }
+
+  :root[data-theme='midnight'] .purpose-card__icon--professors {
+    background: color-mix(in srgb, #2563eb 18%, var(--theme-surface) 82%);
+    color: #93c5fd;
+  }
+
+  :root[data-theme='midnight'] .purpose-card__icon--alumni {
+    background: color-mix(in srgb, #7c3aed 18%, var(--theme-surface) 82%);
+    color: #c4b5fd;
+  }
+
+  :root[data-theme='midnight'] .feature-card__icon {
+    background: color-mix(in srgb, #2f64f6 18%, var(--theme-surface) 82%);
+    color: #bfdbfe;
+  }
+
+  :root[data-theme='midnight'] .feature-card:nth-child(2) .feature-card__icon {
+    background: color-mix(in srgb, #7c3aed 18%, var(--theme-surface) 82%);
+    color: #ddd6fe;
+  }
+
+  :root[data-theme='midnight'] .feature-card:nth-child(3) .feature-card__icon {
+    background: color-mix(in srgb, #16a34a 18%, var(--theme-surface) 82%);
+    color: #bbf7d0;
+  }
+
+  :root[data-theme='midnight'] .feature-card:nth-child(4) .feature-card__icon {
+    background: color-mix(in srgb, #d97706 18%, var(--theme-surface) 82%);
+    color: #fcd34d;
+  }
+
+  :root[data-theme='midnight'] .feature-card:nth-child(5) .feature-card__icon {
+    background: color-mix(in srgb, #e11d48 18%, var(--theme-surface) 82%);
+    color: #fda4af;
+  }
+
+  :root[data-theme='midnight'] .feature-card:nth-child(6) .feature-card__icon {
+    background: color-mix(in srgb, #0f766e 18%, var(--theme-surface) 82%);
+    color: #5eead4;
+  }
+
+  :root[data-theme='midnight'] .privacy-item--green {
+    background: color-mix(in srgb, #15803d 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, #16a34a 24%, var(--theme-border) 76%);
+  }
+
+  :root[data-theme='midnight'] .privacy-item--blue {
+    background: color-mix(in srgb, #2563eb 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, #60a5fa 24%, var(--theme-border) 76%);
+  }
+
+  :root[data-theme='midnight'] .privacy-item--purple {
+    background: color-mix(in srgb, #7c3aed 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, #a78bfa 24%, var(--theme-border) 76%);
+  }
+
+  :root[data-theme='midnight'] .privacy-item--green .privacy-item__icon {
+    background: color-mix(in srgb, #16a34a 20%, var(--theme-surface) 80%);
+    color: #86efac;
+  }
+
+  :root[data-theme='midnight'] .privacy-item--blue .privacy-item__icon {
+    background: color-mix(in srgb, #2563eb 20%, var(--theme-surface) 80%);
+    color: #93c5fd;
+  }
+
+  :root[data-theme='midnight'] .privacy-item--purple .privacy-item__icon {
+    background: color-mix(in srgb, #7c3aed 20%, var(--theme-surface) 80%);
+    color: #c4b5fd;
   }
 
   /* ─────────────────────────────────────────────────────────────

@@ -38,10 +38,11 @@ export function ThemePicker({ compact = false }: ThemePickerProps) {
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label={`Choose theme. Current theme: ${current.label}`}
+        title={current.label}
       >
         <Palette size={14} />
-        <span>{compact ? 'Theme' : current.label}</span>
-        <ChevronDown size={13} />
+        {!compact ? <span>{current.label}</span> : null}
+        {!compact ? <ChevronDown size={13} /> : null}
       </button>
 
       {isOpen ? (
