@@ -65,10 +65,10 @@
     --theme-primary: #e11d48;
     --theme-primary-strong: #be123c;
     --theme-primary-soft: #ffe4eb;
-    --theme-accent: #f4a300;
-    --theme-accent-soft: #fff4cf;
+    --theme-accent: var(--theme-primary);
+    --theme-accent-soft: #ffdde8;
     --theme-action-primary: #e11d48;
-    --theme-action-primary-hover: #f4a300;
+    --theme-action-primary-hover: #be123c;
     --theme-action-shadow: 0 18px 50px rgba(225, 29, 72, 0.12);
     --theme-bg: #fff9fa;
     --theme-surface: #ffffff;
@@ -83,10 +83,10 @@
     --theme-primary: #ec4899;
     --theme-primary-strong: #db2777;
     --theme-primary-soft: #ffedf5;
-    --theme-accent: #f59e0b;
-    --theme-accent-soft: #fff3cd;
-    --theme-action-primary: #e11d48;
-    --theme-action-primary-hover: #f4a300;
+    --theme-accent: var(--theme-primary);
+    --theme-accent-soft: #ffe6f4;
+    --theme-action-primary: #ec4899;
+    --theme-action-primary-hover: #db2777;
     --theme-action-shadow: 0 18px 50px rgba(225, 29, 72, 0.12);
     --theme-bg: #fff8fb;
     --theme-surface: #ffffff;
@@ -95,6 +95,151 @@
     --theme-text: #221520;
     --theme-muted: #80576f;
     --theme-shadow: 0 18px 50px rgba(236, 72, 153, 0.10);
+  }
+
+  /* Rose theme: convert residual blue accents to pink, keep text dark */
+  :root[data-theme='rose'] .text-link {
+    color: var(--theme-primary);
+  }
+
+  :root[data-theme='rose'] .dashboard-hero__panel-icon,
+  :root[data-theme='rose'] .dashboard-sidebar-card__icon,
+  :root[data-theme='rose'] .dashboard-feature-card__icon {
+    background: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-surface) 82%);
+    color: var(--primary-foreground);
+  }
+
+  :root[data-theme='rose'] .dashboard-action-button--primary {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: var(--primary-foreground);
+    box-shadow: 0 14px 26px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
+  }
+
+  :root[data-theme='rose'] .dashboard-panel__eyebrow {
+    color: var(--theme-primary);
+  }
+
+  :root[data-theme='rose'] .dashboard-feature-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+  }
+
+  :root[data-theme='rose'] .dashboard-profile-card__cover {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong) 55%, color-mix(in srgb, var(--theme-primary) 8%, var(--theme-surface) 92%) 100%);
+  }
+
+  :root[data-theme='rose'] .dashboard-profile-card__avatar {
+    background: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface) 88%);
+    box-shadow: 0 14px 24px color-mix(in srgb, var(--theme-primary) 14%, transparent 86%);
+  }
+
+  :root[data-theme='rose'] .dashboard-profile-card__avatar-initials {
+    color: var(--theme-primary);
+  }
+
+  /* Notes page: tint the paper slightly pink for aesthetics */
+  :root[data-theme='rose'] .note-paper {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-surface) 88%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  /* Rose theme: notes and dashboard surfaces should shift from blue to pink */
+  :root[data-theme='rose'] .notes-list-page,
+  :root[data-theme='rose'] .notes-list-page-modern {
+    background: color-mix(in srgb, var(--theme-primary-soft) 10%, var(--theme-bg) 90%);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar,
+  :root[data-theme='rose'] .notes-create-form,
+  :root[data-theme='rose'] .note-card,
+  :root[data-theme='rose'] .dashboard-v2__panel,
+  :root[data-theme='rose'] .dashboard-v2__profile-card,
+  :root[data-theme='rose'] .dashboard-v2__side-card,
+  :root[data-theme='rose'] .dashboard-v2__discussion-card {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__brand-name,
+  :root[data-theme='rose'] .notes-list-header__title,
+  :root[data-theme='rose'] .note-card__title,
+  :root[data-theme='rose'] .dashboard-v2__panel h2,
+  :root[data-theme='rose'] .dashboard-v2__discussion-author-row strong,
+  :root[data-theme='rose'] .dashboard-v2__discussion-card h3,
+  :root[data-theme='rose'] .dashboard-v2__profile-body h2,
+  :root[data-theme='rose'] .dashboard-v2__side-card h3 {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__stat-card a,
+  :root[data-theme='rose'] .dashboard-v2__stat-card button {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__nav-item,
+  :root[data-theme='rose'] .notes-list-header__sub,
+  :root[data-theme='rose'] .note-card__meta,
+  :root[data-theme='rose'] .dashboard-v2__panel-head a,
+  :root[data-theme='rose'] .dashboard-v2__discussion-card p,
+  :root[data-theme='rose'] .dashboard-v2__discussion-meta,
+  :root[data-theme='rose'] .dashboard-v2__profile-body p,
+  :root[data-theme='rose'] .dashboard-v2__side-card p,
+  :root[data-theme='rose'] .dashboard-v2__side-card small,
+  :root[data-theme='rose'] .dashboard-v2__quick-btn,
+  :root[data-theme='rose'] .notes-cancel-btn {
+    color: #493344;
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__nav-item--active,
+  :root[data-theme='rose'] .notes-create-btn,
+  :root[data-theme='rose'] .dashboard-v2__quick-icon--blue,
+  :root[data-theme='rose'] .dashboard-v2__discussion-avatar,
+  :root[data-theme='rose'] .dashboard-v2__profile-cover,
+  :root[data-theme='rose'] .dashboard-v2__profile-avatar,
+  :root[data-theme='rose'] .dashboard-v2__side-card-icon,
+  :root[data-theme='rose'] .note-card__icon {
+    background: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-surface) 82%);
+    color: var(--theme-primary);
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__profile-cover {
+    background: linear-gradient(90deg, var(--theme-primary), var(--theme-primary-strong));
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__role-pill,
+  :root[data-theme='rose'] .note-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__role-pill {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .notes-create-btn,
+  :root[data-theme='rose'] .dashboard-v2__side-card button:not(.dashboard-v2__quick-link) {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__nav-item:hover,
+  :root[data-theme='rose'] .notes-cancel-btn:hover,
+  :root[data-theme='rose'] .dashboard-v2__profile-btn,
+  :root[data-theme='rose'] .dashboard-v2__quick-btn:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 65%, var(--theme-surface) 35%);
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__panel-head a,
+  :root[data-theme='rose'] .notes-sidebar__nav-item--active,
+  :root[data-theme='rose'] .notes-create-btn,
+  :root[data-theme='rose'] .dashboard-v2__profile-btn {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .dashboard-v2__quick-btn,
+  :root[data-theme='rose'] .notes-card,
+  :root[data-theme='rose'] .note-card {
+    background: color-mix(in srgb, var(--theme-surface) 96%, var(--theme-primary-soft) 4%);
   }
 
   :root[data-theme='midnight'] {
@@ -1127,13 +1272,13 @@
   }
 
   .landing-shell--hero .hero-button--primary {
-    background: var(--theme-accent);
-    color: #111827;
+    background: var(--theme-primary);
+    color: var(--primary-foreground);
   }
 
   .landing-shell--hero .hero-button--primary:hover {
-    background: color-mix(in srgb, var(--theme-accent) 88%, black 12%);
-    color: #111827;
+    background: color-mix(in srgb, var(--theme-primary) 88%, black 12%);
+    color: var(--primary-foreground);
   }
 
   .hero-button--secondary {
@@ -1979,6 +2124,20 @@
     background: var(--theme-accent);
     box-shadow: none;
     color: #111827;
+  }
+
+  /* Auth pages: ensure primary CTAs use the theme primary color (red/pink for crimson/rose) */
+  .auth-page .submit-button,
+  .auth-page .submit-button--soft {
+    background: var(--theme-primary);
+    color: var(--primary-foreground);
+    box-shadow: none;
+  }
+
+  .auth-page .submit-button:hover,
+  .auth-page .submit-button--soft:hover {
+    background: color-mix(in srgb, var(--theme-primary) 88%, black 12%);
+    transform: translateY(-1px);
   }
 
   .submit-button--wide {
