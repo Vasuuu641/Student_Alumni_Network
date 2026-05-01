@@ -6705,6 +6705,122 @@
     color: var(--theme-text);
   }
 
+  /* Study Groups page — rose theme overrides */
+  :root[data-theme='rose'] .study-groups-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-white,
+  :root[data-theme='rose'] .study-groups-shell .bg-slate-50,
+  :root[data-theme='rose'] .study-groups-shell .rounded-3xl,
+  :root[data-theme='rose'] .study-groups-shell article,
+  :root[data-theme='rose'] .study-groups-shell .rounded-2xl,
+  :root[data-theme='rose'] .study-groups-shell .border-slate-200,
+  :root[data-theme='rose'] .study-groups-shell .border-slate-300,
+  :root[data-theme='rose'] .study-groups-shell .border-dashed {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+    color: #111111;
+    box-shadow: none;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell h1,
+  :root[data-theme='rose'] .study-groups-shell h2,
+  :root[data-theme='rose'] .study-groups-shell .text-slate-900,
+  :root[data-theme='rose'] .study-groups-shell h3 {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell p,
+  :root[data-theme='rose'] .study-groups-shell .text-slate-600,
+  :root[data-theme='rose'] .study-groups-shell .text-slate-500,
+  :root[data-theme='rose'] .study-groups-shell .text-slate-400 {
+    color: #5f4251;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-100,
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-50,
+  :root[data-theme='rose'] .study-groups-shell .border-sky-200,
+  :root[data-theme='rose'] .study-groups-shell .border-sky-300,
+  :root[data-theme='rose'] .study-groups-shell .text-sky-600,
+  :root[data-theme='rose'] .study-groups-shell .text-sky-700,
+  :root[data-theme='rose'] .study-groups-shell .text-sky-800 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 75%, var(--theme-surface) 25%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-emerald-50,
+  :root[data-theme='rose'] .study-groups-shell .border-emerald-200,
+  :root[data-theme='rose'] .study-groups-shell .text-emerald-700 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 60%, var(--theme-surface) 40%);
+    border-color: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-border) 86%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-green-50,
+  :root[data-theme='rose'] .study-groups-shell .border-green-200,
+  :root[data-theme='rose'] .study-groups-shell .text-green-700 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 58%, var(--theme-surface) 42%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-white button,
+  :root[data-theme='rose'] .study-groups-shell .border-slate-200 button,
+  :root[data-theme='rose'] .study-groups-shell .border-slate-300 button {
+    color: #5f4251;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-slate-50 button,
+  :root[data-theme='rose'] .study-groups-shell .bg-white .text-sky-700,
+  :root[data-theme='rose'] .study-groups-shell .bg-white .text-sky-600,
+  :root[data-theme='rose'] .study-groups-shell .bg-white .text-sky-800,
+  :root[data-theme='rose'] .study-groups-shell .bg-white .text-green-700 {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-100,
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-50,
+  :root[data-theme='rose'] .study-groups-shell .bg-emerald-50,
+  :root[data-theme='rose'] .study-groups-shell .bg-green-50,
+  :root[data-theme='rose'] .study-groups-shell .bg-white .rounded-full,
+  :root[data-theme='rose'] .study-groups-shell .rounded-full.border-sky-200,
+  :root[data-theme='rose'] .study-groups-shell .rounded-full.border-emerald-200,
+  :root[data-theme='rose'] .study-groups-shell .rounded-full.border-green-200 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 78%, var(--theme-surface) 22%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-100 svg,
+  :root[data-theme='rose'] .study-groups-shell .bg-sky-50 svg,
+  :root[data-theme='rose'] .study-groups-shell .bg-white svg,
+  :root[data-theme='rose'] .study-groups-shell .text-sky-600 svg,
+  :root[data-theme='rose'] .study-groups-shell .text-green-700 svg {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-groups-shell .bg-white .text-slate-900,
+  :root[data-theme='rose'] .study-groups-shell .bg-slate-50 .text-slate-900,
+  :root[data-theme='rose'] .study-groups-shell .rounded-3xl .text-slate-900,
+  :root[data-theme='rose'] .study-groups-shell .rounded-2xl .text-slate-900 {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell input,
+  :root[data-theme='rose'] .study-groups-shell textarea {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-groups-shell aside button.bg-blue-50,
+  :root[data-theme='rose'] .study-groups-shell aside button[aria-pressed="true"],
+  :root[data-theme='rose'] .study-groups-shell aside button:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    color: var(--theme-primary-strong);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+  }
+
   /* Search input darker */
   :root[data-theme='midnight'] .study-groups-shell aside input,
   :root[data-theme='midnight'] .study-group-detail-shell aside input {
@@ -6812,6 +6928,138 @@
   :root[data-theme='midnight'] .study-group-detail-shell .hero-button--primary,
   :root[data-theme='midnight'] .study-group-detail-shell .submit-button {
     box-shadow: none;
+  }
+
+  /* Study Group Detail page — rose theme overrides */
+  :root[data-theme='rose'] .study-group-detail-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-white,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-slate-50,
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-3xl,
+  :root[data-theme='rose'] .study-group-detail-shell aside,
+  :root[data-theme='rose'] .study-group-detail-shell section {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+    color: #111111;
+    box-shadow: none;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .text-slate-900,
+  :root[data-theme='rose'] .study-group-detail-shell h1,
+  :root[data-theme='rose'] .study-group-detail-shell h2,
+  :root[data-theme='rose'] .study-group-detail-shell p,
+  :root[data-theme='rose'] .study-group-detail-shell .text-slate-600,
+  :root[data-theme='rose'] .study-group-detail-shell .text-slate-500,
+  :root[data-theme='rose'] .study-group-detail-shell .text-slate-400 {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell aside button,
+  :root[data-theme='rose'] .study-group-detail-shell aside input,
+  :root[data-theme='rose'] .study-group-detail-shell form textarea,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-box textarea,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-edit-wrap textarea,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-collapse-toggle,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-open-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-action-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-inline-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .threads-primary-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .threads-secondary-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-collapsed-summary,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-votes button,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-votes--reply-inline button,
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-full.border.px-2,
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-full.border.px-2.py-0\.5 {
+    color: #5f4251;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell aside button:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-open-btn:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-action-btn:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-inline-btn:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-collapse-toggle:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-votes button:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-votes--reply-inline button:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-collapsed-summary:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    border-color: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-border) 82%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell aside button.bg-blue-50,
+  :root[data-theme='rose'] .study-group-detail-shell aside button[aria-pressed="true"],
+  :root[data-theme='rose'] .study-group-detail-shell .bg-blue-50,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-sky-50,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-sky-100,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-sky-600,
+  :root[data-theme='rose'] .study-group-detail-shell .text-sky-700,
+  :root[data-theme='rose'] .study-group-detail-shell .text-sky-600,
+  :root[data-theme='rose'] .study-group-detail-shell .text-sky-800 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 76%, var(--theme-surface) 24%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .bg-emerald-50,
+  :root[data-theme='rose'] .study-group-detail-shell .border-emerald-200,
+  :root[data-theme='rose'] .study-group-detail-shell .text-emerald-700,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-amber-50,
+  :root[data-theme='rose'] .study-group-detail-shell .border-amber-200,
+  :root[data-theme='rose'] .study-group-detail-shell .text-amber-700 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 62%, var(--theme-surface) 38%);
+    border-color: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-border) 86%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .thread-reply-avatar,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-sky-100,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-sky-50,
+  :root[data-theme='rose'] .study-group-detail-shell .h-10.w-10.items-center.justify-center.rounded-xl.bg-sky-100,
+  :root[data-theme='rose'] .study-group-detail-shell .flex.h-9.w-9.items-center.justify-center.rounded-full.bg-sky-100 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-2xl.bg-white,
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-xl.border,
+  :root[data-theme='rose'] .study-group-detail-shell .border-slate-200,
+  :root[data-theme='rose'] .study-group-detail-shell .border-slate-300,
+  :root[data-theme='rose'] .study-group-detail-shell .border-slate-100 {
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-2xl.bg-white .bg-blue-600,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-blue-600,
+  :root[data-theme='rose'] .study-group-detail-shell .threads-primary-btn,
+  :root[data-theme='rose'] .study-group-detail-shell .hero-button--primary,
+  :root[data-theme='rose'] .study-group-detail-shell .submit-button {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .rounded-2xl.bg-white .bg-blue-600:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-blue-600:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .threads-primary-btn:hover:not(:disabled),
+  :root[data-theme='rose'] .study-group-detail-shell .hero-button--primary:hover,
+  :root[data-theme='rose'] .study-group-detail-shell .submit-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 88%, black 12%), color-mix(in srgb, var(--theme-primary-strong) 88%, black 12%));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .flex-1.overflow-y-auto,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-slate-50.flex-1.overflow-y-auto {
+    background: color-mix(in srgb, var(--theme-primary-soft) 8%, var(--theme-bg) 92%);
+  }
+
+  :root[data-theme='rose'] .study-group-detail-shell .border-t.border-slate-200.bg-white,
+  :root[data-theme='rose'] .study-group-detail-shell .border-t.border-slate-200.bg-slate-50,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-white.border-t,
+  :root[data-theme='rose'] .study-group-detail-shell .bg-white .border-t {
+    background: color-mix(in srgb, var(--theme-surface) 96%, var(--theme-primary-soft) 4%);
   }
 
 
