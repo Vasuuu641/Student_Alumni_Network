@@ -421,7 +421,7 @@ export function DashboardPage() {
               <h3>Smart Notes</h3>
               <p>AI-Powered</p>
               <small>Write notes and discover related discussions from your academic community in real-time.</small>
-              <button type="button" onClick={() => openPlaceholder('Smart Notes')}>Try Smart Notes</button>
+              <button type="button" onClick={() => navigate('/notes')}>Try Smart Notes</button>
             </section>
           </aside>
         </section>
