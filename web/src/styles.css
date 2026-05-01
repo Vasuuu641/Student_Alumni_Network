@@ -242,6 +242,17 @@
     background: color-mix(in srgb, var(--theme-surface) 96%, var(--theme-primary-soft) 4%);
   }
 
+  :root[data-theme='rose'] .notes-create-btn-modern,
+  :root[data-theme='rose'] .share-panel__invite-btn {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .notes-create-btn-modern:hover,
+  :root[data-theme='rose'] .share-panel__invite-btn:not(:disabled):hover {
+    box-shadow: 0 6px 16px rgba(236, 72, 153, 0.28);
+  }
+
   :root[data-theme='midnight'] {
     --theme-primary: #4b80f8;
     --theme-primary-strong: #2f64f6;
