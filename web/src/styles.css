@@ -6174,6 +6174,140 @@
     box-shadow: none;
   }
 
+  /* Threads page: rose theme should use pink-tinted surfaces and controls */
+  :root[data-theme='rose'] .threads-page-shell {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .threads-header h1,
+  :root[data-theme='rose'] .threads-panel-intro h2,
+  :root[data-theme='rose'] .threads-list__meta,
+  :root[data-theme='rose'] .thread-main h3,
+  :root[data-theme='rose'] .thread-detail-page__content,
+  :root[data-theme='rose'] .thread-detail__header h3,
+  :root[data-theme='rose'] .thread-reply-content p,
+  :root[data-theme='rose'] .thread-reply-head .thread-meta-row,
+  :root[data-theme='rose'] .thread-meta-row,
+  :root[data-theme='rose'] .thread-detail-page__state,
+  :root[data-theme='rose'] .threads-modal__header h3,
+  :root[data-theme='rose'] .threads-modal__header p,
+  :root[data-theme='rose'] .similarity-panel__headline,
+  :root[data-theme='rose'] .similarity-panel__empty {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .threads-header p,
+  :root[data-theme='rose'] .threads-panel-intro p,
+  :root[data-theme='rose'] .thread-main p,
+  :root[data-theme='rose'] .thread-detail__header p,
+  :root[data-theme='rose'] .thread-reply-target,
+  :root[data-theme='rose'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='rose'] .threads-recommend-banner p,
+  :root[data-theme='rose'] .threads-recommend-list button,
+  :root[data-theme='rose'] .threads-recommend-list button span,
+  :root[data-theme='rose'] .thread-votes,
+  :root[data-theme='rose'] .thread-votes--reply-inline,
+  :root[data-theme='rose'] .thread-reply-inline-btn,
+  :root[data-theme='rose'] .thread-reply-collapse-btn,
+  :root[data-theme='rose'] .threads-search,
+  :root[data-theme='rose'] .threads-sort,
+  :root[data-theme='rose'] .thread-open-btn,
+  :root[data-theme='rose'] .thread-reply-action-btn,
+  :root[data-theme='rose'] .threads-secondary-btn,
+  :root[data-theme='rose'] .threads-tab,
+  :root[data-theme='rose'] .threads-modal__header button,
+  :root[data-theme='rose'] .thread-collapse-toggle,
+  :root[data-theme='rose'] .thread-collapse-toggle__label {
+    color: #6b4a5c;
+  }
+
+  :root[data-theme='rose'] .threads-primary-btn,
+  :root[data-theme='rose'] .threads-tab--active,
+  :root[data-theme='rose'] .thread-votes button.thread-vote-btn--active-up,
+  :root[data-theme='rose'] .thread-votes--reply-inline button.thread-vote-btn--active-up,
+  :root[data-theme='rose'] .thread-reply-action-btn:hover,
+  :root[data-theme='rose'] .thread-open-btn:hover,
+  :root[data-theme='rose'] .thread-reply-inline-btn:hover,
+  :root[data-theme='rose'] .thread-votes button:hover,
+  :root[data-theme='rose'] .thread-votes--reply-inline button:hover,
+  :root[data-theme='rose'] .thread-collapse-toggle:hover,
+  :root[data-theme='rose'] .thread-reply-target,
+  :root[data-theme='rose'] .similarity-panel button:hover,
+  :root[data-theme='rose'] .threads-recommend-list button:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .threads-primary-btn,
+  :root[data-theme='rose'] .threads-modal__actions .threads-primary-btn,
+  :root[data-theme='rose'] .thread-reply-target,
+  :root[data-theme='rose'] .thread-votes button.thread-vote-btn--active-up,
+  :root[data-theme='rose'] .thread-votes--reply-inline button.thread-vote-btn--active-up {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .threads-secondary-btn,
+  :root[data-theme='rose'] .threads-tab,
+  :root[data-theme='rose'] .threads-search,
+  :root[data-theme='rose'] .threads-sort,
+  :root[data-theme='rose'] .threads-panel-intro,
+  :root[data-theme='rose'] .threads-recommend-banner,
+  :root[data-theme='rose'] .threads-list,
+  :root[data-theme='rose'] .thread-detail,
+  :root[data-theme='rose'] .thread-card,
+  :root[data-theme='rose'] .thread-detail-page__content,
+  :root[data-theme='rose'] .thread-detail-page__state,
+  :root[data-theme='rose'] .thread-detail__header,
+  :root[data-theme='rose'] .thread-reply-box,
+  :root[data-theme='rose'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='rose'] .thread-reply-action-btn,
+  :root[data-theme='rose'] .thread-collapse-toggle,
+  :root[data-theme='rose'] .thread-open-btn,
+  :root[data-theme='rose'] .threads-modal,
+  :root[data-theme='rose'] .threads-modal__header button,
+  :root[data-theme='rose'] .threads-modal__form input,
+  :root[data-theme='rose'] .threads-modal__form textarea,
+  :root[data-theme='rose'] .similarity-panel,
+  :root[data-theme='rose'] .similarity-panel__results button,
+  :root[data-theme='rose'] .thread-reply-collapsed-summary {
+    background: color-mix(in srgb, var(--theme-surface) 95%, var(--theme-primary-soft) 5%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+    box-shadow: none;
+  }
+
+  :root[data-theme='rose'] .thread-card--selected {
+    border-color: color-mix(in srgb, var(--theme-primary) 35%, var(--theme-border) 65%);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--theme-primary) 10%, transparent 90%);
+  }
+
+  :root[data-theme='rose'] .thread-votes button.thread-vote-btn--active-down,
+  :root[data-theme='rose'] .thread-votes--reply-inline button.thread-vote-btn--active-down {
+    background: color-mix(in srgb, #fecaca 55%, var(--theme-surface) 45%);
+    color: #b91c1c;
+  }
+
+  :root[data-theme='rose'] .thread-reply-avatar,
+  :root[data-theme='rose'] .thread-reply-collapsed-summary,
+  :root[data-theme='rose'] .dashboard-v2__side-card button:not(.dashboard-v2__quick-link) {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .thread-reply-rail-wrap:hover .thread-reply-rail-line,
+  :root[data-theme='rose'] .thread-reply-kid-vline {
+    background: color-mix(in srgb, var(--theme-primary) 18%, #e2e8f0 82%);
+  }
+
+  :root[data-theme='rose'] .thread-reply-box textarea:focus,
+  :root[data-theme='rose'] .thread-reply-edit-wrap textarea:focus,
+  :root[data-theme='rose'] .threads-search:focus-within {
+    border-color: color-mix(in srgb, var(--theme-primary) 45%, var(--theme-border) 55%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent 84%);
+  }
+
   :root[data-theme='midnight'] .thread-reply-box textarea,
   :root[data-theme='midnight'] .thread-reply-edit-wrap textarea,
   :root[data-theme='midnight'] .threads-search input,
