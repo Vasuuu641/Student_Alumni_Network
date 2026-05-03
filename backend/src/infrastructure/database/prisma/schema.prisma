@@ -45,6 +45,8 @@ model User {
   geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
   geoHelpSpotVisits   GeoHelpSpotVisit[]
   geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
+  notifications       Notification[] @relation("NotificationRecipient")
+  notificationPreference NotificationPreference? @relation("NotificationPreferenceUser")
 }
 
 model Student {
@@ -199,6 +201,86 @@ model RevokedToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Notifications feature
+
+enum NotificationType {
+  THREAD_REPLY
+  THREAD_ACTIVITY
+  GEO_HELP_ACTIVITY
+  STUDY_GROUP_ACTIVITY
+  NOTE_ACTIVITY
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
+model Notification {
+  id           String             @id @default(uuid())
+  userId       String
+  type         NotificationType
+  title        String             @db.VarChar(255)
+  body         String
+  entityType   String
+  entityId     String
+  sourceModule String
+  actionUrl    String?
+  score        Float              @default(0)
+  dedupeKey    String?
+  metadataJson Json?
+  isRead       Boolean            @default(false)
+  readAt       DateTime?
+  dismissedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  recipient    User               @relation("NotificationRecipient", fields: [userId], references: [id])
+  deliveries   NotificationDelivery[]
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, dismissedAt, createdAt])
+  @@index([dedupeKey])
+  @@index([type, createdAt])
+}
+
+model NotificationDelivery {
+  id              String                    @id @default(uuid())
+  notificationId  String
+  channel         NotificationChannel
+  status          NotificationDeliveryStatus @default(DELIVERED)
+  sentAt          DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  notification    Notification              @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([channel, status])
+}
+
+model NotificationPreference {
+  userId       String   @id
+  inAppEnabled Boolean  @default(true)
+  emailEnabled Boolean  @default(false)
+  pushEnabled  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation("NotificationPreferenceUser", fields: [userId], references: [id])
 }
 
 // Threads feature

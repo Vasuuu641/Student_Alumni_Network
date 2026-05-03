@@ -21,9 +21,10 @@ import { AuthModule } from '../../auth/auth.module';
 import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
 
 import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-thread-llm.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [ThreadsController],
   providers: [
     // Use cases

@@ -1,12 +1,15 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/repositories/thread.repository';
 import { ThreadReply, ReplyStatus } from 'src/domain/entities/thread.entity';
+import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';
+import { NotificationType } from 'src/domain/entities/notification.entity';
 
 @Injectable()
 export class PostReplyUseCase {
   constructor(
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
     @Inject('ThreadReplyRepository') private readonly replyRepository: ThreadReplyRepository,
+    private readonly createNotificationUseCase: CreateNotificationUseCase,
   ) {}
 
   async execute(
@@ -43,6 +46,28 @@ export class PostReplyUseCase {
     });
 
     await this.threadRepository.incrementReplyCount(threadId);
+
+    if (thread.authorId !== userId) {
+      await this.createNotificationUseCase.execute({
+        userId: thread.authorId,
+        type: NotificationType.THREAD_REPLY,
+        title: `New reply on ${thread.title}`,
+        body: 'A discussion you started has a new reply.',
+        entityType: 'THREAD',
+        entityId: thread.id,
+        sourceModule: 'threads',
+        actionUrl: `/threads/${thread.id}`,
+        score: 0.85,
+        dedupeKey: `thread-reply:${thread.id}:${reply.id}`,
+        metadataJson: {
+          threadId: thread.id,
+          replyId: reply.id,
+          actorId: userId,
+        },
+      }).catch((error) => {
+        console.error(`Failed to create thread reply notification for ${thread.id}:`, error?.message ?? error);
+      });
+    }
 
     return reply;
   }
