@@ -12,6 +12,13 @@ import { GetNotificationPreferencesUseCase } from '../../application/notificatio
 import { UpdateNotificationPreferencesUseCase } from '../../application/notifications/update-notification-preferences.usecase';
 import { PrismaNotificationRepository } from '../../infrastructure/repositories/prisma-notification.repository';
 import { PrismaNotificationPreferenceRepository } from '../../infrastructure/repositories/prisma-notification-preference.repository';
+import {
+  PrismaUserInterestProfileRepository,
+  PrismaUserInterestSignalRepository,
+  PrismaNotificationCandidateRepository,
+} from '../../infrastructure/repositories/prisma-user-interest.repository';
+import { NotificationAIScoringService } from '../../infrastructure/services/notification-ai-scoring.service';
+import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -27,6 +34,11 @@ import { PrismaNotificationPreferenceRepository } from '../../infrastructure/rep
     UpdateNotificationPreferencesUseCase,
     PrismaNotificationRepository,
     PrismaNotificationPreferenceRepository,
+    PrismaUserInterestProfileRepository,
+    PrismaUserInterestSignalRepository,
+    PrismaNotificationCandidateRepository,
+    NotificationAIScoringService,
+    NotificationEligibilityService,
     {
       provide: 'NotificationRepository',
       useClass: PrismaNotificationRepository,
@@ -35,7 +47,24 @@ import { PrismaNotificationPreferenceRepository } from '../../infrastructure/rep
       provide: 'NotificationPreferenceRepository',
       useClass: PrismaNotificationPreferenceRepository,
     },
+    {
+      provide: 'UserInterestProfileRepository',
+      useClass: PrismaUserInterestProfileRepository,
+    },
+    {
+      provide: 'UserInterestSignalRepository',
+      useClass: PrismaUserInterestSignalRepository,
+    },
+    {
+      provide: 'NotificationCandidateRepository',
+      useClass: PrismaNotificationCandidateRepository,
+    },
   ],
-  exports: [CreateNotificationUseCase],
+  exports: [
+    CreateNotificationUseCase,
+    NotificationEligibilityService,
+    'UserInterestProfileRepository',
+    'UserInterestSignalRepository',
+  ],
 })
 export class NotificationsModule {}

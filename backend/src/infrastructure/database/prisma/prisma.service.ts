@@ -19,9 +19,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get noteActivity() { return this.client.noteActivity; }
   get noteVersion() { return this.client.noteVersion; }
   get revokedToken() { return this.client.revokedToken; }
-  get notification() { return this.client.notification; }
-  get notificationDelivery() { return this.client.notificationDelivery; }
-  get notificationPreference() { return this.client.notificationPreference; }
+  get notification() { return (this.client as any).notification; }
+  get notificationDelivery() { return (this.client as any).notificationDelivery; }
+  get notificationPreference() { return (this.client as any).notificationPreference; }
+  get userInterestProfile() { return (this.client as any).userInterestProfile; }
+  get userInterestSignal() { return (this.client as any).userInterestSignal; }
+  get notificationCandidate() { return (this.client as any).notificationCandidate; }
   get thread() { return this.client.thread; }
   get threadReply() { return this.client.threadReply; }
   get threadVote() { return this.client.threadVote; }

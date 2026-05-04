@@ -3,6 +3,9 @@ import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/reposit
 import { ThreadReply, ReplyStatus } from 'src/domain/entities/thread.entity';
 import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';
 import { NotificationType } from 'src/domain/entities/notification.entity';
+import { NotificationEligibilityService } from 'src/infrastructure/services/notification-eligibility.service';
+import { InterestSignalType } from 'src/domain/entities/user-interest.entity';
+import type { UserInterestSignalRepository } from 'src/domain/repositories/user-interest.repository';
 
 @Injectable()
 export class PostReplyUseCase {
@@ -10,6 +13,9 @@ export class PostReplyUseCase {
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
     @Inject('ThreadReplyRepository') private readonly replyRepository: ThreadReplyRepository,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
+    private readonly eligibilityService: NotificationEligibilityService,
+    @Inject('UserInterestSignalRepository')
+    private readonly signalRepository: UserInterestSignalRepository,
   ) {}
 
   async execute(
@@ -48,6 +54,38 @@ export class PostReplyUseCase {
     await this.threadRepository.incrementReplyCount(threadId);
 
     if (thread.authorId !== userId) {
+      // Capture reply signal for the replier
+      await this.eligibilityService.captureSignal(
+        userId,
+        InterestSignalType.THREAD_REPLY,
+        'THREAD',
+        thread.id,
+        thread.panel,
+        'threads',
+      ).catch((error) => {
+        console.error(`Failed to capture reply signal: ${error?.message ?? error}`);
+      });
+
+      // Check if thread author is interested in notifications about this thread
+      const eligibility = await this.eligibilityService.checkEligibility(
+        thread.authorId,
+        thread.id,
+        thread.title,
+        `${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+        thread.title,
+        thread.panel,
+      ).catch((error) => {
+        console.error(`Eligibility check failed: ${error?.message ?? error}`);
+        return null;
+      });
+
+      if (!eligibility || !eligibility.passed) {
+        console.log(
+          `Notification ineligible for user ${thread.authorId}: ${eligibility?.reason || 'unknown'}`,
+        );
+        return reply;
+      }
+
       await this.createNotificationUseCase.execute({
         userId: thread.authorId,
         type: NotificationType.THREAD_REPLY,
@@ -57,12 +95,14 @@ export class PostReplyUseCase {
         entityId: thread.id,
         sourceModule: 'threads',
         actionUrl: `/threads/${thread.id}`,
-        score: 0.85,
+        score: eligibility.finalScore,
         dedupeKey: `thread-reply:${thread.id}:${reply.id}`,
         metadataJson: {
           threadId: thread.id,
           replyId: reply.id,
           actorId: userId,
+          aiScore: eligibility.aiScore,
+          reason: eligibility.reason,
         },
       }).catch((error) => {
         console.error(`Failed to create thread reply notification for ${thread.id}:`, error?.message ?? error);

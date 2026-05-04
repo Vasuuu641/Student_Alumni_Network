@@ -44,7 +44,7 @@ export class NotificationsController {
       return { unreadCount };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to get unread notification count',
+        this.formatError(error, 'Failed to get unread notification count'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -59,7 +59,7 @@ export class NotificationsController {
       return { preferences };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to load notification preferences',
+        this.formatError(error, 'Failed to load notification preferences'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -74,7 +74,7 @@ export class NotificationsController {
       return { preferences };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to update notification preferences',
+        this.formatError(error, 'Failed to update notification preferences'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -93,7 +93,7 @@ export class NotificationsController {
       return result;
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list notifications',
+        this.formatError(error, 'Failed to list notifications'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -108,7 +108,7 @@ export class NotificationsController {
       return { notification };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to mark notification as read',
+        this.formatError(error, 'Failed to mark notification as read'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -123,7 +123,7 @@ export class NotificationsController {
       return result;
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to mark notifications as read',
+        this.formatError(error, 'Failed to mark notifications as read'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -138,9 +138,17 @@ export class NotificationsController {
       return { notification };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to dismiss notification',
+        this.formatError(error, 'Failed to dismiss notification'),
         HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  private formatError(error: unknown, fallbackMessage: string): string {
+    if (error instanceof Error) {
+      return error.message || fallbackMessage;
+    }
+
+    return fallbackMessage;
   }
 }
