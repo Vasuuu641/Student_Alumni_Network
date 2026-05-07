@@ -26,7 +26,7 @@ export function NotesListPage() {
     return <Navigate to="/login" replace />
   }
 
-  if (role === 'ALUMNI') {
+  if (String(role) === 'ALUMNI') {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -43,7 +43,7 @@ export function NotesListPage() {
   }, [])
 
   useEffect(() => {
-    if (role === 'ALUMNI') {
+    if (String(role) === 'ALUMNI') {
       setLoading(false)
       return
     }

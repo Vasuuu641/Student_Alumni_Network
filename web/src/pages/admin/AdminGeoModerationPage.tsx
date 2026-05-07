@@ -30,16 +30,24 @@ const GEO_CATEGORIES: Array<'ALL' | GeoCategory> = [
 const GEO_SECTIONS: Array<'ALL' | GeoSection> = ['ALL', 'OFFICIAL_RESOURCE', 'COMMUNITY_PICK'];
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString(undefined, {
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return 'Unknown time';
+
+    return d.toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   });
+  } catch {
+    return 'Unknown time';
+  }
 }
 
 const GOOGLE_MAPS_API_KEY = String((import.meta.env as Record<string, string | undefined>).VITE_GOOGLE_MAPS_API ?? '').trim();
+const GOOGLE_MAP_LIBRARIES: ('places')[] = ['places'];
 
 function hasValidCoordinates(latitude: number, longitude: number): boolean {
   return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude !== 0 && longitude !== 0;
@@ -59,8 +67,9 @@ export function AdminGeoModerationPage() {
   const [expandedSpotIds, setExpandedSpotIds] = useState<Set<string>>(new Set());
 
   const { isLoaded: isMapLoaded, loadError: mapLoadError } = useJsApiLoader({
-    id: 'admin-geo-mini-map',
+    id: 'geo-help-google-map',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES,
   });
 
   useEffect(() => {
@@ -223,100 +232,116 @@ export function AdminGeoModerationPage() {
         ) : (
           <div className="admin-geo-grid">
             {filteredSpots.map((spot) => {
-              const isPending = spot.reviewStatus === 'PENDING';
-              const isBusy = actingId === spot.id;
-              const isExpanded = expandedSpotIds.has(spot.id);
-              const showMap = hasValidCoordinates(spot.latitude, spot.longitude);
+              try {
+                if (!spot || !spot.id) return null;
 
-              return (
-                <article key={spot.id} className={`admin-geo-card${isExpanded ? ' admin-geo-card--expanded' : ''}`}>
-                  <div className="admin-geo-card__head">
-                    <h3>{spot.title}</h3>
-                    <span className={`admin-status-pill review review--${spot.reviewStatus.toLowerCase()}`}>
-                      {spot.reviewStatus}
-                    </span>
-                  </div>
+                const isPending = String(spot.reviewStatus) === 'PENDING';
+                const isBusy = actingId === spot.id;
+                const isExpanded = expandedSpotIds.has(spot.id);
+                const showMap = hasValidCoordinates(spot.latitude, spot.longitude);
 
-                  <p className="admin-geo-meta">
-                    {spot.city} {spot.address ? `• ${spot.address}` : ''}
-                  </p>
-                  {spot.description ? <p className="admin-geo-description">{spot.description}</p> : null}
-
-                  <div className="admin-geo-foot">
-                    <p>Section: {spot.section === 'OFFICIAL_RESOURCE' ? 'Official Resources' : 'Community Picks'}</p>
-                    <p>Category: {spot.category}</p>
-                    <p>Submitted: {formatDateTime(spot.createdAt)}</p>
-                    <p>Visits: {spot.visitCount}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="admin-geo-expand-btn"
-                    onClick={() => toggleExpanded(spot.id)}
-                  >
-                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    {isExpanded ? 'Hide location map' : 'View location map'}
-                  </button>
-
-                  {isExpanded ? (
-                    <div className="admin-geo-mini-map-wrap">
-                      {!showMap ? (
-                        <div className="admin-geo-mini-map-empty">No valid pinned coordinates were submitted for this spot.</div>
-                      ) : GOOGLE_MAPS_API_KEY.length === 0 ? (
-                        <div className="admin-geo-mini-map-empty">Map key missing. Add VITE_GOOGLE_MAPS_API to web/.env.</div>
-                      ) : mapLoadError ? (
-                        <div className="admin-geo-mini-map-empty">Unable to load map. Check Google Maps API configuration.</div>
-                      ) : !isMapLoaded ? (
-                        <div className="admin-geo-mini-map-empty"><Loader2 className="spin" size={14} /> Loading location map...</div>
-                      ) : (
-                        <GoogleMap
-                          mapContainerStyle={{ width: '100%', height: '190px' }}
-                          center={{ lat: spot.latitude, lng: spot.longitude }}
-                          zoom={16}
-                          options={{
-                            mapTypeControl: false,
-                            streetViewControl: false,
-                            fullscreenControl: false,
-                            clickableIcons: false,
-                          }}
-                        >
-                          <MarkerF
-                            position={{ lat: spot.latitude, lng: spot.longitude }}
-                            title={spot.title}
-                          />
-                        </GoogleMap>
-                      )}
+                return (
+                  <article key={spot.id} className={`admin-geo-card${isExpanded ? ' admin-geo-card--expanded' : ''}`}>
+                    <div className="admin-geo-card__head">
+                      <h3>{spot.title}</h3>
+                      <span className={`admin-status-pill review review--${String(spot.reviewStatus).toLowerCase()}`}>
+                        {spot.reviewStatus}
+                      </span>
                     </div>
-                  ) : null}
 
-                  <div className="admin-geo-actions">
+                    <p className="admin-geo-meta">
+                      {spot.city} {spot.address ? `• ${spot.address}` : ''}
+                    </p>
+                    {spot.description ? <p className="admin-geo-description">{spot.description}</p> : null}
+
+                    <div className="admin-geo-foot">
+                      <p>Section: {spot.section === 'OFFICIAL_RESOURCE' ? 'Official Resources' : 'Community Picks'}</p>
+                      <p>Category: {spot.category}</p>
+                      <p>Submitted: {formatDateTime(spot.createdAt)}</p>
+                      <p>Visits: {spot.visitCount}</p>
+                    </div>
+
                     <button
-                      className="admin-text-btn success"
-                      onClick={() => void handleReview(spot.id, true)}
-                      disabled={isBusy || !isPending}
+                      type="button"
+                      className="admin-geo-expand-btn"
+                      onClick={() => toggleExpanded(spot.id)}
                     >
-                      {isBusy ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
-                      Approve
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      {isExpanded ? 'Hide location map' : 'View location map'}
                     </button>
-                    <button
-                      className="admin-text-btn danger"
-                      onClick={() => void handleReview(spot.id, false)}
-                      disabled={isBusy || !isPending}
-                    >
-                      <XCircle size={14} />
-                      Reject
-                    </button>
-                    <button
-                      className="admin-text-btn danger"
-                      onClick={() => void handleDelete(spot.id)}
-                      disabled={isBusy}
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              );
+
+                    {isExpanded ? (
+                      <div className="admin-geo-mini-map-wrap">
+                        {!showMap ? (
+                          <div className="admin-geo-mini-map-empty">No valid pinned coordinates were submitted for this spot.</div>
+                        ) : GOOGLE_MAPS_API_KEY.length === 0 ? (
+                          <div className="admin-geo-mini-map-empty">Map key missing. Add VITE_GOOGLE_MAPS_API to web/.env.</div>
+                        ) : mapLoadError ? (
+                          <div className="admin-geo-mini-map-empty">Unable to load map. Check Google Maps API configuration.</div>
+                        ) : !isMapLoaded ? (
+                          <div className="admin-geo-mini-map-empty"><Loader2 className="spin" size={14} /> Loading location map...</div>
+                        ) : (
+                          <GoogleMap
+                            mapContainerStyle={{ width: '100%', height: '190px' }}
+                            center={{ lat: spot.latitude, lng: spot.longitude }}
+                            zoom={16}
+                            options={{
+                              mapTypeControl: false,
+                              streetViewControl: false,
+                              fullscreenControl: false,
+                              clickableIcons: false,
+                            }}
+                          >
+                            <MarkerF
+                              position={{ lat: spot.latitude, lng: spot.longitude }}
+                              title={spot.title}
+                            />
+                          </GoogleMap>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <div className="admin-geo-actions">
+                      <button
+                        className="admin-text-btn success"
+                        onClick={() => void handleReview(spot.id, true)}
+                        disabled={isBusy || !isPending}
+                      >
+                        {isBusy ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
+                        Approve
+                      </button>
+                      <button
+                        className="admin-text-btn danger"
+                        onClick={() => void handleReview(spot.id, false)}
+                        disabled={isBusy || !isPending}
+                      >
+                        <XCircle size={14} />
+                        Reject
+                      </button>
+                      <button
+                        className="admin-text-btn danger"
+                        onClick={() => void handleDelete(spot.id)}
+                        disabled={isBusy}
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                );
+              } catch (renderErr) {
+                // If a single spot has malformed data, don't break the whole page.
+                // Show a minimal fallback card so admins can still work with other entries.
+                return (
+                  <article key={spot?.id ?? Math.random()} className="admin-geo-card admin-geo-card--error">
+                    <div className="admin-geo-card__head">
+                      <h3>Invalid spot data</h3>
+                      <span className="admin-status-pill review review--error">ERROR</span>
+                    </div>
+                    <p className="admin-geo-meta">Unable to render this item due to malformed data.</p>
+                  </article>
+                );
+              }
             })}
           </div>
         )}
