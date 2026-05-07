@@ -27,7 +27,9 @@ interface PlatformTopNavProps {
 }
 
 export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent, role }: PlatformTopNavProps) {
-  const visibleItems = role === 'ALUMNI' ? items.filter((item) => item.to === '/threads') : items;
+  const visibleItems = role === 'ALUMNI'
+    ? items.filter((item) => item.to === '/dashboard' || item.to === '/threads')
+    : items;
 
   return (
     <header className="platform-top-nav">
