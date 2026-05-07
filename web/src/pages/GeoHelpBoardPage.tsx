@@ -985,18 +985,18 @@ export function GeoHelpBoardPage() {
 
     // Keep user-selected filters strict: if no results match, show a short notice.
     if (primary.length === 0 && !filters?.skipNotice) {
-      setNoticeMessage('No resources match the selected category/city filters.');
+      setNoticeMessage('No verified resources were found for the selected location and filters.');
     }
 
     return primary;
   }
 
-  async function handleRefresh() {
+  async function handleRefresh(options?: { skipNotice?: boolean }) {
     try {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const refreshed = await fetchSpotsWithFallback();
+      const refreshed = await fetchSpotsWithFallback({ skipNotice: options?.skipNotice });
 
       // Avoid overwriting an existing non-empty list with an empty refresh result
       // (helps avoid brief UI disappearance when a transient backend/filters result is empty).
@@ -1230,8 +1230,8 @@ export function GeoHelpBoardPage() {
       setSuggestLocationHint('');
       setSuggestDescription('');
       setIsSuggestModalOpen(false);
-      setNoticeMessage('Suggestion sent for admin review.');
-      await handleRefresh();
+      setNoticeMessage('Suggestion sent for admin review. It will appear on the board after admin approval.');
+      await handleRefresh({ skipNotice: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit suggestion.');
     } finally {
