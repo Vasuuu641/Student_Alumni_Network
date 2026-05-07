@@ -12,6 +12,7 @@ import { GetNotificationPreferencesUseCase } from '../../application/notificatio
 import { UpdateNotificationPreferencesUseCase } from '../../application/notifications/update-notification-preferences.usecase';
 import { PrismaNotificationRepository } from '../../infrastructure/repositories/prisma-notification.repository';
 import { PrismaNotificationPreferenceRepository } from '../../infrastructure/repositories/prisma-notification-preference.repository';
+import { PrismaAlumniRepository } from '../../infrastructure/repositories/prisma-alumni.repository';
 import {
   PrismaUserInterestProfileRepository,
   PrismaUserInterestSignalRepository,
@@ -19,6 +20,7 @@ import {
 } from '../../infrastructure/repositories/prisma-user-interest.repository';
 import { NotificationAIScoringService } from '../../infrastructure/services/notification-ai-scoring.service';
 import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
+import { MentorClusteringService } from '../../infrastructure/ai/cohere/mentor-clustering.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -34,11 +36,13 @@ import { NotificationEligibilityService } from '../../infrastructure/services/no
     UpdateNotificationPreferencesUseCase,
     PrismaNotificationRepository,
     PrismaNotificationPreferenceRepository,
+    PrismaAlumniRepository,
     PrismaUserInterestProfileRepository,
     PrismaUserInterestSignalRepository,
     PrismaNotificationCandidateRepository,
     NotificationAIScoringService,
     NotificationEligibilityService,
+    MentorClusteringService,
     {
       provide: 'NotificationRepository',
       useClass: PrismaNotificationRepository,
@@ -46,6 +50,10 @@ import { NotificationEligibilityService } from '../../infrastructure/services/no
     {
       provide: 'NotificationPreferenceRepository',
       useClass: PrismaNotificationPreferenceRepository,
+    },
+    {
+      provide: 'AlumniRepository',
+      useClass: PrismaAlumniRepository,
     },
     {
       provide: 'UserInterestProfileRepository',
@@ -63,8 +71,10 @@ import { NotificationEligibilityService } from '../../infrastructure/services/no
   exports: [
     CreateNotificationUseCase,
     NotificationEligibilityService,
+    MentorClusteringService,
     'UserInterestProfileRepository',
     'UserInterestSignalRepository',
+    'AlumniRepository',
   ],
 })
 export class NotificationsModule {}
