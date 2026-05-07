@@ -3,6 +3,7 @@ import { LayoutDashboard, MapPinned, MessageSquare, NotebookText, Users, type Lu
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import { NavLink } from 'react-router-dom';
+import type { UserRole } from '../lib/auth';
 
 export interface PlatformTopNavItem {
   label: string;
@@ -22,9 +23,12 @@ const DEFAULT_ITEMS: PlatformTopNavItem[] = [
 interface PlatformTopNavProps {
   items?: PlatformTopNavItem[];
   rightContent?: ReactNode;
+  role?: UserRole | null;
 }
 
-export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: PlatformTopNavProps) {
+export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent, role }: PlatformTopNavProps) {
+  const visibleItems = role === 'ALUMNI' ? items.filter((item) => item.to === '/threads') : items;
+
   return (
     <header className="platform-top-nav">
       <div className="platform-top-nav__inner">
@@ -36,7 +40,7 @@ export function PlatformTopNav({ items = DEFAULT_ITEMS, rightContent }: Platform
         </div>
         <div className="platform-top-nav__actions">
           <nav className="platform-top-nav__nav">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
 
               if (item.onClick) {

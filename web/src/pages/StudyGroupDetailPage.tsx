@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Loader2,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/Button';
 import { PlatformTopNav } from '../components/PlatformTopNav';
-import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
+import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import {
   addStudyGroupMember,
   createStudyGroupPost,
@@ -51,6 +51,7 @@ export function StudyGroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const token = getAccessToken();
+  const role = token ? getRoleFromAccessToken(token) : null;
   const currentUserId = token ? getUserIdFromAccessToken(token) : null;
 
   const [group, setGroup] = useState<StudyGroup | null>(null);
@@ -70,7 +71,7 @@ export function StudyGroupDetailPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!groupId || !token) return;
+      if (!groupId || !token || role === 'ALUMNI') return;
 
       try {
         setLoading(true);
@@ -95,7 +96,7 @@ export function StudyGroupDetailPage() {
     }
 
     void fetchData();
-  }, [groupId, token]);
+  }, [groupId, role, token]);
 
   const activeMembers = useMemo(() => members.filter((member) => member.joinStatus === 'ACTIVE'), [members]);
   const isOwner = group?.ownerId === currentUserId;
@@ -146,6 +147,10 @@ export function StudyGroupDetailPage() {
         </div>
       </main>
     );
+  }
+
+  if (role === 'ALUMNI') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   async function handleJoin() {
@@ -260,7 +265,7 @@ export function StudyGroupDetailPage() {
 
   return (
     <main className="h-dvh overflow-hidden bg-slate-100 text-slate-900 study-group-detail-page">
-      <PlatformTopNav />
+      <PlatformTopNav role={role} />
       <section className="mx-auto relative grid h-[calc(100dvh-56px)] w-full max-w-[1500px] grid-cols-1 overflow-hidden border-x border-slate-200 bg-white md:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px] study-group-detail-shell">
         {loading && (
           <div className="absolute inset-0 z-40 flex items-center justify-center" style={{ background: 'rgba(2,6,23,0.45)' }}>

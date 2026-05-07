@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { CircleF, DirectionsRenderer, GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from '@react-google-maps/api';
 import {
   AlertTriangle,
@@ -630,6 +630,7 @@ export function GeoHelpBoardPage() {
   const isAuthenticated = Boolean(token);
   const userRole = token ? getRoleFromAccessToken(token) : null;
   const userId = token ? getUserIdFromAccessToken(token) : null;
+  const canAccessGeoHelpBoard = userRole !== 'ALUMNI';
 
   const [activeTab, setActiveTab] = useState<ResourceTab>(() => {
     const saved = window.localStorage.getItem(GEO_HELP_BOARD_TAB_STORAGE_KEY);
@@ -763,6 +764,10 @@ export function GeoHelpBoardPage() {
   }, [isDrawerOpen, isSuggestModalOpen]);
 
   useEffect(() => {
+    if (!canAccessGeoHelpBoard) {
+      return;
+    }
+
     let cancelled = false;
 
     async function loadSpots() {
@@ -792,7 +797,7 @@ export function GeoHelpBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm]);
+  }, [activeTab, apiCategory, canAccessGeoHelpBoard, cityFilter, currentSection, point.latitude, point.longitude, radiusKm]);
 
   const filteredSpots = spots;
 
@@ -1291,9 +1296,13 @@ export function GeoHelpBoardPage() {
     );
   }
 
+  if (!canAccessGeoHelpBoard) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <main className="geo-help-board-page min-h-screen bg-slate-50 text-slate-900">
-      <PlatformTopNav />
+      <PlatformTopNav role={userRole} />
 
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
