@@ -20,6 +20,7 @@ import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-collaborator.repository';
 import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { NotePermissionRole } from 'src/domain/entities/note.entity';
+import { Role } from 'src/domain/entities/authorized-user.entity';
 
 import type { NoteLLMService } from 'src/domain/services/note-llm-service';
 
@@ -65,6 +66,19 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(socket: Socket) {
     try {
       const session = await this.extractAndVerifyToken(socket);
+
+      if (session.role !== Role.STUDENT && session.role !== Role.PROFESSOR) {
+        this.logger.warn(
+          `Socket rejected (invalid role): ${socket.id} | role: ${session.role}`,
+        );
+        socket.emit('error', {
+          message:
+            'Unauthorized: only students and professors can access notes',
+        });
+        socket.disconnect(true);
+        return;
+      }
+
       socket.data.session = session;
       socket.data.identity = await this.resolvePresenceIdentity(session.userId);
       this.socketRooms.set(socket.id, new Set());
