@@ -62,6 +62,25 @@ export interface GeoSpotForReview {
   updatedAt: string;
 }
 
+type RawGeoSpotForReview = Omit<GeoSpotForReview, 'latitude' | 'longitude' | 'visitCount'> & {
+  latitude: number | string;
+  longitude: number | string;
+  visitCount: number | string;
+};
+
+function toGeoSpotForReview(raw: RawGeoSpotForReview): GeoSpotForReview {
+  const latitude = Number(raw.latitude);
+  const longitude = Number(raw.longitude);
+  const visitCount = Number(raw.visitCount);
+
+  return {
+    ...raw,
+    latitude: Number.isFinite(latitude) ? latitude : 0,
+    longitude: Number.isFinite(longitude) ? longitude : 0,
+    visitCount: Number.isFinite(visitCount) ? visitCount : 0,
+  };
+}
+
 export interface AdminThread {
   id: string;
   title: string;
@@ -129,10 +148,10 @@ export async function listGeoReviewQueue(params?: {
   page?: number;
 }): Promise<GeoSpotForReview[]> {
   try {
-    const { data } = await api.get<GeoSpotForReview[]>('/geo-help-board/spots/review-queue', {
+    const { data } = await api.get<RawGeoSpotForReview[]>('/geo-help-board/spots/review-queue', {
       params,
     });
-    return data;
+    return data.map(toGeoSpotForReview);
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Failed to load geo moderation queue.'));
   }
@@ -140,10 +159,10 @@ export async function listGeoReviewQueue(params?: {
 
 export async function reviewGeoSpot(spotId: string, isVerified: boolean): Promise<GeoSpotForReview> {
   try {
-    const { data } = await api.patch<GeoSpotForReview>(`/geo-help-board/spots/${spotId}/review`, {
+    const { data } = await api.patch<RawGeoSpotForReview>(`/geo-help-board/spots/${spotId}/review`, {
       isVerified,
     });
-    return data;
+    return toGeoSpotForReview(data);
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Failed to review geo spot request.'));
   }
@@ -151,8 +170,8 @@ export async function reviewGeoSpot(spotId: string, isVerified: boolean): Promis
 
 export async function deactivateGeoSpot(spotId: string): Promise<GeoSpotForReview> {
   try {
-    const { data } = await api.patch<GeoSpotForReview>(`/geo-help-board/spots/${spotId}/deactivate`);
-    return data;
+    const { data } = await api.patch<RawGeoSpotForReview>(`/geo-help-board/spots/${spotId}/deactivate`);
+    return toGeoSpotForReview(data);
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Failed to delete geo spot.'));
   }

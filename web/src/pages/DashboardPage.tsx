@@ -5,7 +5,6 @@ import {
   BookOpen,
   ChevronDown,
   Clock3,
-  Compass,
   LogOut,
   MessageSquare,
   MessagesSquare,
@@ -56,6 +55,7 @@ export function DashboardPage() {
   const role = token ? getRoleFromAccessToken(token) : null;
   const userId = token ? getUserIdFromAccessToken(token) : null;
   const isAdmin = role === 'ADMIN';
+  const isAlumni = role === 'ALUMNI';
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(Boolean(token));
@@ -107,28 +107,39 @@ export function DashboardPage() {
       return;
     }
 
-    const panels: ThreadPanel[] = role === 'ALUMNI' ? ['ALUMNI'] : ['ACADEMIC', 'ALUMNI'];
-
     let cancelled = false;
 
     async function loadDashboardStats() {
       try {
         setStatsLoading(true);
-        const [notesResponse, studyGroupsResponse, ...threadResponses] = await Promise.all([
-          listUserNotes(),
-          listStudyGroups(),
-          ...panels.map((panel) => listThreads({ panel, sortBy: 'newest', take: 25 })),
-        ]);
+        const panels: ThreadPanel[] = isAlumni ? ['ALUMNI'] : ['ACADEMIC', 'ALUMNI'];
+        const threadResponses = await Promise.all(
+          panels.map((panel) => listThreads({ panel, sortBy: 'newest', take: 25 })),
+        );
 
         if (cancelled) {
           return;
         }
 
-        setNotesCount(notesResponse.notes.length);
-        setStudyGroupsCount(studyGroupsResponse.filter((group) => group.status !== 'DELETED').length);
+        if (isAlumni) {
+          setNotesCount(0);
+          setStudyGroupsCount(0);
+        } else {
+          const [notesResponse, studyGroupsResponse] = await Promise.all([
+            listUserNotes(),
+            listStudyGroups(),
+          ]);
+
+          if (cancelled) {
+            return;
+          }
+
+          setNotesCount(notesResponse.notes.length);
+          setStudyGroupsCount(studyGroupsResponse.filter((group) => group.status !== 'DELETED').length);
+        }
+
         const totalThreads = threadResponses.reduce((sum, response) => sum + response.total, 0);
         setDiscussionCount(totalThreads);
-        
 
         const merged = threadResponses
           .flatMap((response) => response.threads)
@@ -155,7 +166,7 @@ export function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, role, token]);
+  }, [isAdmin, isAlumni, role, token]);
 
   useEffect(() => {
     if (!placeholderNotice) {
@@ -237,6 +248,7 @@ export function DashboardPage() {
   return (
     <main className="dashboard-v2">
       <PlatformTopNav
+        role={role}
         rightContent={(
           <div className="dashboard-v2__topbar-actions">
             <ThemePicker compact />
@@ -306,60 +318,40 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <section className="dashboard-v2__stats" aria-label="Dashboard highlights">
-          <article className="dashboard-v2__stat-card">
-            <div className="dashboard-v2__stat-head">
-              <span>Your Notes</span>
-              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--blue"><BookOpen size={16} /></div>
-            </div>
-            <strong>{statsLoading ? '...' : notesCount}</strong>
-            <Link to="/notes">View all notes</Link>
-          </article>
+        {!isAlumni ? (
+          <section className="dashboard-v2__stats" aria-label="Dashboard highlights">
+            <article className="dashboard-v2__stat-card">
+              <div className="dashboard-v2__stat-head">
+                <span>Your Notes</span>
+                <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--blue"><BookOpen size={16} /></div>
+              </div>
+              <strong>{statsLoading ? '...' : notesCount}</strong>
+              <Link to="/notes">View all notes</Link>
+            </article>
 
-          <article className="dashboard-v2__stat-card">
-            <div className="dashboard-v2__stat-head">
-              <span>Discussions</span>
-              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--gold"><MessagesSquare size={16} /></div>
-            </div>
-            <strong>{statsLoading ? '...' : discussionCount}</strong>
-            <Link to="/threads">Join discussions</Link>
-          </article>
+            <article className="dashboard-v2__stat-card">
+              <div className="dashboard-v2__stat-head">
+                <span>Discussions</span>
+                <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--gold"><MessagesSquare size={16} /></div>
+              </div>
+              <strong>{statsLoading ? '...' : discussionCount}</strong>
+              <Link to="/threads">Join discussions</Link>
+            </article>
 
-          <article className="dashboard-v2__stat-card">
-            <div className="dashboard-v2__stat-head">
-              <span>Study Groups Joined</span>
-              <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><Users size={16} /></div>
-            </div>
-            <strong>{statsLoading ? '...' : studyGroupsCount}</strong>
-            <Link to="/study-groups">Join Study Groups</Link>
-          </article>
+            <article className="dashboard-v2__stat-card">
+              <div className="dashboard-v2__stat-head">
+                <span>Study Groups Joined</span>
+                <div className="dashboard-v2__stat-icon dashboard-v2__stat-icon--green"><Users size={16} /></div>
+              </div>
+              <strong>{statsLoading ? '...' : studyGroupsCount}</strong>
+              <Link to="/study-groups">Join Study Groups</Link>
+            </article>
 
-        </section>
+          </section>
+        ) : null}
 
         <section className="dashboard-v2__content-grid">
           <div className="dashboard-v2__left-column">
-            <section className="dashboard-v2__panel">
-              <h2>Quick Actions</h2>
-              <div className="dashboard-v2__quick-grid">
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/notes')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--blue"><BookOpen size={16} /></span>
-                  Notes
-                </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/threads')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--gold"><MessageSquare size={16} /></span>
-                  Discussions
-                </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/geo-help-board')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--violet"><Compass size={16} /></span>
-                  Geo Help Board
-                </button>
-                <button type="button" className="dashboard-v2__quick-btn" onClick={() => navigate('/study-groups')}>
-                  <span className="dashboard-v2__quick-icon dashboard-v2__quick-icon--green"><Users size={16} /></span>
-                  Study Groups
-                </button>
-              </div>
-            </section>
-
             <section className="dashboard-v2__panel">
               <div className="dashboard-v2__panel-head">
                 <h2>Recent Discussions</h2>
@@ -367,10 +359,10 @@ export function DashboardPage() {
               </div>
 
               <div className="dashboard-v2__discussion-list">
-                {recentDiscussionsByUser.length === 0 ? (
+                {(isAlumni ? recentDiscussions : recentDiscussionsByUser).length === 0 ? (
                   <div className="dashboard-v2__empty">No discussions yet. Start one from Discussions.</div>
                 ) : (
-                  recentDiscussionsByUser.map((thread) => (
+                  (isAlumni ? recentDiscussions : recentDiscussionsByUser).map((thread) => (
                     <article key={thread.id} className="dashboard-v2__discussion-card">
                       <div className="dashboard-v2__discussion-avatar">
                         {thread.authorName?.charAt(0).toUpperCase() || 'U'}
@@ -416,13 +408,15 @@ export function DashboardPage() {
               </div>
             </section>
 
-            <section className="dashboard-v2__side-card">
-              <div className="dashboard-v2__side-card-icon"><Sparkles size={16} /></div>
-              <h3>Smart Notes</h3>
-              <p>AI-Powered</p>
-              <small>Write notes and discover related discussions from your academic community in real-time.</small>
-              <button type="button" onClick={() => navigate('/notes')}>Try Smart Notes</button>
-            </section>
+            {!isAlumni ? (
+              <section className="dashboard-v2__side-card">
+                <div className="dashboard-v2__side-card-icon"><Sparkles size={16} /></div>
+                <h3>Smart Notes</h3>
+                <p>AI-Powered</p>
+                <small>Write notes and discover related discussions from your academic community in real-time.</small>
+                <button type="button" onClick={() => navigate('/notes')}>Try Smart Notes</button>
+              </section>
+            ) : null}
           </aside>
         </section>
       </div>

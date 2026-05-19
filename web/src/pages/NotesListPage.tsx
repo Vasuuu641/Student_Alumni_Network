@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { listUserNotes, createNote, updateNote, type Note, type NoteStatus } from '../api/notes.api'
-import { getAccessToken } from '../lib/auth'
+import { getAccessToken, getRoleFromAccessToken } from '../lib/auth'
 import { FileText, Plus, Clock, Archive } from 'lucide-react'
 import { PlatformTopNav } from '../components/PlatformTopNav'
 
@@ -11,6 +11,7 @@ type NoteFilter = NoteStatus | 'ALL'
 export function NotesListPage() {
   const navigate = useNavigate()
   const token = getAccessToken()
+  const role = token ? getRoleFromAccessToken(token) : null
 
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
@@ -21,8 +22,12 @@ export function NotesListPage() {
   const [filter, setFilter] = useState<NoteFilter>('ALL')
 
   // Redirect if not logged in
-  if (!token) {
+  if (!token || !role) {
     return <Navigate to="/login" replace />
+  }
+
+  if (String(role) === 'ALUMNI') {
+    return <Navigate to="/dashboard" replace />
   }
 
   const fetchNotes = useCallback(async () => {
@@ -38,8 +43,13 @@ export function NotesListPage() {
   }, [])
 
   useEffect(() => {
+    if (String(role) === 'ALUMNI') {
+      setLoading(false)
+      return
+    }
+
     fetchNotes()
-  }, [fetchNotes])
+  }, [fetchNotes, role])
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -77,7 +87,7 @@ export function NotesListPage() {
 
   return (
     <main className="notes-list-page-modern">
-      <PlatformTopNav />
+      <PlatformTopNav role={role} />
 
       <div className="notes-list-container">
         {/* ─── Header Row ──────────────────────────────────────────────── */}

@@ -81,21 +81,24 @@ export const api = axios.create({
   baseURL: NORMALIZED_API_BASE,
 });
 
-api.interceptors.request.use(async (config) => {
-  let token = getAccessToken();
-  
-  // If token is expired, refresh it before making the request
-  if (token && isTokenExpired(token)) {
-    const newToken = await refreshAccessToken();
-    token = newToken;
-  }
-  
-  if (!token) return config;
+api.interceptors.request.use((config) => {
+  // Wrap async logic in an IIFE and return a plain Promise to satisfy axios types.
+  return (async () => {
+    let token = getAccessToken();
 
-  const headers = (config.headers ?? {}) as Record<string, string>;
-  headers.Authorization = `Bearer ${token}`;
-  config.headers = headers as any;
-  return config;
+    // If token is expired, refresh it before making the request
+    if (token && isTokenExpired(token)) {
+      const newToken = await refreshAccessToken();
+      token = newToken;
+    }
+
+    if (!token) return config;
+
+    const headers = (config.headers ?? {}) as Record<string, string>;
+    headers.Authorization = `Bearer ${token}`;
+    config.headers = headers as any;
+    return config;
+  })() as any;
 });
 
 api.interceptors.response.use(

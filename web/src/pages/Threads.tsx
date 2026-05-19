@@ -304,7 +304,7 @@ export function ThreadsPage() {
 
 	return (
 		<main className="threads-page-shell">
-			<PlatformTopNav />
+			<PlatformTopNav role={role} />
 
 			<div className="threads-page">
 				<header className="threads-header">

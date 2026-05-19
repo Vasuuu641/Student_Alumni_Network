@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { CircleF, DirectionsRenderer, GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from '@react-google-maps/api';
 import {
   AlertTriangle,
@@ -630,6 +630,7 @@ export function GeoHelpBoardPage() {
   const isAuthenticated = Boolean(token);
   const userRole = token ? getRoleFromAccessToken(token) : null;
   const userId = token ? getUserIdFromAccessToken(token) : null;
+  const canAccessGeoHelpBoard = userRole !== 'ALUMNI';
 
   const [activeTab, setActiveTab] = useState<ResourceTab>(() => {
     const saved = window.localStorage.getItem(GEO_HELP_BOARD_TAB_STORAGE_KEY);
@@ -763,6 +764,10 @@ export function GeoHelpBoardPage() {
   }, [isDrawerOpen, isSuggestModalOpen]);
 
   useEffect(() => {
+    if (!canAccessGeoHelpBoard) {
+      return;
+    }
+
     let cancelled = false;
 
     async function loadSpots() {
@@ -792,7 +797,7 @@ export function GeoHelpBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm]);
+  }, [activeTab, apiCategory, canAccessGeoHelpBoard, cityFilter, currentSection, point.latitude, point.longitude, radiusKm, searchedPlace]);
 
   const filteredSpots = spots;
 
@@ -952,11 +957,14 @@ export function GeoHelpBoardPage() {
   async function fetchSpotsWithFallback(filters?: { skipNotice?: boolean }): Promise<GeoHelpSpot[]> {
     const city = cityFilter.trim() || undefined;
 
+    // Use the searched place as the center when available, otherwise fall back to the current point.
+    const center = searchedPlace?.point ?? point;
+
     const querySpots = async (input: { city?: string; category?: GeoHelpSpotCategory }) => (
       activeTab === 'OFFICIAL'
         ? listNearbyGeoHelpSpots({
-            latitude: point.latitude,
-            longitude: point.longitude,
+            latitude: center.latitude,
+            longitude: center.longitude,
             radiusKm,
             city: input.city,
             section: currentSection,
@@ -974,21 +982,25 @@ export function GeoHelpBoardPage() {
     );
 
     const primary = await querySpots({ city, category: apiCategory });
-    // Keep user-selected filters strict: if no results match, return empty.
+
+    // Keep user-selected filters strict: if no results match, show a short notice.
     if (primary.length === 0 && !filters?.skipNotice) {
-      setNoticeMessage('No resources match the selected category/city filters.');
+      setNoticeMessage('No verified resources were found for the selected location and filters.');
     }
+
     return primary;
   }
 
-  async function handleRefresh() {
+  async function handleRefresh(options?: { skipNotice?: boolean }) {
     try {
       setIsRefreshing(true);
       setErrorMessage('');
 
-      const refreshed = await fetchSpotsWithFallback();
+      const refreshed = await fetchSpotsWithFallback({ skipNotice: options?.skipNotice });
 
-      setSpots(refreshed);
+      // Avoid overwriting an existing non-empty list with an empty refresh result
+      // (helps avoid brief UI disappearance when a transient backend/filters result is empty).
+      setSpots((prev) => (refreshed.length > 0 ? refreshed : prev));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh resources.');
     } finally {
@@ -1218,8 +1230,8 @@ export function GeoHelpBoardPage() {
       setSuggestLocationHint('');
       setSuggestDescription('');
       setIsSuggestModalOpen(false);
-      setNoticeMessage('Suggestion sent for admin review.');
-      await handleRefresh();
+      setNoticeMessage('Suggestion sent for admin review. It will appear on the board after admin approval.');
+      await handleRefresh({ skipNotice: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit suggestion.');
     } finally {
@@ -1291,9 +1303,13 @@ export function GeoHelpBoardPage() {
     );
   }
 
+  if (!canAccessGeoHelpBoard) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <main className="geo-help-board-page min-h-screen bg-slate-50 text-slate-900">
-      <PlatformTopNav />
+      <PlatformTopNav role={userRole} />
 
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
