@@ -8,6 +8,7 @@ export class JobProcessorService implements OnModuleInit {
 
   constructor(
     @Inject('JobQueue') private readonly queue: JobQueue,
+    @Inject('PersonalizedNotificationWorkerService')
     private readonly worker: PersonalizedNotificationWorkerService,
   ) {}
 

@@ -25,15 +25,15 @@ describe('NotificationEligibilityService', () => {
   );
 
   const userInterestProfileRepository: any = {
-    findByUserId: async () => profile,
-    upsert: async () => profile,
-    incrementWeight: async () => undefined,
+    findByUserId: jest.fn(async () => profile),
+    upsert: jest.fn(async () => profile),
+    incrementWeight: jest.fn(async () => undefined),
   };
 
   const userInterestSignalRepository: any = {
-    create: async (signal: UserInterestSignal) => signal,
-    findRecentByUserId: async () => [],
-    findByEntityAndUser: async () => [
+    create: jest.fn(async (signal: UserInterestSignal) => signal),
+    findRecentByUserId: jest.fn(async () => []),
+    findByEntityAndUser: jest.fn(async () => [
       new UserInterestSignal(
         'signal-1',
         'user-1',
@@ -70,14 +70,14 @@ describe('NotificationEligibilityService', () => {
         null,
         new Date('2026-05-04T09:55:00.000Z'),
       ),
-    ],
+    ]),
   };
 
   const aiScoringService: any = {
-    scoreNotification: async () => ({
+    scoreNotification: jest.fn(async () => ({
       score: 0.82,
       reason: 'semantic match',
-    }),
+    })),
   };
 
   beforeEach(async () => {

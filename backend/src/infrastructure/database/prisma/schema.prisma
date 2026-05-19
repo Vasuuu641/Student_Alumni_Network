@@ -47,6 +47,7 @@ model User {
   geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
   notifications       Notification[] @relation("NotificationRecipient")
   notificationPreference NotificationPreference? @relation("NotificationPreferenceUser")
+  interestProfile     UserInterestProfile?
 }
 
 model Student {
