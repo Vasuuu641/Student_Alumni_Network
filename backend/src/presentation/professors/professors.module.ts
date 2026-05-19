@@ -4,6 +4,7 @@ import { GetProfessorProfileUseCase } from '../../application/professors/get-pro
 import { UpdateProfessorProfileUseCase } from '../../application/professors/update-professor-profile.usecase';
 import { PrismaProfessorRepository } from '../../infrastructure/repositories/prisma-professor.repository';
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma-user.repository';
+import { PrismaUserInterestProfileRepository } from '../../infrastructure/repositories/prisma-user-interest.repository';
 import { LocalFileStorageService } from '../../infrastructure/services/local-file-storage.service';
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
@@ -16,9 +17,11 @@ import { AuthModule } from '../../auth/auth.module';
     UpdateProfessorProfileUseCase,
     PrismaProfessorRepository,
     PrismaUserRepository,
+    PrismaUserInterestProfileRepository,
     LocalFileStorageService,
     { provide: 'ProfessorRepository', useClass: PrismaProfessorRepository },
     { provide: 'UserRepository', useClass: PrismaUserRepository },
+    { provide: 'UserInterestProfileRepository', useClass: PrismaUserInterestProfileRepository },
     { provide: 'FileStorageService', useClass: LocalFileStorageService },
   ],
 })

@@ -69,26 +69,6 @@ export class PostReplyUseCase {
         console.error(`Failed to capture reply signal: ${error?.message ?? error}`);
       });
 
-      // Check if thread author is interested in notifications about this thread
-      const eligibility = await this.eligibilityService.checkEligibility(
-        thread.authorId,
-        thread.id,
-        thread.title,
-        `${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
-        thread.title,
-        thread.panel,
-      ).catch((error) => {
-        console.error(`Eligibility check failed: ${error?.message ?? error}`);
-        return null;
-      });
-
-      if (!eligibility || !eligibility.passed) {
-        console.log(
-          `Notification ineligible for user ${thread.authorId}: ${eligibility?.reason || 'unknown'}`,
-        );
-        return reply;
-      }
-
       await this.createNotificationUseCase.execute({
         userId: thread.authorId,
         type: NotificationType.THREAD_REPLY,
@@ -98,14 +78,13 @@ export class PostReplyUseCase {
         entityId: thread.id,
         sourceModule: 'threads',
         actionUrl: `/threads/${thread.id}`,
-        score: eligibility.finalScore,
+        score: 1,
         dedupeKey: `thread-reply:${thread.id}:${reply.id}`,
         metadataJson: {
           threadId: thread.id,
           replyId: reply.id,
           actorId: userId,
-          aiScore: eligibility.aiScore,
-          reason: eligibility.reason,
+          reason: 'thread reply activity',
         },
       }).catch((error) => {
         console.error(`Failed to create thread reply notification for ${thread.id}:`, error?.message ?? error);
