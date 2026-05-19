@@ -6,6 +6,7 @@ describe('PersonalizedNotificationFanoutService', () => {
   let interestRepo: any;
   let aiScoring: any;
   let createNotification: any;
+  let jobQueue: any;
 
   beforeEach(() => {
     const profiles = [{ userId: 'user1' }, { userId: 'user2' }, { userId: 'user3' }];
@@ -24,12 +25,13 @@ describe('PersonalizedNotificationFanoutService', () => {
     };
 
     createNotification = { execute: jest.fn().mockResolvedValue(null) };
+    jobQueue = { add: jest.fn().mockResolvedValue('job-1'), onJob: jest.fn() };
 
-    service = new PersonalizedNotificationFanoutService(interestRepo, aiScoring, createNotification);
+    service = new PersonalizedNotificationFanoutService(interestRepo, aiScoring, createNotification, jobQueue);
   });
 
   it('creates notifications for top recipients obeying limit and minScore', async () => {
-    const count = await service.notifyRelevantUsers({
+    const jobId = await service.notifyRelevantUsers({
       type: NotificationType.THREAD_ACTIVITY,
       title: 'New thread',
       body: 'Body',
@@ -39,17 +41,13 @@ describe('PersonalizedNotificationFanoutService', () => {
       limit: 2,
       minScore: 0.45,
     });
-
-    expect(count).toBe(2);
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
-    const calledUserIds = createNotification.execute.mock.calls.map((c: any) => c[0].userId);
-    expect(calledUserIds).toEqual(['user1', 'user3']);
-    const meta = createNotification.execute.mock.calls[0][0].metadataJson;
-    expect(meta.aiScore).toBeDefined();
+    expect(jobId).toBe('job-1');
+    expect(jobQueue.add).toHaveBeenCalledTimes(1);
+    expect(createNotification.execute).toHaveBeenCalledTimes(0);
   });
 
   it('respects excludeUserIds', async () => {
-    const count = await service.notifyRelevantUsers({
+    const jobId = await service.notifyRelevantUsers({
       type: NotificationType.THREAD_ACTIVITY,
       title: 'New thread',
       body: 'Body',
@@ -59,9 +57,8 @@ describe('PersonalizedNotificationFanoutService', () => {
       excludeUserIds: ['user1'],
       minScore: 0.45,
     });
-
-    expect(count).toBe(1);
-    expect(createNotification.execute).toHaveBeenCalledTimes(1);
-    expect(createNotification.execute.mock.calls[0][0].userId).toBe('user3');
+    expect(jobId).toBe('job-1');
+    expect(jobQueue.add).toHaveBeenCalledTimes(1);
+    expect(createNotification.execute).toHaveBeenCalledTimes(0);
   });
 });

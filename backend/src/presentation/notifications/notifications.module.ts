@@ -22,6 +22,9 @@ import { NotificationAIScoringService } from '../../infrastructure/services/noti
 import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
 import { MentorClusteringService } from '../../infrastructure/ai/cohere/mentor-clustering.service';
 import { PersonalizedNotificationFanoutService } from '../../infrastructure/services/personalized-notification-fanout.service';
+import { InProcessJobQueueService } from '../../infrastructure/queue/in-process-job-queue.service';
+import { PersonalizedNotificationWorkerService } from '../../infrastructure/queue/personalized-notification-worker.service';
+import { JobProcessorService } from '../../infrastructure/queue/job-processor.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -45,6 +48,16 @@ import { PersonalizedNotificationFanoutService } from '../../infrastructure/serv
     NotificationEligibilityService,
     MentorClusteringService,
     PersonalizedNotificationFanoutService,
+    // job queue and worker
+    {
+      provide: 'JobQueue',
+      useClass: InProcessJobQueueService,
+    },
+    {
+      provide: 'PersonalizedNotificationWorkerService',
+      useClass: PersonalizedNotificationWorkerService,
+    },
+    JobProcessorService,
     {
       provide: 'NotificationRepository',
       useClass: PrismaNotificationRepository,

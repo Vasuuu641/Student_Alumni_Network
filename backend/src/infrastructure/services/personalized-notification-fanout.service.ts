@@ -3,6 +3,7 @@ import { CreateNotificationUseCase } from 'src/application/notifications/create-
 import { NotificationChannel, NotificationType } from 'src/domain/entities/notification.entity';
 import type { UserInterestProfileRepository } from 'src/domain/repositories/user-interest.repository';
 import { NotificationAIScoringService } from './notification-ai-scoring.service';
+import type { JobQueue, Job } from '../queue/job.interface';
 
 export interface PersonalizedNotificationFanoutRequest {
   type: NotificationType;
@@ -32,9 +33,21 @@ export class PersonalizedNotificationFanoutService {
     private readonly interestProfileRepository: UserInterestProfileRepository,
     private readonly aiScoring: NotificationAIScoringService,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
+    @Inject('JobQueue') private readonly jobQueue?: JobQueue,
   ) {}
 
-  async notifyRelevantUsers(request: PersonalizedNotificationFanoutRequest): Promise<number> {
+  async notifyRelevantUsers(request: PersonalizedNotificationFanoutRequest): Promise<string | null> {
+    // If a job queue is available, enqueue the fanout job and return the job id immediately.
+    if (this.jobQueue) {
+      const job: Job = {
+        type: 'PERSONALIZED_FANOUT',
+        payload: request,
+      };
+
+      return this.jobQueue.add(job);
+    }
+
+    // Fallback: no queue configured — perform work synchronously (legacy behavior).
     const profiles = await this.interestProfileRepository.findAll();
     const excluded = new Set(request.excludeUserIds ?? []);
     const safeLimit = Math.max(1, request.limit ?? this.DEFAULT_LIMIT);
@@ -88,6 +101,6 @@ export class PersonalizedNotificationFanoutService {
       }),
     );
 
-    return recipients.length;
+    return null;
   }
 }

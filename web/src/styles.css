@@ -2772,6 +2772,28 @@
     cursor: pointer;
   }
 
+  .dashboard-v2__icon-btn--badge {
+    position: relative;
+  }
+
+  .dashboard-v2__badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--theme-accent), var(--theme-primary));
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(47, 100, 246, 0.2);
+  }
+
   .dashboard-v2__icon-btn:hover {
     border-color: var(--theme-accent);
     background: var(--theme-accent-soft);
@@ -2908,6 +2930,138 @@
     border-radius: 0.6rem;
     font-size: 0.86rem;
     font-weight: 600;
+  }
+
+  .dashboard-v2__notifications-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border: 0;
+    background: rgba(8, 15, 30, 0.28);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+  }
+
+  .dashboard-v2__notifications-panel {
+    position: fixed;
+    top: 5.2rem;
+    right: 1.2rem;
+    z-index: 50;
+    width: min(26rem, calc(100vw - 2rem));
+    max-height: min(70vh, 44rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1rem;
+    border-radius: 24px;
+    border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--theme-border) 86%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 96%, var(--theme-primary-soft) 4%), var(--theme-surface));
+    box-shadow: 0 28px 80px rgba(16, 29, 54, 0.22);
+    overflow: hidden;
+  }
+
+  .dashboard-v2__notifications-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .dashboard-v2__notifications-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  .dashboard-v2__notifications-head p {
+    margin: 0.25rem 0 0;
+    color: var(--theme-muted);
+    font-size: 0.9rem;
+  }
+
+  .dashboard-v2__notifications-action {
+    border: 1px solid color-mix(in srgb, var(--theme-primary) 16%, var(--theme-border) 84%);
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    color: var(--theme-primary-strong);
+    border-radius: 999px;
+    padding: 0.55rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .dashboard-v2__notifications-action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .dashboard-v2__notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+  }
+
+  .dashboard-v2__notification-item {
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    color: var(--theme-text);
+    border-radius: 18px;
+    padding: 0.9rem 0.95rem;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .dashboard-v2__notification-item:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--theme-primary) 24%, var(--theme-border) 76%);
+    box-shadow: 0 12px 28px rgba(47, 100, 246, 0.08);
+  }
+
+  .dashboard-v2__notification-item--read {
+    opacity: 0.78;
+  }
+
+  .dashboard-v2__notification-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .dashboard-v2__notification-copy strong {
+    font-size: 0.98rem;
+  }
+
+  .dashboard-v2__notification-copy p,
+  .dashboard-v2__notification-copy small {
+    margin: 0;
+    color: var(--theme-muted);
+    line-height: 1.45;
+  }
+
+  .dashboard-v2__notification-copy p {
+    color: var(--theme-text);
+    opacity: 0.86;
+  }
+
+  .dashboard-v2__notification-goal {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--theme-primary-soft) 68%, var(--theme-surface) 32%);
+    color: var(--theme-primary-strong);
   }
 
   .dashboard-v2__hero-row {

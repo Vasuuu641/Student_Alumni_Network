@@ -4,7 +4,9 @@ import {
   Bell,
   BookOpen,
   ChevronDown,
+  CheckCheck,
   Clock3,
+  CircleArrowRight,
   LogOut,
   MessageSquare,
   MessagesSquare,
@@ -17,6 +19,7 @@ import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api'
 import { listUserNotes } from '../api/notes.api';
 import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
+import { getUnreadNotificationCount, listNotifications, markAllNotificationsRead, markNotificationRead, type NotificationItem } from '../api/notifications.api';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import { ThemePicker } from '../components/ThemePicker';
 
@@ -66,6 +69,10 @@ export function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(Boolean(token));
   const [placeholderNotice, setPlaceholderNotice] = useState<string | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -169,6 +176,70 @@ export function DashboardPage() {
   }, [isAdmin, isAlumni, role, token]);
 
   useEffect(() => {
+    if (!token || !role || isAdmin) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadUnreadCount() {
+      try {
+        const response = await getUnreadNotificationCount();
+        if (!cancelled) {
+          setUnreadNotificationCount(response.unreadCount);
+        }
+      } catch {
+        if (!cancelled) {
+          setUnreadNotificationCount(0);
+        }
+      }
+    }
+
+    void loadUnreadCount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, role, token]);
+
+  useEffect(() => {
+    if (!isNotificationsOpen || !token || !role || isAdmin) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadNotifications() {
+      try {
+        setNotificationsLoading(true);
+        const [notificationsResponse, unreadCountResponse] = await Promise.all([
+          listNotifications({ take: 8 }),
+          getUnreadNotificationCount(),
+        ]);
+        if (!cancelled) {
+          setNotifications(notificationsResponse.notifications);
+          setUnreadNotificationCount(unreadCountResponse.unreadCount);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotifications([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setNotificationsLoading(false);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, isNotificationsOpen, role, token]);
+
+  useEffect(() => {
     if (!placeholderNotice) {
       return;
     }
@@ -206,8 +277,39 @@ export function DashboardPage() {
     navigate('/login', { replace: true });
   }
 
-  function openPlaceholder(featureName: string) {
-    setPlaceholderNotice(`${featureName} is coming soon.`);
+  async function handleOpenNotification(notification: NotificationItem) {
+    try {
+      if (!notification.isRead) {
+        await markNotificationRead(notification.id);
+      }
+      setNotifications((current) =>
+        current.map((item) => (item.id === notification.id ? { ...item, isRead: true, readAt: item.readAt ?? new Date().toISOString() } : item)),
+      );
+      setUnreadNotificationCount((count) => Math.max(0, count - 1));
+
+      if (!notification.actionUrl) {
+        return;
+      }
+
+      if (notification.actionUrl.startsWith('/')) {
+        navigate(notification.actionUrl);
+        return;
+      }
+
+      window.open(notification.actionUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      setPlaceholderNotice('We could not open that notification right now.');
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true, readAt: item.readAt ?? new Date().toISOString() })));
+      setUnreadNotificationCount(0);
+    } catch {
+      setPlaceholderNotice('Could not mark notifications as read right now.');
+    }
   }
 
   if (!token || !role) {
@@ -252,8 +354,16 @@ export function DashboardPage() {
         rightContent={(
           <div className="dashboard-v2__topbar-actions">
             <ThemePicker compact />
-            <button type="button" className="dashboard-v2__icon-btn" onClick={() => openPlaceholder('Notifications')}>
+            <button
+              type="button"
+              className="dashboard-v2__icon-btn dashboard-v2__icon-btn--badge"
+              onClick={() => setIsNotificationsOpen((prev) => !prev)}
+              aria-expanded={isNotificationsOpen}
+              aria-haspopup="dialog"
+              aria-label={`Notifications${unreadNotificationCount > 0 ? `, ${unreadNotificationCount} unread` : ''}`}
+            >
               <Bell size={14} />
+              {unreadNotificationCount > 0 ? <span className="dashboard-v2__badge">{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</span> : null}
             </button>
             {isAdmin ? (
               <button type="button" className="dashboard-v2__admin-btn" onClick={() => navigate('/admin/users')}>
@@ -310,6 +420,62 @@ export function DashboardPage() {
 
       <div className="dashboard-v2__body">
         {placeholderNotice ? <div className="dashboard-v2__notice">{placeholderNotice}</div> : null}
+
+        {isNotificationsOpen ? (
+          <>
+            <button
+              type="button"
+              className="dashboard-v2__notifications-backdrop"
+              aria-label="Close notifications"
+              onClick={() => setIsNotificationsOpen(false)}
+            />
+            <aside className="dashboard-v2__notifications-panel" role="dialog" aria-label="Notifications">
+              <div className="dashboard-v2__notifications-head">
+                <div>
+                  <h2>Notifications</h2>
+                  <p>{unreadNotificationCount} unread</p>
+                </div>
+                <button
+                  type="button"
+                  className="dashboard-v2__notifications-action"
+                  onClick={handleMarkAllNotificationsRead}
+                  disabled={notificationsLoading || notifications.length === 0}
+                >
+                  <CheckCheck size={14} />
+                  Mark all read
+                </button>
+              </div>
+
+              <div className="dashboard-v2__notifications-list">
+                {notificationsLoading ? (
+                  <div className="dashboard-v2__empty">Loading notifications...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="dashboard-v2__empty">You&apos;re all caught up. New activity will appear here.</div>
+                ) : (
+                  notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      className={notification.isRead ? 'dashboard-v2__notification-item dashboard-v2__notification-item--read' : 'dashboard-v2__notification-item'}
+                      onClick={() => handleOpenNotification(notification)}
+                    >
+                      <div className="dashboard-v2__notification-copy">
+                        <strong>{notification.title}</strong>
+                        <p>{notification.body}</p>
+                        <small>
+                          {notification.sourceModule} · {formatRelativeDate(notification.createdAt)}
+                        </small>
+                      </div>
+                      <span className="dashboard-v2__notification-goal">
+                        <CircleArrowRight size={14} />
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </aside>
+          </>
+        ) : null}
 
         <div className="dashboard-v2__hero-row">
           <div>
