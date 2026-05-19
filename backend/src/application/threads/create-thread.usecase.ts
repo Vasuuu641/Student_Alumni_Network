@@ -7,6 +7,7 @@ import type { ThreadLLMService } from 'src/domain/services/thread-llm.service';
 import { MentorClusteringService } from 'src/infrastructure/ai/cohere/mentor-clustering.service';
 import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';
 import { NotificationType } from 'src/domain/entities/notification.entity';
+import { PersonalizedNotificationFanoutService } from 'src/infrastructure/services/personalized-notification-fanout.service';
 
 @Injectable()
 export class CreateThreadUseCase {
@@ -15,6 +16,7 @@ export class CreateThreadUseCase {
     @Inject('ThreadLLMService') private readonly threadLLMService: ThreadLLMService,
     private readonly mentorClusteringService: MentorClusteringService,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
+    private readonly personalizedNotificationFanoutService: PersonalizedNotificationFanoutService,
   ) {}
 
   async execute(
@@ -88,6 +90,26 @@ export class CreateThreadUseCase {
             }),
         ),
       );
+    } else {
+      await this.personalizedNotificationFanoutService.notifyRelevantUsers({
+        type: NotificationType.THREAD_ACTIVITY,
+        title: `New discussion: ${title}`,
+        body: description ?? 'A new discussion may match your interests.',
+        entityType: 'THREAD',
+        entityId: thread.id,
+        sourceModule: 'threads',
+        actionUrl: `/threads/${thread.id}`,
+        excludeUserIds: [userId],
+        threadTitle: title,
+        threadPanel: panel,
+        metadataJson: {
+          panel,
+          createdBy: userId,
+        },
+        dedupeKeyPrefix: 'thread-interest',
+        limit: 5,
+        minScore: 0.45,
+      });
     }
 
     return thread.id;

@@ -7,6 +7,7 @@ import {
 
 export interface UserInterestProfileRepository {
   findByUserId(userId: string): Promise<UserInterestProfile | null>;
+  findAll(): Promise<UserInterestProfile[]>;
   upsert(profile: UserInterestProfile): Promise<UserInterestProfile>;
   incrementWeight(
     userId: string,

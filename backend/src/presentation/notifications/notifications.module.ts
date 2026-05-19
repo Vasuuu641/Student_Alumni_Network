@@ -21,6 +21,7 @@ import {
 import { NotificationAIScoringService } from '../../infrastructure/services/notification-ai-scoring.service';
 import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
 import { MentorClusteringService } from '../../infrastructure/ai/cohere/mentor-clustering.service';
+import { PersonalizedNotificationFanoutService } from '../../infrastructure/services/personalized-notification-fanout.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -43,6 +44,7 @@ import { MentorClusteringService } from '../../infrastructure/ai/cohere/mentor-c
     NotificationAIScoringService,
     NotificationEligibilityService,
     MentorClusteringService,
+    PersonalizedNotificationFanoutService,
     {
       provide: 'NotificationRepository',
       useClass: PrismaNotificationRepository,
@@ -72,6 +74,7 @@ import { MentorClusteringService } from '../../infrastructure/ai/cohere/mentor-c
     CreateNotificationUseCase,
     NotificationEligibilityService,
     MentorClusteringService,
+    PersonalizedNotificationFanoutService,
     'UserInterestProfileRepository',
     'UserInterestSignalRepository',
     'AlumniRepository',

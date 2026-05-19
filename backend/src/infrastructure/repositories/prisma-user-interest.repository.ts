@@ -25,6 +25,14 @@ export class PrismaUserInterestProfileRepository
     return record ? this.toDomain(record) : null;
   }
 
+  async findAll(): Promise<UserInterestProfile[]> {
+    const records = await this.prisma.userInterestProfile.findMany({
+      orderBy: { lastUpdatedAt: 'desc' },
+    });
+
+    return records.map((record) => this.toDomain(record));
+  }
+
   async upsert(profile: UserInterestProfile): Promise<UserInterestProfile> {
     const record = await this.prisma.userInterestProfile.upsert({
       where: { userId: profile.userId },
