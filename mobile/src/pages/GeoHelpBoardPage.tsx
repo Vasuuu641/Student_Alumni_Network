@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import {
   faBookOpen,
   faComments,
@@ -145,6 +146,7 @@ export function GeoHelpBoardPage({ navigation }: Props) {
   const [longitudeInput, setLongitudeInput] = useState(String(DEFAULT_POINT.longitude));
 
   const [spots, setSpots] = useState<GeoHelpSpot[]>([]);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -426,6 +428,34 @@ export function GeoHelpBoardPage({ navigation }: Props) {
   }
 
   const visibleSpots = useMemo(() => spots.filter((spot) => spot.isActive), [spots]);
+  const selectedSpot = useMemo(
+    () => visibleSpots.find((spot) => spot.id === selectedSpotId) ?? visibleSpots[0] ?? null,
+    [selectedSpotId, visibleSpots],
+  );
+
+  const mapRegion: Region = useMemo(() => {
+    const center = selectedSpot
+      ? { latitude: selectedSpot.latitude, longitude: selectedSpot.longitude }
+      : point;
+
+    return {
+      latitude: center.latitude,
+      longitude: center.longitude,
+      latitudeDelta: 0.06,
+      longitudeDelta: 0.06,
+    };
+  }, [point, selectedSpot]);
+
+  useEffect(() => {
+    if (visibleSpots.length === 0) {
+      setSelectedSpotId(null);
+      return;
+    }
+
+    if (!selectedSpotId || !visibleSpots.some((spot) => spot.id === selectedSpotId)) {
+      setSelectedSpotId(visibleSpots[0].id);
+    }
+  }, [selectedSpotId, visibleSpots]);
 
   if (!accessToken || userRole === null) {
     return (
@@ -485,6 +515,55 @@ export function GeoHelpBoardPage({ navigation }: Props) {
               <Text className="text-sm font-semibold text-[#9c2f3f]">{errorMessage}</Text>
             </View>
           ) : null}
+
+          <View className="mb-3 overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white">
+            <View className="border-b border-[#e8eef8] px-4 py-4">
+              <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]">Campus Map</Text>
+              <Text className="mt-1 text-sm leading-5 text-[#5f7291]">
+                Tap a marker or a spot card to sync the map with the list.
+              </Text>
+            </View>
+
+            <View className="h-[280px] bg-[#dce8ff]">
+              <MapView
+                style={{ flex: 1 }}
+                initialRegion={mapRegion}
+                region={mapRegion}
+                onRegionChangeComplete={() => undefined}
+                showsUserLocation={false}
+                showsMyLocationButton={false}
+                showsCompass
+                loadingEnabled
+              >
+                <Marker
+                  coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+                  title="Current location"
+                  description="Your selected search point"
+                  pinColor="#2f64f6"
+                />
+
+                {visibleSpots.map((spot) => (
+                  <Marker
+                    key={spot.id}
+                    coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+                    title={spot.title}
+                    description={spot.city}
+                    pinColor={spot.id === selectedSpot?.id ? '#1f8246' : '#f97316'}
+                    onPress={() => setSelectedSpotId(spot.id)}
+                  />
+                ))}
+              </MapView>
+            </View>
+
+            {selectedSpot ? (
+              <View className="border-t border-[#e8eef8] px-4 py-3">
+                <Text className="text-sm font-bold text-[#12243f]">Selected: {selectedSpot.title}</Text>
+                <Text className="mt-1 text-xs leading-5 text-[#5f7291]">
+                  {selectedSpot.address || selectedSpot.city} • {formatDistance(selectedSpot.distanceKm)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
 
           <View className="mb-3 rounded-2xl border border-[#e3ebf7] bg-white p-3">
             <View className="flex-row gap-2">
@@ -589,9 +668,14 @@ export function GeoHelpBoardPage({ navigation }: Props) {
                 const badge = reviewBadgeStyles(spot.reviewStatus);
                 const canDelete = userRole === 'ADMIN' || userId === spot.createdById;
                 const isBusy = workingSpotId === spot.id;
+                const isSelected = spot.id === selectedSpot?.id;
 
                 return (
-                  <View key={spot.id} className="rounded-2xl border border-[#e3ebf7] bg-white p-4">
+                  <Pressable
+                    key={spot.id}
+                    onPress={() => setSelectedSpotId(spot.id)}
+                    className={`rounded-2xl border p-4 ${isSelected ? 'border-[#2f64f6] bg-[#f7faff]' : 'border-[#e3ebf7] bg-white'}`}
+                  >
                     <View className="flex-row items-start justify-between gap-2">
                       <View className="flex-1">
                         <Text className="text-base font-extrabold text-[#12243f]">{spot.title}</Text>
@@ -634,7 +718,7 @@ export function GeoHelpBoardPage({ navigation }: Props) {
                         </Pressable>
                       ) : null}
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>
