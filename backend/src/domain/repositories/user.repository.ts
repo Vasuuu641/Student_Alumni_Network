@@ -3,6 +3,7 @@ import { Email } from '../value-objects/email.vo';
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
+  findAll(): Promise<User[]>;
   findByEmail(email: Email): Promise<User | null>;
   create(user: User): Promise<User>;
   update(user: User): Promise<User>;

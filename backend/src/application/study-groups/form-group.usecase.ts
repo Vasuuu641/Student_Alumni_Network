@@ -5,6 +5,8 @@ import { studyGroupsVisibility, studyGroupMemberRole, studyGroupStatus } from '.
 import type { StudyGroupMemberRepository } from '../../domain/repositories/study-group-member.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import { Email } from '../../domain/value-objects/email.vo';
+import { NotificationType } from 'src/domain/entities/notification.entity';
+import { PersonalizedNotificationFanoutService } from 'src/infrastructure/services/personalized-notification-fanout.service';
 
 export interface FormGroupRequest {
   name: string;
@@ -25,6 +27,7 @@ export class FormGroupUseCase {
     private readonly studyGroupMemberRepository: StudyGroupMemberRepository,
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
+    private readonly personalizedNotificationFanoutService: PersonalizedNotificationFanoutService,
   ) {}
 
   async execute(request: FormGroupRequest): Promise<StudyGroup> {
@@ -96,6 +99,32 @@ export class FormGroupUseCase {
         userId,
         studyGroupMemberRole.MEMBER,
       );
+    }
+
+    if (visibility === studyGroupsVisibility.PUBLIC) {
+      await this.personalizedNotificationFanoutService.notifyRelevantUsers({
+        type: NotificationType.STUDY_GROUP_ACTIVITY,
+        title: `New study group: ${created.name}`,
+        body: [
+          created.description,
+          distinctTopicTags.length ? `Topics: ${distinctTopicTags.join(', ')}` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+        entityType: 'STUDY_GROUP',
+        entityId: created.id,
+        sourceModule: 'study-groups',
+        actionUrl: `/study-groups/${created.id}`,
+        excludeUserIds: [ownerId, ...distinctInitialMemberIds],
+        metadataJson: {
+          groupName: created.name,
+          topicTags: distinctTopicTags,
+          visibility,
+        },
+        dedupeKeyPrefix: 'study-group-new',
+        limit: 5,
+        minScore: 0.45,
+      });
     }
 
     return created;

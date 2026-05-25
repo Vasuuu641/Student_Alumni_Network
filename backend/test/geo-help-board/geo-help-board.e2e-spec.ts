@@ -1,10 +1,11 @@
 import 'dotenv/config';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/infrastructure/database/prisma/prisma.service';
+import { AppModule } from '../../src/app.module';
+import { PrismaService } from '../../src/infrastructure/database/prisma/prisma.service';
 
 describe('GeoHelpBoard (e2e)', () => {
   let app: INestApplication<App>;

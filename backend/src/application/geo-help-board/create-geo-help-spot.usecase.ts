@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotSection } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpBoardConflictError, GeoHelpBoardValidationError } from './geo-help-board.errors';
+import { NotificationType } from 'src/domain/entities/notification.entity';
+import { PersonalizedNotificationFanoutService } from 'src/infrastructure/services/personalized-notification-fanout.service';
 
 export interface CreateGeoHelpSpotRequest {
   title: string;
@@ -20,6 +22,7 @@ export class CreateGeoHelpSpotUseCase {
   constructor(
     @Inject('GeoHelpBoardRepository')
     private readonly geoHelpBoardRepository: GeoHelpBoardRepository,
+    private readonly personalizedNotificationFanoutService: PersonalizedNotificationFanoutService,
   ) {}
 
   async execute(request: CreateGeoHelpSpotRequest): Promise<GeoHelpSpot> {
@@ -52,7 +55,7 @@ export class CreateGeoHelpSpotUseCase {
       throw new GeoHelpBoardConflictError('A similar spot already exists nearby');
     }
 
-    return this.geoHelpBoardRepository.createSpot({
+    const created = await this.geoHelpBoardRepository.createSpot({
       title,
       description,
       city,
@@ -63,5 +66,28 @@ export class CreateGeoHelpSpotUseCase {
       category,
       createdById: request.createdById,
     });
+
+    await this.personalizedNotificationFanoutService.notifyRelevantUsers({
+      type: NotificationType.GEO_HELP_ACTIVITY,
+      title: `New place added: ${created.title}`,
+      body: [created.description, created.city, created.category]
+        .filter(Boolean)
+        .join(' '),
+      entityType: 'GEO_HELP_SPOT',
+      entityId: created.id,
+      sourceModule: 'geo-help-board',
+      actionUrl: '/geo-help-board',
+      excludeUserIds: [request.createdById],
+      metadataJson: {
+        category: created.category,
+        section: created.section,
+        city: created.city,
+      },
+      dedupeKeyPrefix: 'geo-spot-new',
+      limit: 5,
+      minScore: 0.45,
+    });
+
+    return created;
   }
 }

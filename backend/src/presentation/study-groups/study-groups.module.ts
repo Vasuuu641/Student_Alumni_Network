@@ -3,6 +3,7 @@ import { GroupPolicyService } from '../../application/policies/group-policy.serv
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { PrismaStudyGroupRepository } from '../../infrastructure/repositories/prisma-study-group.repository';
 import { PrismaStudyGroupMemberRepository } from '../../infrastructure/repositories/prisma-study-group-member.repository';
@@ -39,7 +40,7 @@ import { UnarchiveGroupUseCase } from '../../application/study-groups/unarchive-
 import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.gateway';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   providers: [
     GroupPolicyService,
     FormGroupUseCase,
