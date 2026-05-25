@@ -219,7 +219,7 @@ export function ProfilePage({ navigation }: Props) {
     }
 
     if (tab === 'geo-board') {
-      setNotice('Geo Help Board will be added in the next mobile update.');
+      navigation.navigate('GeoHelpBoard');
       return;
     }
 

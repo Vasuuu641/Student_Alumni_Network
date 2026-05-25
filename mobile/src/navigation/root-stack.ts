@@ -3,6 +3,7 @@ export type RootStackParamList = {
   Login: { registeredEmail?: string } | undefined;
   Register: undefined;
   Dashboard: undefined;
+  GeoHelpBoard: undefined;
   Profile: undefined;
   Discussions: undefined;
   ThreadDetail: { threadId: string };
