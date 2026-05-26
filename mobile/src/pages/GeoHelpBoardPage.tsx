@@ -4,19 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
-import MapView, { Marker, type Region } from 'react-native-maps';
 import {
-  faBookOpen,
-  faComments,
   faCompass,
+  faCrosshairs,
   faLocationDot,
+  faMagnifyingGlass,
   faPlus,
+  faPowerOff,
   faRotateRight,
   faRoute,
   faTrash,
-  faUsers,
   faX,
 } from '@fortawesome/free-solid-svg-icons';
+import MapView, { Marker, type LongPressEvent, type Region } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
 import { clearTokens } from '../lib/auth-storage';
 import { getValidAccessToken } from '../lib/auth-session';
@@ -47,6 +48,8 @@ const DEFAULT_POINT: Point = {
   latitude: 46.072734,
   longitude: 18.232266,
 };
+
+const DEFAULT_LOCATION_LABEL = 'Pecs, Hungary';
 
 const TAB_SECTION_MAP: Record<ResourceTab, GeoHelpSpotSection> = {
   OFFICIAL: 'OFFICIAL_RESOURCE',
@@ -93,14 +96,14 @@ function categoryLabel(value: GeoHelpSpotCategory): string {
 
 function reviewBadgeStyles(reviewStatus: GeoHelpSpotReviewStatus): { backgroundColor: string; textColor: string } {
   if (reviewStatus === 'VERIFIED') {
-    return { backgroundColor: '#d9f8e6', textColor: '#14653a' };
+    return { backgroundColor: '#dcfce7', textColor: '#166534' };
   }
 
   if (reviewStatus === 'REJECTED') {
-    return { backgroundColor: '#fde8ec', textColor: '#9c2f3f' };
+    return { backgroundColor: '#fee2e2', textColor: '#991b1b' };
   }
 
-  return { backgroundColor: '#fff5dc', textColor: '#8a5b00' };
+  return { backgroundColor: '#fef3c7', textColor: '#92400e' };
 }
 
 function formatDistance(distanceKm?: number): string {
@@ -132,22 +135,61 @@ function toDirectionsUrl(from: Point, to: Point): string {
   return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${from.latitude},${from.longitude}`)}&destination=${encodeURIComponent(`${to.latitude},${to.longitude}`)}&travelmode=driving`;
 }
 
-export function GeoHelpBoardPage({ navigation }: Props) {
+function formatPlaceLabel(reverseGeocodeResult?: Location.LocationGeocodedAddress | null): string {
+  if (!reverseGeocodeResult) {
+    return DEFAULT_LOCATION_LABEL;
+  }
+
+  const city = reverseGeocodeResult.city ?? reverseGeocodeResult.subregion ?? reverseGeocodeResult.region;
+  const country = reverseGeocodeResult.country ?? '';
+
+  if (city && country) {
+    return `${city}, ${country}`;
+  }
+
+  if (city) {
+    return city;
+  }
+
+  if (country) {
+    return country;
+  }
+
+  return DEFAULT_LOCATION_LABEL;
+}
+
+async function reverseLookupLabel(point: Point): Promise<string> {
+  try {
+    const result = await Location.reverseGeocodeAsync(point);
+    return formatPlaceLabel(result[0]);
+  } catch {
+    return DEFAULT_LOCATION_LABEL;
+  }
+}
+
+export function GeoHelpBoardPage(props: Props) {
+  const navigation = props?.navigation;
+
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isBooting, setIsBooting] = useState(true);
 
   const [activeTab, setActiveTab] = useState<ResourceTab>('OFFICIAL');
   const [category, setCategory] = useState<CategoryFilter>('ALL');
-  const [cityFilter, setCityFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('Pecs');
   const [radiusInput, setRadiusInput] = useState('5');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [point, setPoint] = useState<Point>(DEFAULT_POINT);
-  const [latitudeInput, setLatitudeInput] = useState(String(DEFAULT_POINT.latitude));
-  const [longitudeInput, setLongitudeInput] = useState(String(DEFAULT_POINT.longitude));
+  const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION_LABEL);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
 
   const [spots, setSpots] = useState<GeoHelpSpot[]>([]);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
@@ -158,36 +200,45 @@ export function GeoHelpBoardPage({ navigation }: Props) {
   const [suggestDescription, setSuggestDescription] = useState('');
   const [suggestAddress, setSuggestAddress] = useState('');
   const [suggestCity, setSuggestCity] = useState('Pecs');
-  const [suggestLat, setSuggestLat] = useState(String(DEFAULT_POINT.latitude));
-  const [suggestLng, setSuggestLng] = useState(String(DEFAULT_POINT.longitude));
+  const [suggestPoint, setSuggestPoint] = useState<Point>(DEFAULT_POINT);
+  const [suggestPlaceLabel, setSuggestPlaceLabel] = useState(DEFAULT_LOCATION_LABEL);
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
 
   const radiusKm = sanitizeRadius(radiusInput);
   const currentSection = TAB_SECTION_MAP[activeTab];
   const categoryOptions = activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS;
   const apiCategory = category === 'ALL' ? undefined : category;
-  const canAccessGeoHelpBoard = userRole !== 'ALUMNI';
+  const canAccessGeoHelpBoard = userRole !== null && userRole !== 'ALUMNI';
+
+  const replaceToLogin = useCallback(() => {
+    if (navigation) {
+      navigation.replace('Login');
+    }
+  }, [navigation]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initialize() {
-      const token = await getValidAccessToken();
-      if (cancelled) {
-        return;
+      try {
+        const token = await getValidAccessToken();
+        if (cancelled) {
+          return;
+        }
+
+        if (!token) {
+          replaceToLogin();
+          return;
+        }
+
+        setAccessToken(token);
+        setUserRole(getRoleFromAccessToken(token));
+        setUserId(getUserIdFromAccessToken(token));
+      } finally {
+        if (!cancelled) {
+          setIsBooting(false);
+        }
       }
-
-      if (!token) {
-        navigation.replace('Login');
-        return;
-      }
-
-      const role = getRoleFromAccessToken(token);
-      const nextUserId = getUserIdFromAccessToken(token);
-
-      setAccessToken(token);
-      setUserRole(role);
-      setUserId(nextUserId);
     }
 
     void initialize();
@@ -195,14 +246,14 @@ export function GeoHelpBoardPage({ navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [navigation]);
+  }, [replaceToLogin]);
 
   useEffect(() => {
     if (!noticeMessage) {
       return;
     }
 
-    const timer = setTimeout(() => setNoticeMessage(''), 2800);
+    const timer = setTimeout(() => setNoticeMessage(''), 2600);
     return () => clearTimeout(timer);
   }, [noticeMessage]);
 
@@ -211,7 +262,13 @@ export function GeoHelpBoardPage({ navigation }: Props) {
     if (category !== 'ALL' && !categoryOptions.some((option) => option.value === category)) {
       setCategory(defaultCategory);
     }
-  }, [activeTab]);
+  }, [category, categoryOptions]);
+
+  useEffect(() => {
+    setSuggestPoint(point);
+    setSuggestPlaceLabel(locationLabel);
+    setSuggestCity(cityFilter.trim() || 'Pecs');
+  }, [cityFilter, locationLabel, point]);
 
   const fetchSpotsWithFallback = useCallback(
     async (token: string): Promise<GeoHelpSpot[]> => {
@@ -222,21 +279,19 @@ export function GeoHelpBoardPage({ navigation }: Props) {
         city: cityFilter.trim() || undefined,
         section: currentSection,
         category: apiCategory,
-        limit: 30,
+        limit: 40,
       });
 
       if (nearby.length > 0) {
         return nearby;
       }
 
-      const popular = await listPopularGeoHelpSpots(token, {
+      return listPopularGeoHelpSpots(token, {
         city: cityFilter.trim() || undefined,
         section: currentSection,
         category: apiCategory,
-        limit: 30,
+        limit: 40,
       });
-
-      return popular;
     },
     [apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm],
   );
@@ -245,6 +300,7 @@ export function GeoHelpBoardPage({ navigation }: Props) {
     async (showRefreshState: boolean) => {
       if (!accessToken || !canAccessGeoHelpBoard) {
         setIsLoading(false);
+        setIsRefreshing(false);
         return;
       }
 
@@ -270,25 +326,103 @@ export function GeoHelpBoardPage({ navigation }: Props) {
   );
 
   useEffect(() => {
-    void loadSpots(false);
-  }, [loadSpots]);
+    if (!isBooting) {
+      void loadSpots(false);
+    }
+  }, [isBooting, loadSpots]);
 
   const handleRefresh = useCallback(async () => {
     await loadSpots(true);
   }, [loadSpots]);
 
-  const handleApplyCoordinate = useCallback(() => {
-    const nextLat = Number(latitudeInput);
-    const nextLng = Number(longitudeInput);
+  const handleUseCurrentLocation = useCallback(async () => {
+    try {
+      setIsLocating(true);
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setNoticeMessage('Location permission is required to use GPS.');
+        return;
+      }
 
-    if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) {
-      setNoticeMessage('Please enter valid latitude and longitude.');
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const nextPoint = {
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      };
+      setPoint(nextPoint);
+
+      const label = await reverseLookupLabel(nextPoint);
+      setLocationLabel(label);
+      setSuggestPlaceLabel(label);
+      setSuggestPoint(nextPoint);
+
+      const cityResult = await Location.reverseGeocodeAsync(nextPoint);
+      const resolvedCity = cityResult[0]?.city ?? cityResult[0]?.subregion ?? '';
+      if (resolvedCity) {
+        setCityFilter(resolvedCity);
+        setSuggestCity(resolvedCity);
+      }
+
+      setNoticeMessage('Location updated from your phone GPS.');
+    } catch (error) {
+      setNoticeMessage(error instanceof Error ? error.message : 'Unable to get your current location.');
+    } finally {
+      setIsLocating(false);
+    }
+  }, []);
+
+  const handleFindLocation = useCallback(async () => {
+    if (!locationQuery.trim()) {
+      setNoticeMessage('Enter a city or address first.');
       return;
     }
 
-    setPoint({ latitude: nextLat, longitude: nextLng });
-    setNoticeMessage('Location updated.');
-  }, [latitudeInput, longitudeInput]);
+    try {
+      setIsResolvingLocation(true);
+      const geocode = await Location.geocodeAsync(locationQuery.trim());
+      const first = geocode[0];
+      if (!first) {
+        setNoticeMessage('No matching location found. Try a more specific address.');
+        return;
+      }
+
+      const nextPoint = { latitude: first.latitude, longitude: first.longitude };
+      setPoint(nextPoint);
+      const label = await reverseLookupLabel(nextPoint);
+      setLocationLabel(label);
+      setSuggestPoint(nextPoint);
+      setSuggestPlaceLabel(label);
+
+      const reverse = await Location.reverseGeocodeAsync(nextPoint);
+      const resolvedCity = reverse[0]?.city ?? reverse[0]?.subregion ?? '';
+      if (resolvedCity) {
+        setCityFilter(resolvedCity);
+        setSuggestCity(resolvedCity);
+      }
+
+      setNoticeMessage('Search area updated.');
+    } catch (error) {
+      setNoticeMessage(error instanceof Error ? error.message : 'Unable to find that location.');
+    } finally {
+      setIsResolvingLocation(false);
+    }
+  }, [locationQuery]);
+
+  const handleMapLongPress = useCallback(async (event: LongPressEvent) => {
+    const nextPoint = event.nativeEvent.coordinate;
+    setPoint(nextPoint);
+
+    const label = await reverseLookupLabel(nextPoint);
+    setLocationLabel(label);
+    setNoticeMessage('Search area moved on map.');
+
+    const reverse = await Location.reverseGeocodeAsync(nextPoint);
+    const resolvedCity = reverse[0]?.city ?? reverse[0]?.subregion ?? '';
+    if (resolvedCity) {
+      setCityFilter(resolvedCity);
+      setSuggestCity(resolvedCity);
+    }
+  }, []);
 
   const handleOpenSpot = useCallback(
     async (spot: GeoHelpSpot) => {
@@ -298,8 +432,13 @@ export function GeoHelpBoardPage({ navigation }: Props) {
 
       try {
         await recordGeoHelpSpotVisit(accessToken, spot.id);
-        await Linking.openURL(toMapUrl({ latitude: spot.latitude, longitude: spot.longitude }));
-        setNoticeMessage('Opened location in maps.');
+        const url = toMapUrl({ latitude: spot.latitude, longitude: spot.longitude });
+        const canOpen = await Linking.canOpenURL(url);
+        if (!canOpen) {
+          throw new Error('No map app is available for this action.');
+        }
+
+        await Linking.openURL(url);
       } catch (error) {
         setNoticeMessage(error instanceof Error ? error.message : 'Failed to open location.');
       }
@@ -309,8 +448,17 @@ export function GeoHelpBoardPage({ navigation }: Props) {
 
   const handleOpenDirections = useCallback(
     async (spot: GeoHelpSpot) => {
-      const url = toDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude });
-      await Linking.openURL(url);
+      try {
+        const url = toDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude });
+        const canOpen = await Linking.canOpenURL(url);
+        if (!canOpen) {
+          throw new Error('No maps app is available for directions.');
+        }
+
+        await Linking.openURL(url);
+      } catch (error) {
+        setNoticeMessage(error instanceof Error ? error.message : 'Failed to open directions.');
+      }
     },
     [point],
   );
@@ -340,16 +488,8 @@ export function GeoHelpBoardPage({ navigation }: Props) {
       return;
     }
 
-    const lat = Number(suggestLat);
-    const lng = Number(suggestLng);
-
     if (!suggestTitle.trim() || !suggestCity.trim()) {
       setNoticeMessage('Title and city are required.');
-      return;
-    }
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      setNoticeMessage('Valid latitude and longitude are required.');
       return;
     }
 
@@ -360,8 +500,8 @@ export function GeoHelpBoardPage({ navigation }: Props) {
         description: suggestDescription.trim() || undefined,
         city: suggestCity.trim(),
         address: suggestAddress.trim() || undefined,
-        latitude: lat,
-        longitude: lng,
+        latitude: suggestPoint.latitude,
+        longitude: suggestPoint.longitude,
         section: currentSection,
         category: category === 'ALL' ? categoryOptions[0].value : category,
       });
@@ -369,11 +509,8 @@ export function GeoHelpBoardPage({ navigation }: Props) {
       setSuggestTitle('');
       setSuggestDescription('');
       setSuggestAddress('');
-      setSuggestCity(cityFilter.trim() || 'Pecs');
-      setSuggestLat(String(point.latitude));
-      setSuggestLng(String(point.longitude));
       setShowSuggestModal(false);
-      setNoticeMessage('Location submitted successfully.');
+      setNoticeMessage('Place submitted for admin review.');
       await loadSpots(true);
     } catch (error) {
       setNoticeMessage(error instanceof Error ? error.message : 'Failed to submit location.');
@@ -384,54 +521,105 @@ export function GeoHelpBoardPage({ navigation }: Props) {
     accessToken,
     category,
     categoryOptions,
-    cityFilter,
     currentSection,
     loadSpots,
-    point.latitude,
-    point.longitude,
     suggestAddress,
     suggestCity,
     suggestDescription,
-    suggestLat,
-    suggestLng,
+    suggestPoint.latitude,
+    suggestPoint.longitude,
     suggestTitle,
   ]);
 
-  function navigateBottom(tab: MobileNavTab) {
-    if (tab === 'home') {
-      navigation.navigate('Dashboard');
-      return;
-    }
+  const handleUseCurrentLocationForSuggestion = useCallback(async () => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setNoticeMessage('Location permission is required to set suggestion coordinates.');
+        return;
+      }
 
-    if (tab === 'discussions') {
-      navigation.navigate('Discussions');
-      return;
-    }
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const nextPoint = {
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      };
 
-    if (tab === 'study-groups') {
-      navigation.navigate('StudyGroups');
-      return;
+      setSuggestPoint(nextPoint);
+      const label = await reverseLookupLabel(nextPoint);
+      setSuggestPlaceLabel(label);
+      setNoticeMessage('Suggestion pin moved to your current location.');
+    } catch (error) {
+      setNoticeMessage(error instanceof Error ? error.message : 'Unable to get current location.');
     }
+  }, []);
 
-    if (tab === 'geo-board') {
-      return;
-    }
+  const handleNavigateBottom = useCallback(
+    (tab: MobileNavTab) => {
+      if (!navigation) {
+        return;
+      }
 
-    if (tab === 'notes') {
-      setNoticeMessage('Notes will be added in the next mobile update.');
-    }
-  }
+      if (tab === 'home') {
+        navigation.navigate('Dashboard');
+        return;
+      }
 
-  async function handleLogout() {
+      if (tab === 'discussions') {
+        navigation.navigate('Discussions');
+        return;
+      }
+
+      if (tab === 'study-groups') {
+        navigation.navigate('StudyGroups');
+        return;
+      }
+
+      if (tab === 'notes') {
+        setNoticeMessage('Notes will be added in the next mobile update.');
+      }
+    },
+    [navigation],
+  );
+
+  const handleLogout = useCallback(async () => {
     await clearTokens();
-    navigation.replace('Login');
-  }
+    replaceToLogin();
+  }, [replaceToLogin]);
 
   const visibleSpots = useMemo(() => spots.filter((spot) => spot.isActive), [spots]);
+
+  const filteredSpots = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return visibleSpots;
+    }
+
+    return visibleSpots.filter((spot) => {
+      return (
+        spot.title.toLowerCase().includes(query) ||
+        (spot.description?.toLowerCase().includes(query) ?? false) ||
+        spot.city.toLowerCase().includes(query) ||
+        (spot.address?.toLowerCase().includes(query) ?? false)
+      );
+    });
+  }, [searchQuery, visibleSpots]);
+
   const selectedSpot = useMemo(
-    () => visibleSpots.find((spot) => spot.id === selectedSpotId) ?? visibleSpots[0] ?? null,
-    [selectedSpotId, visibleSpots],
+    () => filteredSpots.find((spot) => spot.id === selectedSpotId) ?? filteredSpots[0] ?? null,
+    [filteredSpots, selectedSpotId],
   );
+
+  useEffect(() => {
+    if (filteredSpots.length === 0) {
+      setSelectedSpotId(null);
+      return;
+    }
+
+    if (!selectedSpotId || !filteredSpots.some((spot) => spot.id === selectedSpotId)) {
+      setSelectedSpotId(filteredSpots[0].id);
+    }
+  }, [filteredSpots, selectedSpotId]);
 
   const mapRegion: Region = useMemo(() => {
     const center = selectedSpot
@@ -441,27 +629,29 @@ export function GeoHelpBoardPage({ navigation }: Props) {
     return {
       latitude: center.latitude,
       longitude: center.longitude,
-      latitudeDelta: 0.06,
-      longitudeDelta: 0.06,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
     };
   }, [point, selectedSpot]);
 
-  useEffect(() => {
-    if (visibleSpots.length === 0) {
-      setSelectedSpotId(null);
-      return;
-    }
-
-    if (!selectedSpotId || !visibleSpots.some((spot) => spot.id === selectedSpotId)) {
-      setSelectedSpotId(visibleSpots[0].id);
-    }
-  }, [selectedSpotId, visibleSpots]);
-
-  if (!accessToken || userRole === null) {
+  if (isBooting || userRole === null) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f5f8ff]">
+      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2f64f6" />
+          <ActivityIndicator size="large" color="#1d4ed8" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-center text-base text-[#3e5578]">Session expired. Please log in again.</Text>
+          <Pressable onPress={replaceToLogin} className="mt-4 rounded-xl bg-[#1d4ed8] px-4 py-3">
+            <Text className="text-sm font-bold text-white">Go to Login</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -469,104 +659,55 @@ export function GeoHelpBoardPage({ navigation }: Props) {
 
   if (!canAccessGeoHelpBoard) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f5f8ff]">
-        <View className="flex-1 justify-between">
-          <View className="px-4 pt-6">
-            <Text className="text-[28px] font-extrabold tracking-[-0.04em] text-[#101d36]">Geo Help Board</Text>
-            <Text className="mt-3 text-base leading-6 text-[#5f7291]">
+      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
+        <View className="flex-1 justify-between px-4 pb-2 pt-4">
+          <View className="rounded-3xl border border-[#d7e1f2] bg-white p-5">
+            <Text className="text-3xl font-extrabold tracking-[-0.03em] text-[#0f2244]">Geo Help Board</Text>
+            <Text className="mt-3 text-[15px] leading-6 text-[#4c6487]">
               This page is available to students, professors, and admins.
             </Text>
-            <Pressable onPress={() => navigation.navigate('Dashboard')} className="mt-6 rounded-2xl bg-[#2f64f6] px-4 py-3">
-              <Text className="text-center text-sm font-bold text-white">Back to dashboard</Text>
+            <Pressable onPress={() => navigation?.navigate('Dashboard')} className="mt-5 rounded-xl bg-[#1d4ed8] px-4 py-3">
+              <Text className="text-center text-sm font-bold text-white">Back to Dashboard</Text>
             </Pressable>
           </View>
-          <View className="bg-white">
-            <MobileBottomNav activeTab="geo-board" onNavigate={navigateBottom} />
-          </View>
+
+          <MobileBottomNav activeTab="geo-board" onNavigate={handleNavigateBottom} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]">
+    <SafeAreaView className="flex-1 bg-[#f4f7ff]">
       <View className="flex-1">
-        <View className="border-b border-[#e3ebf7] bg-white px-4 py-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[24px] font-extrabold tracking-[-0.03em] text-[#101d36]">Geo Help Board</Text>
-            <Pressable onPress={() => void handleLogout()} className="rounded-xl bg-[#eef3ff] px-3 py-2">
-              <Text className="text-xs font-semibold text-[#2f64f6]">Logout</Text>
-            </Pressable>
-          </View>
-          <Text className="mt-2 text-sm leading-5 text-[#5f7291]">
-            Find official university services and community-picked places from the same backend as web.
-          </Text>
-        </View>
-
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           {noticeMessage ? (
-            <View className="mb-3 rounded-2xl border border-[#f7d89a] bg-[#fff7e6] px-4 py-3">
-              <Text className="text-sm font-semibold text-[#8d5800]">{noticeMessage}</Text>
+            <View className="mb-3 rounded-2xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
+              <Text className="text-sm font-semibold text-[#92400e]">{noticeMessage}</Text>
             </View>
           ) : null}
 
           {errorMessage ? (
-            <View className="mb-3 rounded-2xl border border-[#f5c9d0] bg-[#fff1f4] px-4 py-3">
-              <Text className="text-sm font-semibold text-[#9c2f3f]">{errorMessage}</Text>
+            <View className="mb-3 rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3">
+              <Text className="text-sm font-semibold text-[#991b1b]">{errorMessage}</Text>
             </View>
           ) : null}
 
-          <View className="mb-3 overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white">
-            <View className="border-b border-[#e8eef8] px-4 py-4">
-              <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]">Campus Map</Text>
-              <Text className="mt-1 text-sm leading-5 text-[#5f7291]">
-                Tap a marker or a spot card to sync the map with the list.
-              </Text>
-            </View>
-
-            <View className="h-[280px] bg-[#dce8ff]">
-              <MapView
-                style={{ flex: 1 }}
-                initialRegion={mapRegion}
-                region={mapRegion}
-                onRegionChangeComplete={() => undefined}
-                showsUserLocation={false}
-                showsMyLocationButton={false}
-                showsCompass
-                loadingEnabled
-              >
-                <Marker
-                  coordinate={{ latitude: point.latitude, longitude: point.longitude }}
-                  title="Current location"
-                  description="Your selected search point"
-                  pinColor="#2f64f6"
-                />
-
-                {visibleSpots.map((spot) => (
-                  <Marker
-                    key={spot.id}
-                    coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-                    title={spot.title}
-                    description={spot.city}
-                    pinColor={spot.id === selectedSpot?.id ? '#1f8246' : '#f97316'}
-                    onPress={() => setSelectedSpotId(spot.id)}
-                  />
-                ))}
-              </MapView>
-            </View>
-
-            {selectedSpot ? (
-              <View className="border-t border-[#e8eef8] px-4 py-3">
-                <Text className="text-sm font-bold text-[#12243f]">Selected: {selectedSpot.title}</Text>
-                <Text className="mt-1 text-xs leading-5 text-[#5f7291]">
-                  {selectedSpot.address || selectedSpot.city} • {formatDistance(selectedSpot.distanceKm)}
+          <View className="mb-3 rounded-[28px] border border-[#d6e1f3] bg-white px-4 py-5">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-2">
+                <Text className="text-[30px] font-extrabold tracking-[-0.05em] text-[#0f2244]">Geo Board</Text>
+                <Text className="mt-1 text-[15px] leading-6 text-[#4c6487]">
+                  Explore campus resources and local picks on the live map.
                 </Text>
               </View>
-            ) : null}
-          </View>
 
-          <View className="mb-3 rounded-2xl border border-[#e3ebf7] bg-white p-3">
-            <View className="flex-row gap-2">
+              <Pressable onPress={() => void handleLogout()} className="h-11 w-11 items-center justify-center rounded-full bg-[#eff6ff]">
+                <FontAwesomeIcon icon={faPowerOff as IconProp} size={16} color="#1d4ed8" />
+              </Pressable>
+            </View>
+
+            <View className="mt-4 flex-row gap-2">
               {(['OFFICIAL', 'COMMUNITY'] as const).map((tab) => {
                 const isActive = activeTab === tab;
                 return (
@@ -576,72 +717,121 @@ export function GeoHelpBoardPage({ navigation }: Props) {
                       setActiveTab(tab);
                       setCategory('ALL');
                     }}
-                    className={`flex-1 rounded-xl px-3 py-2.5 ${isActive ? 'bg-[#2f64f6]' : 'bg-[#f3f6fd]'}`}
+                    className={`flex-1 rounded-2xl px-3 py-3 ${isActive ? 'bg-[#1d4ed8]' : 'bg-[#eef5ff]'}`}
                   >
-                    <Text className={`text-center text-xs font-bold ${isActive ? 'text-white' : 'text-[#2f64f6]'}`}>
+                    <Text className={`text-center text-xs font-bold ${isActive ? 'text-white' : 'text-[#1f3a63]'}`}>
                       {tab === 'OFFICIAL' ? 'Official Resources' : 'Community Picks'}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
+          </View>
+
+          <View className="mb-3 rounded-[24px] border border-[#d6e1f3] bg-[#0f3b89] p-4">
+            <Text className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Current Search Area</Text>
+            <Text className="mt-2 text-[19px] font-extrabold tracking-[-0.02em] text-white">{locationLabel}</Text>
+            <Text className="mt-1 text-xs text-white/90">Spots are ranked around this location.</Text>
+
+            <View className="mt-3 flex-row gap-2">
+              <Pressable
+                onPress={() => void handleUseCurrentLocation()}
+                disabled={isLocating}
+                className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl px-3 py-2.5 ${isLocating ? 'bg-white/30' : 'bg-white/20'}`}
+              >
+                <FontAwesomeIcon icon={faCrosshairs as IconProp} size={13} color="white" />
+                <Text className="text-xs font-bold text-white">{isLocating ? 'Locating...' : 'Use My GPS'}</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setShowSuggestModal(true)}
+                className="flex-row items-center justify-center gap-2 rounded-xl bg-white/20 px-3 py-2.5"
+              >
+                <FontAwesomeIcon icon={faPlus as IconProp} size={13} color="white" />
+                <Text className="text-xs font-bold text-white">Suggest</Text>
+              </Pressable>
+            </View>
 
             <View className="mt-3 flex-row gap-2">
               <TextInput
+                value={locationQuery}
+                onChangeText={setLocationQuery}
+                placeholder="Search city or address"
+                className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm text-white"
+                placeholderTextColor="rgba(255,255,255,0.7)"
+              />
+              <Pressable
+                onPress={() => void handleFindLocation()}
+                disabled={isResolvingLocation}
+                className={`h-[42px] w-[42px] items-center justify-center rounded-xl ${isResolvingLocation ? 'bg-white/30' : 'bg-white/20'}`}
+              >
+                <FontAwesomeIcon icon={faMagnifyingGlass as IconProp} size={13} color="white" />
+              </Pressable>
+            </View>
+          </View>
+
+          <View className="mb-3 overflow-hidden rounded-[24px] border border-[#d6e1f3] bg-white">
+            <View className="px-4 pb-2 pt-3">
+              <Text className="text-base font-extrabold text-[#0f2244]">Live Map</Text>
+              <Text className="mt-1 text-xs text-[#4e6385]">Long-press on map to move your search area.</Text>
+            </View>
+
+            <View className="h-[270px]">
+              <MapView
+                style={{ flex: 1 }}
+                region={mapRegion}
+                onLongPress={(event) => void handleMapLongPress(event)}
+                showsUserLocation
+                showsMyLocationButton
+                loadingEnabled
+              >
+                <Marker coordinate={point} title="Search area" pinColor="#ef4444" />
+
+                {filteredSpots.map((spot) => (
+                  <Marker
+                    key={spot.id}
+                    coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+                    title={spot.title}
+                    description={spot.city}
+                    pinColor={spot.section === 'OFFICIAL_RESOURCE' ? '#1d4ed8' : '#f59e0b'}
+                    onPress={() => setSelectedSpotId(spot.id)}
+                  />
+                ))}
+              </MapView>
+            </View>
+          </View>
+
+          <View className="mb-3 rounded-[24px] border border-[#d6e1f3] bg-white p-4">
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by title, city, address..."
+              className="rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-[15px] text-[#142748]"
+              placeholderTextColor="#6a7fa2"
+            />
+
+            <View className="mt-2 flex-row gap-2">
+              <TextInput
                 value={cityFilter}
                 onChangeText={setCityFilter}
-                placeholder="City (optional)"
-                className="flex-1 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-2.5 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                placeholder="City filter"
+                className="flex-1 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
               />
               <TextInput
                 value={radiusInput}
                 onChangeText={setRadiusInput}
                 keyboardType="decimal-pad"
-                placeholder="Radius km"
-                className="w-24 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-2.5 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                placeholder="Radius"
+                className="w-24 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
               />
-            </View>
-
-            <View className="mt-3 flex-row gap-2">
-              <TextInput
-                value={latitudeInput}
-                onChangeText={setLatitudeInput}
-                keyboardType="decimal-pad"
-                placeholder="Latitude"
-                className="flex-1 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-2.5 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
-              />
-              <TextInput
-                value={longitudeInput}
-                onChangeText={setLongitudeInput}
-                keyboardType="decimal-pad"
-                placeholder="Longitude"
-                className="flex-1 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-2.5 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
-              />
-            </View>
-
-            <View className="mt-3 flex-row gap-2">
-              <Pressable onPress={handleApplyCoordinate} className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-[#eaf1ff] px-3 py-2.5">
-                <FontAwesomeIcon icon={faLocationDot as IconProp} size={13} color="#2f64f6" />
-                <Text className="text-xs font-bold text-[#2f64f6]">Use Coordinates</Text>
-              </Pressable>
-              <Pressable onPress={() => void handleRefresh()} className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-[#eff8f1] px-3 py-2.5">
-                <FontAwesomeIcon icon={faRotateRight as IconProp} size={13} color="#1f8246" />
-                <Text className="text-xs font-bold text-[#1f8246]">Refresh</Text>
-              </Pressable>
-              <Pressable onPress={() => setShowSuggestModal(true)} className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-[#2f64f6] px-3 py-2.5">
-                <FontAwesomeIcon icon={faPlus as IconProp} size={13} color="white" />
-                <Text className="text-xs font-bold text-white">Suggest</Text>
+              <Pressable onPress={() => void handleRefresh()} className="h-[46px] w-[46px] items-center justify-center rounded-xl bg-[#e6efff]">
+                <FontAwesomeIcon icon={faRotateRight as IconProp} size={14} color="#1d4ed8" />
               </Pressable>
             </View>
-          </View>
 
-          <View className="mb-3 rounded-2xl border border-[#e3ebf7] bg-white p-3">
-            <Text className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-[#6d7fa1]">Category Filter</Text>
-            <View className="flex-row flex-wrap gap-2">
+            <View className="mt-3 flex-row flex-wrap gap-2">
               <FilterPill label="All" active={category === 'ALL'} onPress={() => setCategory('ALL')} />
               {categoryOptions.map((option) => (
                 <FilterPill
@@ -654,67 +844,81 @@ export function GeoHelpBoardPage({ navigation }: Props) {
             </View>
           </View>
 
-          {isLoading ? (
-            <View className="rounded-2xl border border-[#e3ebf7] bg-white p-8">
-              <ActivityIndicator size="large" color="#2f64f6" />
+          {selectedSpot ? (
+            <View className="mb-3 rounded-2xl border border-[#d7e1f2] bg-[#eef4ff] px-4 py-3">
+              <Text className="text-xs font-bold uppercase tracking-[0.12em] text-[#4e6385]">Selected Place</Text>
+              <Text className="mt-1 text-base font-bold text-[#0f2244]">{selectedSpot.title}</Text>
+              <Text className="mt-1 text-xs text-[#4e6385]">{selectedSpot.address || selectedSpot.city}</Text>
             </View>
-          ) : visibleSpots.length === 0 ? (
-            <View className="rounded-2xl border border-dashed border-[#d8e2f4] bg-[#fafcff] px-4 py-8">
-              <Text className="text-center text-sm font-semibold text-[#7182a0]">No spots found with the current filters.</Text>
+          ) : null}
+
+          {isLoading ? (
+            <View className="rounded-2xl border border-[#d7e1f2] bg-white px-4 py-8">
+              <ActivityIndicator size="large" color="#1d4ed8" />
+            </View>
+          ) : filteredSpots.length === 0 ? (
+            <View className="rounded-2xl border border-dashed border-[#c9d7ee] bg-white px-4 py-8">
+              <Text className="text-center text-sm font-semibold text-[#58709a]">No spots found with current filters.</Text>
             </View>
           ) : (
             <View className="gap-3">
-              {visibleSpots.map((spot) => {
+              {filteredSpots.map((spot) => {
                 const badge = reviewBadgeStyles(spot.reviewStatus);
                 const canDelete = userRole === 'ADMIN' || userId === spot.createdById;
                 const isBusy = workingSpotId === spot.id;
-                const isSelected = spot.id === selectedSpot?.id;
+                const isSelected = selectedSpot?.id === spot.id;
 
                 return (
                   <Pressable
                     key={spot.id}
                     onPress={() => setSelectedSpotId(spot.id)}
-                    className={`rounded-2xl border p-4 ${isSelected ? 'border-[#2f64f6] bg-[#f7faff]' : 'border-[#e3ebf7] bg-white'}`}
+                    className={`rounded-2xl border p-4 ${isSelected ? 'border-[#1d4ed8] bg-[#f2f7ff]' : 'border-[#d7e1f2] bg-white'}`}
                   >
                     <View className="flex-row items-start justify-between gap-2">
                       <View className="flex-1">
-                        <Text className="text-base font-extrabold text-[#12243f]">{spot.title}</Text>
-                        <Text className="mt-1 text-sm text-[#5f7291]">{categoryLabel(spot.category)} • {spot.city}</Text>
+                        <Text className="text-base font-extrabold text-[#0f2244]">{spot.title}</Text>
+                        <Text className="mt-1 text-xs text-[#4e6385]">{categoryLabel(spot.category)} • {spot.city}</Text>
                       </View>
+
                       <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badge.backgroundColor }}>
-                        <Text className="text-[10px] font-bold uppercase" style={{ color: badge.textColor }}>{spot.reviewStatus}</Text>
+                        <Text className="text-[10px] font-bold uppercase" style={{ color: badge.textColor }}>
+                          {spot.reviewStatus}
+                        </Text>
                       </View>
                     </View>
 
                     {spot.address ? (
-                      <Text className="mt-2 text-sm leading-5 text-[#3a4d6a]">{spot.address}</Text>
+                      <View className="mt-2 flex-row items-center gap-2">
+                        <FontAwesomeIcon icon={faLocationDot as IconProp} size={12} color="#51678c" />
+                        <Text className="flex-1 text-sm text-[#304562]">{spot.address}</Text>
+                      </View>
                     ) : null}
 
-                    {spot.description ? (
-                      <Text className="mt-2 text-sm leading-5 text-[#3a4d6a]">{spot.description}</Text>
-                    ) : null}
+                    {spot.description ? <Text className="mt-2 text-sm text-[#304562]">{spot.description}</Text> : null}
 
-                    <Text className="mt-2 text-xs font-semibold text-[#7b8ca7]">{formatDistance(spot.distanceKm)} • {spot.visitCount} visits</Text>
+                    <Text className="mt-2 text-xs font-semibold text-[#637aa1]">
+                      {formatDistance(spot.distanceKm)} • {spot.visitCount} visits
+                    </Text>
 
                     <View className="mt-3 flex-row flex-wrap gap-2">
-                      <Pressable onPress={() => void handleOpenSpot(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#eaf1ff] px-3 py-2">
-                        <FontAwesomeIcon icon={faCompass as IconProp} size={12} color="#2f64f6" />
-                        <Text className="text-xs font-bold text-[#2f64f6]">Open</Text>
+                      <Pressable onPress={() => void handleOpenSpot(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#e6efff] px-3 py-2">
+                        <FontAwesomeIcon icon={faCompass as IconProp} size={12} color="#1d4ed8" />
+                        <Text className="text-xs font-bold text-[#1d4ed8]">Open</Text>
                       </Pressable>
 
-                      <Pressable onPress={() => void handleOpenDirections(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#eff8f1] px-3 py-2">
-                        <FontAwesomeIcon icon={faRoute as IconProp} size={12} color="#1f8246" />
-                        <Text className="text-xs font-bold text-[#1f8246]">Directions</Text>
+                      <Pressable onPress={() => void handleOpenDirections(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#ecfdf3] px-3 py-2">
+                        <FontAwesomeIcon icon={faRoute as IconProp} size={12} color="#15803d" />
+                        <Text className="text-xs font-bold text-[#15803d]">Directions</Text>
                       </Pressable>
 
                       {canDelete ? (
                         <Pressable
                           onPress={() => void handleDeactivate(spot)}
                           disabled={isBusy}
-                          className={`flex-row items-center gap-2 rounded-xl px-3 py-2 ${isBusy ? 'bg-[#f3d9de]' : 'bg-[#fde8ec]'}`}
+                          className={`flex-row items-center gap-2 rounded-xl px-3 py-2 ${isBusy ? 'bg-[#f5d0d5]' : 'bg-[#fee2e2]'}`}
                         >
-                          <FontAwesomeIcon icon={faTrash as IconProp} size={12} color="#9c2f3f" />
-                          <Text className="text-xs font-bold text-[#9c2f3f]">{isBusy ? 'Deleting...' : 'Delete'}</Text>
+                          <FontAwesomeIcon icon={faTrash as IconProp} size={12} color="#991b1b" />
+                          <Text className="text-xs font-bold text-[#991b1b]">{isBusy ? 'Deleting...' : 'Delete'}</Text>
                         </Pressable>
                       ) : null}
                     </View>
@@ -726,18 +930,18 @@ export function GeoHelpBoardPage({ navigation }: Props) {
 
           {isRefreshing ? (
             <View className="mt-3 items-center">
-              <ActivityIndicator size="small" color="#2f64f6" />
+              <ActivityIndicator size="small" color="#1d4ed8" />
             </View>
           ) : null}
         </ScrollView>
 
-        <Modal visible={showSuggestModal} transparent animationType="fade" onRequestClose={() => setShowSuggestModal(false)}>
-          <Pressable className="flex-1 justify-end bg-black/30" onPress={() => setShowSuggestModal(false)}>
+        <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
+          <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setShowSuggestModal(false)}>
             <Pressable className="rounded-t-[28px] bg-white px-4 pb-6 pt-4" onPress={() => {}}>
               <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-lg font-extrabold text-[#12243f]">Suggest Location</Text>
-                <Pressable onPress={() => setShowSuggestModal(false)} className="h-8 w-8 items-center justify-center rounded-full bg-[#eff3fb]">
-                  <FontAwesomeIcon icon={faX as IconProp} size={13} color="#5f7291" />
+                <Text className="text-lg font-extrabold text-[#0f2244]">Suggest a New Place</Text>
+                <Pressable onPress={() => setShowSuggestModal(false)} className="h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff]">
+                  <FontAwesomeIcon icon={faX as IconProp} size={13} color="#4e6385" />
                 </Pressable>
               </View>
 
@@ -745,16 +949,16 @@ export function GeoHelpBoardPage({ navigation }: Props) {
                 value={suggestTitle}
                 onChangeText={setSuggestTitle}
                 placeholder="Title"
-                className="mb-2 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
               />
 
               <TextInput
                 value={suggestDescription}
                 onChangeText={setSuggestDescription}
                 placeholder="Description (optional)"
-                className="mb-2 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
                 multiline
               />
 
@@ -762,60 +966,59 @@ export function GeoHelpBoardPage({ navigation }: Props) {
                 value={suggestAddress}
                 onChangeText={setSuggestAddress}
                 placeholder="Address (optional)"
-                className="mb-2 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
               />
 
               <TextInput
                 value={suggestCity}
                 onChangeText={setSuggestCity}
                 placeholder="City"
-                className="mb-2 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                placeholderTextColor="#7c8ba3"
+                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                placeholderTextColor="#6a7fa2"
               />
 
-              <View className="mb-2 flex-row gap-2">
-                <TextInput
-                  value={suggestLat}
-                  onChangeText={setSuggestLat}
-                  keyboardType="decimal-pad"
-                  placeholder="Latitude"
-                  className="flex-1 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                  placeholderTextColor="#7c8ba3"
-                />
-                <TextInput
-                  value={suggestLng}
-                  onChangeText={setSuggestLng}
-                  keyboardType="decimal-pad"
-                  placeholder="Longitude"
-                  className="flex-1 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-sm text-[#12243f]"
-                  placeholderTextColor="#7c8ba3"
-                />
+              <View className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3">
+                <Text className="text-xs font-bold uppercase text-[#4e6385]">Suggestion Pin</Text>
+                <Text className="mt-1 text-sm text-[#1f3a63]">{suggestPlaceLabel}</Text>
               </View>
 
-              <Pressable
-                onPress={() => {
-                  setSuggestLat(String(point.latitude));
-                  setSuggestLng(String(point.longitude));
-                }}
-                className="mb-3 items-center rounded-xl bg-[#eef3ff] px-3 py-2"
-              >
-                <Text className="text-xs font-bold text-[#2f64f6]">Use current coordinates</Text>
+              <View className="mb-2 h-[160px] overflow-hidden rounded-xl border border-[#d9e5f7]">
+                <MapView
+                  style={{ flex: 1 }}
+                  region={{
+                    latitude: suggestPoint.latitude,
+                    longitude: suggestPoint.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  onLongPress={(event) => {
+                    const nextPoint = event.nativeEvent.coordinate;
+                    setSuggestPoint(nextPoint);
+                    void reverseLookupLabel(nextPoint).then((label) => setSuggestPlaceLabel(label));
+                  }}
+                >
+                  <Marker coordinate={suggestPoint} title="Suggestion Pin" pinColor="#1d4ed8" />
+                </MapView>
+              </View>
+
+              <Pressable onPress={() => void handleUseCurrentLocationForSuggestion()} className="mb-3 items-center rounded-xl bg-[#eef4ff] px-3 py-2">
+                <Text className="text-xs font-bold text-[#1d4ed8]">Use my current location</Text>
               </Pressable>
 
               <Pressable
                 onPress={() => void handleSubmitSuggestion()}
                 disabled={isSubmittingSuggestion}
-                className={`items-center rounded-xl px-3 py-3 ${isSubmittingSuggestion ? 'bg-[#97b5ff]' : 'bg-[#2f64f6]'}`}
+                className={`items-center rounded-xl px-3 py-3 ${isSubmittingSuggestion ? 'bg-[#93b2f2]' : 'bg-[#1d4ed8]'}`}
               >
-                <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit location'}</Text>
+                <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
         </Modal>
 
         <View className="bg-white">
-          <MobileBottomNav activeTab="geo-board" onNavigate={navigateBottom} />
+          <MobileBottomNav activeTab="geo-board" onNavigate={handleNavigateBottom} />
         </View>
       </View>
     </SafeAreaView>
@@ -824,8 +1027,8 @@ export function GeoHelpBoardPage({ navigation }: Props) {
 
 function FilterPill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} className={`rounded-full px-3 py-1.5 ${active ? 'bg-[#2f64f6]' : 'bg-[#eef3ff]'}`}>
-      <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-[#2f64f6]'}`}>{label}</Text>
+    <Pressable onPress={onPress} className={`rounded-full px-3 py-1.5 ${active ? 'bg-[#1d4ed8]' : 'bg-[#ebf2ff]'}`}>
+      <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-[#1d4ed8]'}`}>{label}</Text>
     </Pressable>
   );
 }
