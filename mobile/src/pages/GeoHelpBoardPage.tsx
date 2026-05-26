@@ -946,9 +946,10 @@ export function GeoHelpBoardPage(props: Props) {
         </ScrollView>
 
         <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
-          <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setShowSuggestModal(false)}>
+          <View className="flex-1 justify-end">
+            <Pressable className="absolute inset-0 bg-black/35" onPress={() => setShowSuggestModal(false)} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="max-h-[88%]">
-              <Pressable className="rounded-t-[28px] bg-white px-4 pb-6 pt-4" onPress={() => {}}>
+              <View className="rounded-t-[28px] bg-white px-4 pb-6 pt-4">
                 <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
                   <View className="mb-3 flex-row items-center justify-between">
                     <Text className="text-lg font-extrabold text-[#0f2244]">Suggest a New Place</Text>
@@ -1026,9 +1027,9 @@ export function GeoHelpBoardPage(props: Props) {
                     <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
                   </Pressable>
                 </ScrollView>
-              </Pressable>
+              </View>
             </KeyboardAvoidingView>
-          </Pressable>
+          </View>
         </Modal>
 
         <View className="bg-white">
