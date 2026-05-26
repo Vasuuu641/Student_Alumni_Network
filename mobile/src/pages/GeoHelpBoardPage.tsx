@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -947,83 +947,87 @@ export function GeoHelpBoardPage(props: Props) {
 
         <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
           <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setShowSuggestModal(false)}>
-            <Pressable className="rounded-t-[28px] bg-white px-4 pb-6 pt-4" onPress={() => {}}>
-              <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-lg font-extrabold text-[#0f2244]">Suggest a New Place</Text>
-                <Pressable onPress={() => setShowSuggestModal(false)} className="h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff]">
-                  <FontAwesomeIcon icon={faX as IconProp} size={13} color="#4e6385" />
-                </Pressable>
-              </View>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="max-h-[88%]">
+              <Pressable className="rounded-t-[28px] bg-white px-4 pb-6 pt-4" onPress={() => {}}>
+                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+                  <View className="mb-3 flex-row items-center justify-between">
+                    <Text className="text-lg font-extrabold text-[#0f2244]">Suggest a New Place</Text>
+                    <Pressable onPress={() => setShowSuggestModal(false)} className="h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff]">
+                      <FontAwesomeIcon icon={faX as IconProp} size={13} color="#4e6385" />
+                    </Pressable>
+                  </View>
 
-              <TextInput
-                value={suggestTitle}
-                onChangeText={setSuggestTitle}
-                placeholder="Title"
-                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
-              />
+                  <TextInput
+                    value={suggestTitle}
+                    onChangeText={setSuggestTitle}
+                    placeholder="Title"
+                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                    placeholderTextColor="#6a7fa2"
+                  />
 
-              <TextInput
-                value={suggestDescription}
-                onChangeText={setSuggestDescription}
-                placeholder="Description (optional)"
-                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
-                multiline
-              />
+                  <TextInput
+                    value={suggestDescription}
+                    onChangeText={setSuggestDescription}
+                    placeholder="Description (optional)"
+                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                    placeholderTextColor="#6a7fa2"
+                    multiline
+                  />
 
-              <TextInput
-                value={suggestAddress}
-                onChangeText={setSuggestAddress}
-                placeholder="Address (optional)"
-                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
-              />
+                  <TextInput
+                    value={suggestAddress}
+                    onChangeText={setSuggestAddress}
+                    placeholder="Address (optional)"
+                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                    placeholderTextColor="#6a7fa2"
+                  />
 
-              <TextInput
-                value={suggestCity}
-                onChangeText={setSuggestCity}
-                placeholder="City"
-                className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
-              />
+                  <TextInput
+                    value={suggestCity}
+                    onChangeText={setSuggestCity}
+                    placeholder="City"
+                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
+                    placeholderTextColor="#6a7fa2"
+                  />
 
-              <View className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3">
-                <Text className="text-xs font-bold uppercase text-[#4e6385]">Suggestion Pin</Text>
-                <Text className="mt-1 text-sm text-[#1f3a63]">{suggestPlaceLabel}</Text>
-              </View>
+                  <View className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3">
+                    <Text className="text-xs font-bold uppercase text-[#4e6385]">Suggestion Pin</Text>
+                    <Text className="mt-1 text-sm text-[#1f3a63]">{suggestPlaceLabel}</Text>
+                  </View>
 
-              <View className="mb-2 h-[160px] overflow-hidden rounded-xl border border-[#d9e5f7]">
-                <MapView
-                  style={{ flex: 1 }}
-                  region={{
-                    latitude: suggestPoint.latitude,
-                    longitude: suggestPoint.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  onLongPress={(event) => {
-                    const nextPoint = event.nativeEvent.coordinate;
-                    setSuggestPoint(nextPoint);
-                    void reverseLookupLabel(nextPoint).then((label) => setSuggestPlaceLabel(label));
-                  }}
-                >
-                  <Marker coordinate={suggestPoint} title="Suggestion Pin" pinColor="#1d4ed8" />
-                </MapView>
-              </View>
+                  <View className="mb-2 h-[160px] overflow-hidden rounded-xl border border-[#d9e5f7]">
+                    <MapView
+                      style={{ flex: 1 }}
+                      region={{
+                        latitude: suggestPoint.latitude,
+                        longitude: suggestPoint.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      onLongPress={(event) => {
+                        const nextPoint = event.nativeEvent.coordinate;
+                        setSuggestPoint(nextPoint);
+                        void reverseLookupLabel(nextPoint).then((label) => setSuggestPlaceLabel(label));
+                      }}
+                    >
+                      <Marker coordinate={suggestPoint} title="Suggestion Pin" pinColor="#1d4ed8" />
+                    </MapView>
+                  </View>
 
-              <Pressable onPress={() => void handleUseCurrentLocationForSuggestion()} className="mb-3 items-center rounded-xl bg-[#eef4ff] px-3 py-2">
-                <Text className="text-xs font-bold text-[#1d4ed8]">Use my current location</Text>
+                  <Pressable onPress={() => void handleUseCurrentLocationForSuggestion()} className="mb-3 items-center rounded-xl bg-[#eef4ff] px-3 py-2">
+                    <Text className="text-xs font-bold text-[#1d4ed8]">Use my current location</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => void handleSubmitSuggestion()}
+                    disabled={isSubmittingSuggestion}
+                    className={`items-center rounded-xl px-3 py-3 ${isSubmittingSuggestion ? 'bg-[#93b2f2]' : 'bg-[#1d4ed8]'}`}
+                  >
+                    <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
+                  </Pressable>
+                </ScrollView>
               </Pressable>
-
-              <Pressable
-                onPress={() => void handleSubmitSuggestion()}
-                disabled={isSubmittingSuggestion}
-                className={`items-center rounded-xl px-3 py-3 ${isSubmittingSuggestion ? 'bg-[#93b2f2]' : 'bg-[#1d4ed8]'}`}
-              >
-                <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
-              </Pressable>
-            </Pressable>
+            </KeyboardAvoidingView>
           </Pressable>
         </Modal>
 
