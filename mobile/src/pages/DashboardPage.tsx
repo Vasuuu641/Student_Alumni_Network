@@ -183,7 +183,7 @@ export function DashboardPage({ navigation }: Props) {
     }
 
     if (tab === 'geo-board') {
-      openNotice('Geo Help Board will be added in the next mobile update.');
+      navigation.navigate('GeoHelpBoard');
       return;
     }
 
@@ -353,7 +353,7 @@ export function DashboardPage({ navigation }: Props) {
               <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
               <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => navigation.navigate('Discussions')} />
               <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => navigation.navigate('StudyGroups')} />
-              <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => openNotice('Geo board will be added in the next mobile update.')} />
+              <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => navigation.navigate('GeoHelpBoard')} />
             </View>
           </View>
 
