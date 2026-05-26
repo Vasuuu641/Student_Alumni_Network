@@ -177,7 +177,7 @@ export function GeoHelpBoardPage(props: Props) {
 
   const [activeTab, setActiveTab] = useState<ResourceTab>('OFFICIAL');
   const [category, setCategory] = useState<CategoryFilter>('ALL');
-  const [cityFilter, setCityFilter] = useState('Pecs');
+  const [cityFilter, setCityFilter] = useState('');
   const [radiusInput, setRadiusInput] = useState('5');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -272,11 +272,22 @@ export function GeoHelpBoardPage(props: Props) {
 
   const fetchSpotsWithFallback = useCallback(
     async (token: string): Promise<GeoHelpSpot[]> => {
+      const city = cityFilter.trim() || undefined;
+
+      if (activeTab === 'COMMUNITY') {
+        return listPopularGeoHelpSpots(token, {
+          city,
+          section: currentSection,
+          category: apiCategory,
+          limit: 40,
+        });
+      }
+
       const nearby = await listNearbyGeoHelpSpots(token, {
         latitude: point.latitude,
         longitude: point.longitude,
         radiusKm,
-        city: cityFilter.trim() || undefined,
+        city,
         section: currentSection,
         category: apiCategory,
         limit: 40,
@@ -287,13 +298,13 @@ export function GeoHelpBoardPage(props: Props) {
       }
 
       return listPopularGeoHelpSpots(token, {
-        city: cityFilter.trim() || undefined,
+        city,
         section: currentSection,
         category: apiCategory,
         limit: 40,
       });
     },
-    [apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm],
+    [activeTab, apiCategory, cityFilter, currentSection, point.latitude, point.longitude, radiusKm],
   );
 
   const loadSpots = useCallback(
@@ -359,7 +370,6 @@ export function GeoHelpBoardPage(props: Props) {
       const cityResult = await Location.reverseGeocodeAsync(nextPoint);
       const resolvedCity = cityResult[0]?.city ?? cityResult[0]?.subregion ?? '';
       if (resolvedCity) {
-        setCityFilter(resolvedCity);
         setSuggestCity(resolvedCity);
       }
 
