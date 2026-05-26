@@ -564,6 +564,40 @@ export function GeoHelpBoardPage(props: Props) {
     }
   }, []);
 
+  const handleResolveSuggestionLocation = useCallback(async () => {
+    const query = [suggestAddress.trim(), suggestCity.trim()].filter(Boolean).join(', ');
+
+    if (!query) {
+      return;
+    }
+
+    try {
+      const geocode = await Location.geocodeAsync(query);
+      const first = geocode[0];
+
+      if (!first) {
+        setNoticeMessage('No matching suggestion location found. Try a more specific address.');
+        return;
+      }
+
+      const nextPoint = { latitude: first.latitude, longitude: first.longitude };
+      setSuggestPoint(nextPoint);
+
+      const label = await reverseLookupLabel(nextPoint);
+      setSuggestPlaceLabel(label);
+
+      const reverse = await Location.reverseGeocodeAsync(nextPoint);
+      const resolvedCity = reverse[0]?.city ?? reverse[0]?.subregion ?? '';
+      if (resolvedCity) {
+        setSuggestCity(resolvedCity);
+      }
+
+      setNoticeMessage('Suggestion pin moved to the entered location.');
+    } catch (error) {
+      setNoticeMessage(error instanceof Error ? error.message : 'Unable to find that suggestion location.');
+    }
+  }, [suggestAddress, suggestCity]);
+
   const handleNavigateBottom = useCallback(
     (tab: MobileNavTab) => {
       if (!navigation) {
@@ -981,6 +1015,8 @@ export function GeoHelpBoardPage(props: Props) {
                     placeholder="Address (optional)"
                     className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
                     placeholderTextColor="#6a7fa2"
+                    returnKeyType="done"
+                    onEndEditing={() => void handleResolveSuggestionLocation()}
                   />
 
                   <TextInput
@@ -989,6 +1025,8 @@ export function GeoHelpBoardPage(props: Props) {
                     placeholder="City"
                     className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
                     placeholderTextColor="#6a7fa2"
+                    returnKeyType="done"
+                    onEndEditing={() => void handleResolveSuggestionLocation()}
                   />
 
                   <View className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3">
