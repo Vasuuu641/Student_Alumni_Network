@@ -4556,6 +4556,9 @@
   }
 
   .note-paper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 52rem;
     min-height: 60rem;
@@ -4637,9 +4640,64 @@
     background: var(--theme-surface); padding: 0 0.45rem;
   }
 
+  .note-editor .note-page-section {
+    min-height: 42rem;
+    margin: 0.75rem 0 1.5rem;
+    padding: 2.5rem 3rem;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 0.45rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .note-editor .note-page-section > *:first-child {
+    margin-top: 0;
+  }
+
+  .note-editor .note-page-section > *:last-child {
+    margin-bottom: 0;
+  }
+
   .note-editor .tiptap p.is-editor-empty:first-child::before {
     content: attr(data-placeholder); float: left; color: var(--theme-muted);
     pointer-events: none; height: 0;
+  }
+
+  .note-page-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: auto;
+    padding-top: 2rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .note-page-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px dashed var(--theme-border);
+    background: color-mix(in srgb, var(--theme-surface) 82%, var(--theme-bg) 18%);
+    color: var(--theme-muted);
+    border-radius: 999px;
+    padding: 0.65rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .note-page-add-btn:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--theme-primary) 55%, var(--theme-border) 45%);
+    color: var(--theme-primary);
+    background: color-mix(in srgb, var(--theme-surface) 70%, var(--theme-primary-soft) 30%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .note-page-add-btn--ready {
+    border-color: var(--theme-primary);
+    color: var(--theme-primary);
+    background: color-mix(in srgb, var(--theme-surface) 65%, var(--theme-primary-soft) 35%);
   }
 
   .note-editor [style*='color'] {

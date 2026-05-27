@@ -1,5 +1,5 @@
 // src/components/notes/CollaborativeEditor.tsx
-import { useEffect, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -15,7 +15,8 @@ import Highlight from '@tiptap/extension-highlight'
 import Link from '@tiptap/extension-link'
 import FontFamily from '@tiptap/extension-font-family'
 import TextStyle from '@tiptap/extension-text-style'
-import { Extension } from '@tiptap/core'
+import { Extension, Node, mergeAttributes } from '@tiptap/core'
+import { Plus } from 'lucide-react'
 
 //custom font size extension 
 const FontSize = Extension.create({
@@ -61,6 +62,45 @@ const FontSize = Extension.create({
   },
 })
 
+const PageSection = Node.create({
+  name: 'pageSection',
+  group: 'block',
+  content: 'block*',
+  defining: true,
+  isolating: true,
+
+  parseHTML() {
+    return [
+      {
+        tag: 'section[data-type="page-section"]',
+      },
+    ]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'section',
+      mergeAttributes(HTMLAttributes, {
+        'data-type': 'page-section',
+        class: 'note-page-section',
+        style: [
+          'display: block',
+          'width: 100%',
+          'box-sizing: border-box',
+          'min-height: 42rem',
+          'margin: 0.75rem 0 1.5rem',
+          'padding: 2.5rem 3rem',
+          'background: var(--theme-surface)',
+          'border: 1px solid var(--theme-border)',
+          'border-radius: 0.45rem',
+          'box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06)',
+        ].join('; '),
+      }),
+      0,
+    ]
+  },
+})
+
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface Props {
@@ -92,12 +132,14 @@ export function CollaborativeEditor({
   onContentUpdate,
 }: Props) {
   const PAGE_CHAR_LIMIT = 2200
+  const AUTO_PAGE_BREAK_THRESHOLD = Math.floor(PAGE_CHAR_LIMIT * 0.85)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasSeededInitialContentRef = useRef(false)
   const autosaveArmedRef = useRef(false)
   const autoPageBreakInProgressRef = useRef(false)
   const autoInsertedPageCountRef = useRef(0)
   const previousTextLengthRef = useRef(0)
+  const [currentTextLength, setCurrentTextLength] = useState(0)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
@@ -185,6 +227,14 @@ export function CollaborativeEditor({
     lastSavedSerializedRef.current = serialized
   }, [noteId])
 
+  const buildBlankPageSpacer = useCallback(() => [
+    { type: 'horizontalRule' as const },
+    {
+      type: 'pageSection' as const,
+      content: [{ type: 'paragraph' as const }],
+    },
+  ], [])
+
   const waitForSaveQueueToDrain = useCallback(async () => {
     while (inFlightSaveRef.current || hasPendingSaveRef.current) {
       await new Promise((resolve) => setTimeout(resolve, 20))
@@ -215,15 +265,10 @@ export function CollaborativeEditor({
 
     // Skip large jumps from hydration/sync; only react to normal typing growth.
     if (Math.abs(textLength - previousLength) > 80) return
-    if (textLength < PAGE_CHAR_LIMIT) return
+    if (textLength < AUTO_PAGE_BREAK_THRESHOLD) return
 
     const requiredBreaks = Math.floor(textLength / PAGE_CHAR_LIMIT)
     if (requiredBreaks <= autoInsertedPageCountRef.current) return
-
-    const buildBlankPageSpacer = () => [
-      { type: 'horizontalRule' as const },
-      ...Array.from({ length: 20 }, () => ({ type: 'paragraph' as const })),
-    ]
 
     autoPageBreakInProgressRef.current = true
     autoInsertedPageCountRef.current = requiredBreaks
@@ -238,7 +283,7 @@ export function CollaborativeEditor({
     setTimeout(() => {
       autoPageBreakInProgressRef.current = false
     }, 0)
-  }, [peerCount, PAGE_CHAR_LIMIT])
+  }, [AUTO_PAGE_BREAK_THRESHOLD, buildBlankPageSpacer, peerCount])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -270,6 +315,7 @@ export function CollaborativeEditor({
         Placeholder.configure({
           placeholder: 'Start writing…',
         }),
+        PageSection,
         TextAlign.configure({
           types: ['paragraph', 'heading'],
         }),
@@ -303,10 +349,16 @@ export function CollaborativeEditor({
           if (editor.getText().trim().length > 0) {
             latestContentRef.current = snapshot
           }
+          setCurrentTextLength((prev) => {
+            const next = editor.getText().trim().length
+            return prev === next ? prev : next
+          })
           return
         }
 
         latestContentRef.current = snapshot
+        const textLength = editor.getText().trim().length
+        setCurrentTextLength((prev) => (prev === textLength ? prev : textLength))
 
         maybeInsertAutoPageBreak(editor)
 
@@ -319,6 +371,18 @@ export function CollaborativeEditor({
     },
     [], // empty — never remount
   )
+
+  const insertPageBreak = useCallback(() => {
+    if (!editor || !canEditRef.current) return
+
+    const endPos = editor.state.doc.content.size
+    editor
+      .chain()
+      .focus('end')
+      .insertContentAt(endPos, buildBlankPageSpacer())
+      .focus('end')
+      .run()
+  }, [buildBlankPageSpacer, editor])
 
   useEffect(() => {
     onRegisterFlush?.(flushPendingSave)
@@ -359,8 +423,10 @@ export function CollaborativeEditor({
       if (!hasMeaningfulContent && peerCount === 0) {
         editor.commands.setContent(initialContent)
         latestContentRef.current = initialContent
+        setCurrentTextLength(editor.getText().trim().length)
       } else {
         latestContentRef.current = editor.getJSON()
+        setCurrentTextLength(editor.getText().trim().length)
       }
 
       lastSavedSerializedRef.current = JSON.stringify(initialContent)
@@ -403,6 +469,7 @@ export function CollaborativeEditor({
     lastSavedSerializedRef.current = JSON.stringify(latestContentRef.current)
     lastAppliedContentVersionRef.current = contentVersion
     autosaveArmedRef.current = true
+    setCurrentTextLength(editor.getText().trim().length)
   }, [editor, contentVersion, initialContent])
 
   // Keep editable in sync if role changes mid-session
@@ -477,6 +544,18 @@ export function CollaborativeEditor({
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
+          <div className="note-page-actions">
+            <button
+              type="button"
+              className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
+              onClick={insertPageBreak}
+              title="Add page"
+              aria-label="Add page"
+            >
+              <Plus size={17} />
+              <span>Add page</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
