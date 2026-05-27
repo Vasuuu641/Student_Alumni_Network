@@ -16,7 +16,7 @@ import Link from '@tiptap/extension-link'
 import FontFamily from '@tiptap/extension-font-family'
 import TextStyle from '@tiptap/extension-text-style'
 import { Extension, Node, mergeAttributes } from '@tiptap/core'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 
 //custom font size extension 
 const FontSize = Extension.create({
@@ -87,9 +87,9 @@ const PageSection = Node.create({
           'display: block',
           'width: 100%',
           'box-sizing: border-box',
-          'min-height: 42rem',
-          'margin: 0.75rem 0 1.5rem',
-          'padding: 2.5rem 3rem',
+          'min-height: 60rem',
+          'margin: 2rem 0 1.5rem',
+          'padding: 4rem 5rem',
           'background: var(--theme-surface)',
           'border: 1px solid var(--theme-border)',
           'border-radius: 0.45rem',
@@ -140,6 +140,7 @@ export function CollaborativeEditor({
   const autoInsertedPageCountRef = useRef(0)
   const previousTextLengthRef = useRef(0)
   const [currentTextLength, setCurrentTextLength] = useState(0)
+  const [extraPageCount, setExtraPageCount] = useState(0)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
@@ -158,6 +159,7 @@ export function CollaborativeEditor({
   const pendingContentRef = useRef<any>(null)
   const lastAppliedContentVersionRef = useRef<number | null>(null)
   const suppressAutosaveNextUpdateRef = useRef(false)
+  const editorRef = useRef<any>(null)
 
   // Refs to keep onUpdate closure always fresh without
   // needing canEdit or persistContent in useEditor deps.
@@ -241,6 +243,18 @@ export function CollaborativeEditor({
     }
   }, [])
 
+  const syncEditorMetrics = useCallback((editorInstance: any) => {
+    setCurrentTextLength(editorInstance.getText().trim().length)
+
+    let pageCount = 0
+    editorInstance.state.doc.descendants((node: any) => {
+      if (node.type?.name === 'pageSection') {
+        pageCount += 1
+      }
+    })
+    setExtraPageCount(pageCount)
+  }, [])
+
   // flushPendingSave no longer depends on persistContent directly —
   // it calls through the ref so it's a stable reference that never
   // changes, which stops the visibilitychange effect from re-running
@@ -284,6 +298,33 @@ export function CollaborativeEditor({
       autoPageBreakInProgressRef.current = false
     }, 0)
   }, [AUTO_PAGE_BREAK_THRESHOLD, buildBlankPageSpacer, peerCount])
+
+  const removeLastPage = useCallback(() => {
+    const editorInstance = editorRef.current
+    if (!editorInstance || !canEditRef.current) return
+
+    let lastPagePos: number | null = null
+    let lastPageEnd: number | null = null
+    let lastBreakPos: number | null = null
+    let breakForLastPage: number | null = null
+
+    editorInstance.state.doc.descendants((node: any, pos: number) => {
+      if (node.type.name === 'horizontalRule') {
+        lastBreakPos = pos
+      }
+
+      if (node.type.name === 'pageSection') {
+        lastPagePos = pos
+        lastPageEnd = pos + node.nodeSize
+        breakForLastPage = lastBreakPos
+      }
+    })
+
+    if (lastPagePos === null || lastPageEnd === null) return
+
+    const from = breakForLastPage !== null ? breakForLastPage : lastPagePos
+    editorInstance.chain().focus().deleteRange({ from, to: lastPageEnd }).run()
+  }, [])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -349,16 +390,12 @@ export function CollaborativeEditor({
           if (editor.getText().trim().length > 0) {
             latestContentRef.current = snapshot
           }
-          setCurrentTextLength((prev) => {
-            const next = editor.getText().trim().length
-            return prev === next ? prev : next
-          })
+          syncEditorMetrics(editor)
           return
         }
 
         latestContentRef.current = snapshot
-        const textLength = editor.getText().trim().length
-        setCurrentTextLength((prev) => (prev === textLength ? prev : textLength))
+        syncEditorMetrics(editor)
 
         maybeInsertAutoPageBreak(editor)
 
@@ -372,17 +409,22 @@ export function CollaborativeEditor({
     [], // empty — never remount
   )
 
-  const insertPageBreak = useCallback(() => {
-    if (!editor || !canEditRef.current) return
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
 
-    const endPos = editor.state.doc.content.size
-    editor
+  const insertPageBreak = useCallback(() => {
+    const editorInstance = editorRef.current
+    if (!editorInstance || !canEditRef.current) return
+
+    const endPos = editorInstance.state.doc.content.size
+    editorInstance
       .chain()
       .focus('end')
       .insertContentAt(endPos, buildBlankPageSpacer())
       .focus('end')
       .run()
-  }, [buildBlankPageSpacer, editor])
+  }, [buildBlankPageSpacer])
 
   useEffect(() => {
     onRegisterFlush?.(flushPendingSave)
@@ -423,10 +465,10 @@ export function CollaborativeEditor({
       if (!hasMeaningfulContent && peerCount === 0) {
         editor.commands.setContent(initialContent)
         latestContentRef.current = initialContent
-        setCurrentTextLength(editor.getText().trim().length)
+        syncEditorMetrics(editor)
       } else {
         latestContentRef.current = editor.getJSON()
-        setCurrentTextLength(editor.getText().trim().length)
+        syncEditorMetrics(editor)
       }
 
       lastSavedSerializedRef.current = JSON.stringify(initialContent)
@@ -469,7 +511,7 @@ export function CollaborativeEditor({
     lastSavedSerializedRef.current = JSON.stringify(latestContentRef.current)
     lastAppliedContentVersionRef.current = contentVersion
     autosaveArmedRef.current = true
-    setCurrentTextLength(editor.getText().trim().length)
+    syncEditorMetrics(editor)
   }, [editor, contentVersion, initialContent])
 
   // Keep editable in sync if role changes mid-session
@@ -544,18 +586,29 @@ export function CollaborativeEditor({
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
-          <div className="note-page-actions">
-            <button
-              type="button"
-              className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
-              onClick={insertPageBreak}
-              title="Add page"
-              aria-label="Add page"
-            >
-              <Plus size={17} />
-              <span>Add page</span>
-            </button>
-          </div>
+        </div>
+        <div className="note-page-actions">
+          <button
+            type="button"
+            className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
+            onClick={insertPageBreak}
+            title="Add page"
+            aria-label="Add page"
+          >
+            <Plus size={17} />
+            <span>Add page</span>
+          </button>
+          <button
+            type="button"
+            className="note-page-remove-btn"
+            onClick={removeLastPage}
+            title="Remove last page"
+            aria-label="Remove last page"
+            disabled={extraPageCount === 0}
+          >
+            <Trash2 size={16} />
+            <span>Remove page</span>
+          </button>
         </div>
       </div>
     </div>
