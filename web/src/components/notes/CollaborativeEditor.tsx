@@ -83,18 +83,6 @@ const PageSection = Node.create({
       mergeAttributes(HTMLAttributes, {
         'data-type': 'page-section',
         class: 'note-page-section',
-        style: [
-          'display: block',
-          'width: 100%',
-          'box-sizing: border-box',
-          'min-height: 60rem',
-          'margin: 2rem 0 1.5rem',
-          'padding: 4rem 5rem',
-          'background: var(--theme-surface)',
-          'border: 1px solid var(--theme-border)',
-          'border-radius: 0.45rem',
-          'box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06)',
-        ].join('; '),
       }),
       0,
     ]
@@ -141,6 +129,7 @@ export function CollaborativeEditor({
   const previousTextLengthRef = useRef(0)
   const [currentTextLength, setCurrentTextLength] = useState(0)
   const [extraPageCount, setExtraPageCount] = useState(0)
+  const [actionSpacerHeight, setActionSpacerHeight] = useState(24)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
@@ -160,6 +149,7 @@ export function CollaborativeEditor({
   const lastAppliedContentVersionRef = useRef<number | null>(null)
   const suppressAutosaveNextUpdateRef = useRef(false)
   const editorRef = useRef<any>(null)
+  const notePaperRef = useRef<HTMLDivElement | null>(null)
 
   // Refs to keep onUpdate closure always fresh without
   // needing canEdit or persistContent in useEditor deps.
@@ -254,6 +244,42 @@ export function CollaborativeEditor({
     })
     setExtraPageCount(pageCount)
   }, [])
+
+  useEffect(() => {
+    const measureActionSpacer = () => {
+      const notePaperEl = notePaperRef.current
+      if (!notePaperEl) return
+
+      const firstPageEl = notePaperEl.querySelector('.note-page-section') as HTMLElement | null
+      const lastPageEl = notePaperEl.querySelector('.note-page-section:last-of-type') as HTMLElement | null
+
+      if (firstPageEl) {
+        const paperRect = notePaperEl.getBoundingClientRect()
+        const breakEl = notePaperEl.querySelector('hr') as HTMLElement | null
+        const anchorBottom = breakEl ? breakEl.getBoundingClientRect().bottom : paperRect.bottom
+        const pageGap = Math.max(24, Math.ceil(paperRect.bottom - anchorBottom + 32))
+        firstPageEl.style.marginTop = `${pageGap}px`
+      }
+
+      if (!lastPageEl) {
+        setActionSpacerHeight(24)
+        return
+      }
+
+      const paperRect = notePaperEl.getBoundingClientRect()
+      const lastPageRect = lastPageEl.getBoundingClientRect()
+      const spacer = Math.max(24, Math.ceil(lastPageRect.bottom - paperRect.bottom + 32))
+      setActionSpacerHeight(spacer)
+    }
+
+    const frame = requestAnimationFrame(measureActionSpacer)
+    window.addEventListener('resize', measureActionSpacer)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', measureActionSpacer)
+    }
+  }, [currentTextLength, extraPageCount, contentVersion, roomStatus, noteId])
 
   // flushPendingSave no longer depends on persistContent directly —
   // it calls through the ref so it's a stable reference that never
@@ -584,9 +610,10 @@ export function CollaborativeEditor({
       )}
 
       <div className="note-scroll-area">
-        <div className="note-paper">
+        <div ref={notePaperRef} className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
         </div>
+        <div className="note-page-actions-spacer" aria-hidden="true" style={{ height: `${actionSpacerHeight}px` }} />
         <div className="note-page-actions">
           <button
             type="button"
