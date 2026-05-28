@@ -225,6 +225,43 @@ export function CollaborativeEditor({
     },
   ], [])
 
+  const getLastPageSectionMeta = useCallback((doc: any) => {
+    let lastPagePos: number | null = null
+    let lastPageEnd: number | null = null
+    let lastPageNode: any = null
+    let lastBreakPos: number | null = null
+    let breakForLastPage: number | null = null
+
+    doc.descendants((node: any, pos: number) => {
+      if (node.type.name === 'horizontalRule') {
+        lastBreakPos = pos
+      }
+
+      if (node.type.name === 'pageSection') {
+        lastPagePos = pos
+        lastPageEnd = pos + node.nodeSize
+        lastPageNode = node
+        breakForLastPage = lastBreakPos
+      }
+    })
+
+    if (lastPagePos === null || lastPageEnd === null || !lastPageNode) {
+      return null
+    }
+
+    return {
+      start: lastPagePos,
+      end: lastPageEnd,
+      breakPos: breakForLastPage,
+      node: lastPageNode,
+    }
+  }, [])
+
+  const isPageSectionEmpty = useCallback((pageNode: any) => {
+    if (!pageNode) return false
+    return pageNode.textContent.trim().length === 0
+  }, [])
+
   const waitForSaveQueueToDrain = useCallback(async () => {
     while (inFlightSaveRef.current || hasPendingSaveRef.current) {
       await new Promise((resolve) => setTimeout(resolve, 20))
@@ -242,6 +279,38 @@ export function CollaborativeEditor({
     })
     setExtraPageCount(pageCount)
   }, [])
+
+  const insertPageBreak = useCallback(() => {
+    const editorInstance = editorRef.current
+    if (!editorInstance || !canEditRef.current) return
+
+    const endPos = editorInstance.state.doc.content.size
+    editorInstance
+      .chain()
+      .focus('end')
+      .insertContentAt(endPos, buildBlankPageSpacer())
+      .focus('end')
+      .run()
+  }, [buildBlankPageSpacer])
+
+  const removeTrailingPage = useCallback((requireEmpty: boolean) => {
+    const editorInstance = editorRef.current
+    if (!editorInstance || !canEditRef.current) return false
+
+    const meta = getLastPageSectionMeta(editorInstance.state.doc)
+    if (!meta) return false
+    if (requireEmpty && !isPageSectionEmpty(meta.node)) return false
+
+    const from = meta.breakPos !== null ? meta.breakPos : meta.start
+    editorInstance
+      .chain()
+      .focus()
+      .deleteRange({ from, to: meta.end })
+      .focus('end')
+      .run()
+
+    return true
+  }, [getLastPageSectionMeta, isPageSectionEmpty])
 
   // flushPendingSave no longer depends on persistContent directly —
   // it calls through the ref so it's a stable reference that never
@@ -288,31 +357,8 @@ export function CollaborativeEditor({
   }, [AUTO_PAGE_BREAK_THRESHOLD, buildBlankPageSpacer, peerCount])
 
   const removeLastPage = useCallback(() => {
-    const editorInstance = editorRef.current
-    if (!editorInstance || !canEditRef.current) return
-
-    let lastPagePos: number | null = null
-    let lastPageEnd: number | null = null
-    let lastBreakPos: number | null = null
-    let breakForLastPage: number | null = null
-
-    editorInstance.state.doc.descendants((node: any, pos: number) => {
-      if (node.type.name === 'horizontalRule') {
-        lastBreakPos = pos
-      }
-
-      if (node.type.name === 'pageSection') {
-        lastPagePos = pos
-        lastPageEnd = pos + node.nodeSize
-        breakForLastPage = lastBreakPos
-      }
-    })
-
-    if (lastPagePos === null || lastPageEnd === null) return
-
-    const from = breakForLastPage !== null ? breakForLastPage : lastPagePos
-    editorInstance.chain().focus().deleteRange({ from, to: lastPageEnd }).run()
-  }, [])
+    void removeTrailingPage(false)
+  }, [removeTrailingPage])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -360,6 +406,45 @@ export function CollaborativeEditor({
         FontSize
       ],
       editable: false, // setEditable effect handles this
+      editorProps: {
+        handleKeyDown: (view, event) => {
+          if (!canEditRef.current) return false
+
+          const state = view.state
+          if (!state.selection.empty) return false
+
+          const lastPageMeta = getLastPageSectionMeta(state.doc)
+
+          if (event.key === 'ArrowDown') {
+            const atDocEnd = state.selection.$from.pos >= state.doc.content.size - 1
+            if (!atDocEnd) return false
+
+            if (lastPageMeta && isPageSectionEmpty(lastPageMeta.node)) {
+              return false
+            }
+
+            insertPageBreak()
+            event.preventDefault()
+            return true
+          }
+
+          if (event.key === 'ArrowUp' && lastPageMeta && isPageSectionEmpty(lastPageMeta.node)) {
+            const cursorPos = state.selection.$from.pos
+            const inLastPage = cursorPos >= lastPageMeta.start && cursorPos <= lastPageMeta.end
+            const atStartOfLastPage = cursorPos <= lastPageMeta.start + 1
+
+            if (inLastPage && atStartOfLastPage) {
+              const removed = removeTrailingPage(true)
+              if (removed) {
+                event.preventDefault()
+                return true
+              }
+            }
+          }
+
+          return false
+        },
+      },
       onUpdate: ({ editor }) => {
         const snapshot = editor.getJSON()
 
@@ -400,19 +485,6 @@ export function CollaborativeEditor({
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
-
-  const insertPageBreak = useCallback(() => {
-    const editorInstance = editorRef.current
-    if (!editorInstance || !canEditRef.current) return
-
-    const endPos = editorInstance.state.doc.content.size
-    editorInstance
-      .chain()
-      .focus('end')
-      .insertContentAt(endPos, buildBlankPageSpacer())
-      .focus('end')
-      .run()
-  }, [buildBlankPageSpacer])
 
   useEffect(() => {
     onRegisterFlush?.(flushPendingSave)

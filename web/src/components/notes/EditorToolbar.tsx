@@ -93,7 +93,10 @@ export function EditorToolbar({ editor }: Props) {
 
   const buildBlankPageSpacer = () => [
     { type: 'horizontalRule' as const },
-    ...Array.from({ length: 20 }, () => ({ type: 'paragraph' as const })),
+    {
+      type: 'pageSection' as const,
+      content: [{ type: 'paragraph' as const }],
+    },
   ]
 
   const insertPageBreak = () => {
