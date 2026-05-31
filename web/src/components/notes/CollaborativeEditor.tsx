@@ -737,8 +737,8 @@ export function CollaborativeEditor({
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
+          {pageActions}
         </div>
-        {pageActions}
       </div>
     </div>
   )
