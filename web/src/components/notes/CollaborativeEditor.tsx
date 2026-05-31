@@ -69,6 +69,18 @@ const PageSection = Node.create({
   defining: true,
   isolating: true,
 
+  addAttributes() {
+    return {
+      basePage: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-base-page') === 'true',
+        renderHTML: (attributes) => (
+          attributes.basePage ? { 'data-base-page': 'true' } : {}
+        ),
+      },
+    }
+  },
+
   parseHTML() {
     return [
       {
@@ -78,11 +90,12 @@ const PageSection = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
+    const isBasePage = HTMLAttributes['data-base-page'] === 'true'
     return [
       'section',
       mergeAttributes(HTMLAttributes, {
         'data-type': 'page-section',
-        class: 'note-page-section',
+        class: `note-page-section${isBasePage ? ' note-page-section--base' : ''}`,
       }),
       0,
     ]
@@ -221,9 +234,72 @@ export function CollaborativeEditor({
     { type: 'horizontalRule' as const },
     {
       type: 'pageSection' as const,
+      attrs: { basePage: false },
       content: [{ type: 'paragraph' as const }],
     },
   ], [])
+
+  const buildBasePageSection = useCallback((content: any[]) => ({
+    type: 'pageSection' as const,
+    attrs: { basePage: true },
+    content,
+  }), [])
+
+  const appendBlankPageAtEnd = useCallback((editorInstance: any) => {
+    const endPos = editorInstance.state.doc.content.size
+    editorInstance
+      .chain()
+      .focus('end')
+      .insertContentAt(endPos, buildBlankPageSpacer())
+      .focus('end')
+      .run()
+  }, [buildBlankPageSpacer])
+
+  const migrateBasePageToSectionAndAppend = useCallback((editorInstance: any) => {
+    const snapshot = editorInstance.getJSON()
+    const currentDocContent = Array.isArray(snapshot?.content) ? snapshot.content : []
+    const hasOnlyEmptyParagraph = currentDocContent.length === 1
+      && currentDocContent[0]?.type === 'paragraph'
+      && !Array.isArray(currentDocContent[0]?.content)
+    const baseContent = hasOnlyEmptyParagraph
+      ? [{ type: 'paragraph' as const }]
+      : (currentDocContent.length > 0 ? currentDocContent : [{ type: 'paragraph' as const }])
+
+    editorInstance
+      .chain()
+      .setContent({
+        type: 'doc',
+        content: [
+          buildBasePageSection(baseContent),
+          { type: 'horizontalRule' },
+          {
+            type: 'pageSection',
+            attrs: { basePage: false },
+            content: [{ type: 'paragraph' }],
+          },
+        ],
+      })
+      .focus('end')
+      .run()
+  }, [buildBasePageSection])
+
+  const insertPageBreakAtEnd = useCallback((editorInstance: any) => {
+    let hasPageSection = false
+    editorInstance.state.doc.descendants((node: any) => {
+      if (node.type?.name === 'pageSection') {
+        hasPageSection = true
+        return false
+      }
+      return true
+    })
+
+    if (!hasPageSection) {
+      migrateBasePageToSectionAndAppend(editorInstance)
+      return
+    }
+
+    appendBlankPageAtEnd(editorInstance)
+  }, [appendBlankPageAtEnd, migrateBasePageToSectionAndAppend])
 
   const getLastPageSectionMeta = useCallback((doc: any) => {
     let lastPagePos: number | null = null
@@ -271,27 +347,21 @@ export function CollaborativeEditor({
   const syncEditorMetrics = useCallback((editorInstance: any) => {
     setCurrentTextLength(editorInstance.getText().trim().length)
 
-    let pageCount = 0
+    let breakCount = 0
     editorInstance.state.doc.descendants((node: any) => {
-      if (node.type?.name === 'pageSection') {
-        pageCount += 1
+      if (node.type?.name === 'horizontalRule') {
+        breakCount += 1
       }
     })
-    setExtraPageCount(pageCount)
+    setExtraPageCount(breakCount)
   }, [])
 
   const insertPageBreak = useCallback(() => {
     const editorInstance = editorRef.current
     if (!editorInstance || !canEditRef.current) return
 
-    const endPos = editorInstance.state.doc.content.size
-    editorInstance
-      .chain()
-      .focus('end')
-      .insertContentAt(endPos, buildBlankPageSpacer())
-      .focus('end')
-      .run()
-  }, [buildBlankPageSpacer])
+    insertPageBreakAtEnd(editorInstance)
+  }, [insertPageBreakAtEnd])
 
   const removeTrailingPage = useCallback((requireEmpty: boolean) => {
     const editorInstance = editorRef.current
@@ -299,9 +369,10 @@ export function CollaborativeEditor({
 
     const meta = getLastPageSectionMeta(editorInstance.state.doc)
     if (!meta) return false
+    if (meta.breakPos === null) return false
     if (requireEmpty && !isPageSectionEmpty(meta.node)) return false
 
-    const from = meta.breakPos !== null ? meta.breakPos : meta.start
+    const from = meta.breakPos
     editorInstance
       .chain()
       .focus()
@@ -343,18 +414,12 @@ export function CollaborativeEditor({
 
     autoPageBreakInProgressRef.current = true
     autoInsertedPageCountRef.current = requiredBreaks
-    const endPos = editorInstance.state.doc.content.size
-    editorInstance
-      .chain()
-      .focus('end')
-      .insertContentAt(endPos, buildBlankPageSpacer())
-      .focus('end')
-      .run()
+    insertPageBreakAtEnd(editorInstance)
 
     setTimeout(() => {
       autoPageBreakInProgressRef.current = false
     }, 0)
-  }, [AUTO_PAGE_BREAK_THRESHOLD, buildBlankPageSpacer, peerCount])
+  }, [AUTO_PAGE_BREAK_THRESHOLD, insertPageBreakAtEnd, peerCount])
 
   const removeLastPage = useCallback(() => {
     void removeTrailingPage(false)
@@ -419,7 +484,7 @@ export function CollaborativeEditor({
             const atDocEnd = state.selection.$from.pos >= state.doc.content.size - 1
             if (!atDocEnd) return false
 
-            if (lastPageMeta && isPageSectionEmpty(lastPageMeta.node)) {
+            if (lastPageMeta && lastPageMeta.breakPos !== null && isPageSectionEmpty(lastPageMeta.node)) {
               return false
             }
 
@@ -428,7 +493,7 @@ export function CollaborativeEditor({
             return true
           }
 
-          if (event.key === 'ArrowUp' && lastPageMeta && isPageSectionEmpty(lastPageMeta.node)) {
+          if (event.key === 'ArrowUp' && lastPageMeta && lastPageMeta.breakPos !== null && isPageSectionEmpty(lastPageMeta.node)) {
             const cursorPos = state.selection.$from.pos
             const inLastPage = cursorPos >= lastPageMeta.start && cursorPos <= lastPageMeta.end
             const atStartOfLastPage = cursorPos <= lastPageMeta.start + 1
@@ -639,7 +704,7 @@ export function CollaborativeEditor({
     <div className="note-canvas">
       {canEdit && (
         <div className="note-toolbar">
-          <EditorToolbar editor={editor} />
+          <EditorToolbar editor={editor} onInsertPageBreak={insertPageBreak} />
         </div>
       )}
 
