@@ -701,7 +701,7 @@ export function CollaborativeEditor({
   // ─── Editor ───────────────────────────────────────────────────────────────
 
   const pageActions = (
-    <div className={`note-page-actions ${extraPageCount > 0 ? 'note-page-actions--inside' : 'note-page-actions--outside'}`}>
+    <div className="note-page-actions note-page-actions--dock">
       <button
         type="button"
         className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
@@ -737,9 +737,8 @@ export function CollaborativeEditor({
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
-          {extraPageCount > 0 && pageActions}
+          {pageActions}
         </div>
-        {extraPageCount === 0 && pageActions}
       </div>
     </div>
   )

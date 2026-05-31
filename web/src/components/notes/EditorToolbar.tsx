@@ -52,6 +52,19 @@ export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
     }
   }
 
+  useEffect(() => {
+    const paperEl = document.querySelector('.note-paper') as HTMLElement | null
+    if (!paperEl) return
+
+    paperEl.style.transform = `scale(${zoom / 100})`
+    paperEl.style.transformOrigin = 'top center'
+
+    return () => {
+      paperEl.style.transform = 'scale(1)'
+      paperEl.style.transformOrigin = 'top center'
+    }
+  }, [zoom])
+
   // ─── Link ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
