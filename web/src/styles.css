@@ -4548,8 +4548,9 @@
 
   .note-scroll-area {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 2.5rem 1rem 4rem;
+    padding: 2.5rem 1rem 6rem;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -4708,6 +4709,19 @@
     margin-top: 10mm;
     padding-bottom: 0.5rem;
     width: min(100%, 210mm);
+  }
+
+  .note-page-actions--dock {
+    position: sticky;
+    bottom: 0.75rem;
+    margin-top: 1rem;
+    width: min(100%, 210mm);
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--theme-border) 88%, var(--theme-primary) 12%);
+    background: color-mix(in srgb, var(--theme-surface) 90%, var(--theme-bg) 10%);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    z-index: 2;
   }
 
   .note-page-actions--inside {
