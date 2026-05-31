@@ -711,29 +711,29 @@ export function CollaborativeEditor({
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
-        </div>
-        <div className="note-page-actions">
-          <button
-            type="button"
-            className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
-            onClick={insertPageBreak}
-            title="Add page"
-            aria-label="Add page"
-          >
-            <Plus size={17} />
-            <span>Add page</span>
-          </button>
-          <button
-            type="button"
-            className="note-page-remove-btn"
-            onClick={removeLastPage}
-            title="Remove last page"
-            aria-label="Remove last page"
-            disabled={extraPageCount === 0}
-          >
-            <Trash2 size={16} />
-            <span>Remove page</span>
-          </button>
+          <div className="note-page-actions">
+            <button
+              type="button"
+              className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
+              onClick={insertPageBreak}
+              title="Add page"
+              aria-label="Add page"
+            >
+              <Plus size={17} />
+              <span>Add page</span>
+            </button>
+            <button
+              type="button"
+              className="note-page-remove-btn"
+              onClick={removeLastPage}
+              title="Remove last page"
+              aria-label="Remove last page"
+              disabled={extraPageCount === 0}
+            >
+              <Trash2 size={16} />
+              <span>Remove page</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
