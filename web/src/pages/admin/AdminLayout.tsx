@@ -10,8 +10,16 @@ const ADMIN_ITEMS = [
 
 export function AdminLayout() {
   const navigate = useNavigate();
-  const token = getAccessToken();
-  const role = token ? getRoleFromAccessToken(token) : null;
+
+  let token: string | null = null;
+  let role: string | null = null;
+  try {
+    token = getAccessToken();
+    role = token ? getRoleFromAccessToken(token) : null;
+  } catch (err) {
+    // If reading/parsing the token fails for any reason, treat as unauthenticated.
+    return <Navigate to="/login" replace />;
+  }
 
   if (!token) {
     return <Navigate to="/login" replace />;

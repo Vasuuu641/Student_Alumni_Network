@@ -12,6 +12,11 @@ export class PrismaAlumniRepository implements AlumniRepository {
 		return record ? this.toDomain(record) : null;
 	}
 
+	async findAll(): Promise<Alumni[]> {
+		const records = await this.prisma.alumni.findMany();
+		return records.map((record) => this.toDomain(record));
+	}
+
 	async create(alumni: Alumni): Promise<Alumni> {
 		const record = await this.prisma.alumni.create({
 			data: {

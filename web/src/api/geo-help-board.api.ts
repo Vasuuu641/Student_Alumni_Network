@@ -61,6 +61,10 @@ type RawGeoHelpSpot = Omit<GeoHelpSpot, 'section' | 'category' | 'reviewStatus'>
   section: GeoHelpSpotSection | string;
   category: GeoHelpSpotCategory | string | number;
   reviewStatus: GeoHelpSpotReviewStatus | string | number;
+  latitude: number | string;
+  longitude: number | string;
+  visitCount: number | string;
+  distanceKm?: number | string;
 };
 
 const CATEGORY_VALUES: GeoHelpSpotCategory[] = [
@@ -118,12 +122,20 @@ function normalizeReviewStatus(value: GeoHelpSpotReviewStatus | string | number)
 }
 
 function toGeoHelpSpot(raw: RawGeoHelpSpot): GeoHelpSpot {
+  const latitude = Number(raw.latitude);
+  const longitude = Number(raw.longitude);
+  const visitCount = Number(raw.visitCount);
+  const distanceKm = raw.distanceKm === undefined ? undefined : Number(raw.distanceKm);
+
   return {
     ...raw,
+    latitude: Number.isFinite(latitude) ? latitude : 0,
+    longitude: Number.isFinite(longitude) ? longitude : 0,
+    visitCount: Number.isFinite(visitCount) ? visitCount : 0,
     section: normalizeSection(raw.section),
     category: normalizeCategory(raw.category),
     reviewStatus: normalizeReviewStatus(raw.reviewStatus),
-    distanceKm: typeof raw.distanceKm === 'number' ? raw.distanceKm : undefined,
+    distanceKm: Number.isFinite(distanceKm) ? distanceKm : undefined,
   };
 }
 

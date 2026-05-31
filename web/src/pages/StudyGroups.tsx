@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   Compass,
@@ -14,7 +14,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { getAccessToken, getUserIdFromAccessToken } from '../lib/auth';
+import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken } from '../lib/auth';
 import Button from '../components/Button';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import {
@@ -53,6 +53,7 @@ function formatDate(iso: string): string {
 export function StudyGroupsPage() {
   const navigate = useNavigate();
   const token = getAccessToken();
+  const role = token ? getRoleFromAccessToken(token) : null;
   const currentUserId = token ? getUserIdFromAccessToken(token) : null;
 
   const [tab, setTab] = useState<GroupTab>('MY');
@@ -78,7 +79,7 @@ export function StudyGroupsPage() {
 
   useEffect(() => {
     async function fetchGroups() {
-      if (!token) return;
+      if (!token || role === 'ALUMNI') return;
 
       try {
         setLoading(true);
@@ -102,10 +103,12 @@ export function StudyGroupsPage() {
     }
 
     void fetchGroups();
-  }, [tab, token]);
+  }, [role, tab, token]);
 
   useEffect(() => {
     async function fetchMemberCounts() {
+      if (role === 'ALUMNI') return;
+
       if (groups.length === 0) {
         setMemberCounts({});
         return;
@@ -127,7 +130,7 @@ export function StudyGroupsPage() {
     }
 
     void fetchMemberCounts();
-  }, [groups]);
+  }, [groups, role]);
 
   const filteredGroups = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -173,6 +176,10 @@ export function StudyGroupsPage() {
         </div>
       </main>
     );
+  }
+
+  if (role === 'ALUMNI') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
@@ -310,7 +317,7 @@ export function StudyGroupsPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900 study-groups-page">
-      <PlatformTopNav />
+      <PlatformTopNav role={role} />
       <section className="mx-auto w-full max-w-6xl px-4 py-8 study-groups-shell">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

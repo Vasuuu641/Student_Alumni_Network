@@ -155,7 +155,7 @@ export function DiscussionsPage({ navigation }: Props) {
     }
 
     if (tab === 'geo-board') {
-      // TODO: Navigate to Geo Board
+      navigation.navigate('GeoHelpBoard');
       return;
     }
 

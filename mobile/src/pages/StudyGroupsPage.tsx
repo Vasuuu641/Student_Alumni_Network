@@ -284,7 +284,7 @@ export function StudyGroupsPage({ navigation }: Props) {
     }
 
     if (navTab === 'geo-board') {
-      // TODO: Navigate to Geo Board
+      navigation.navigate('GeoHelpBoard');
       return;
     }
 

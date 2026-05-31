@@ -4,6 +4,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { AlumniRepository } from '../../domain/repositories/alumni.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import { Alumni } from '../../domain/entities/alumni.entity';
+import { UserInterestProfile } from '../../domain/entities/user-interest.entity';
+import type { UserInterestProfileRepository } from '../../domain/repositories/user-interest.repository';
 import type { FileStorageService } from '../../domain/services/file-storage';
 import { FileUploadRequest } from '../../domain/services/file-storage';
 
@@ -39,6 +41,8 @@ export class UpdateAlumniProfileUseCase {
     private readonly alumniRepository: AlumniRepository,
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
+    @Inject('UserInterestProfileRepository')
+    private readonly interestProfileRepository: UserInterestProfileRepository,
     @Inject('FileStorageService')
     private readonly fileStorageService: FileStorageService,
   ) {}
@@ -112,12 +116,13 @@ export class UpdateAlumniProfileUseCase {
         );
 
         const savedAlumni = await this.alumniRepository.update(updatedAlumni);
+        await this.syncInterestProfile(savedAlumni);
 
         // Step 3: Only after successful DB update, delete old file
         if (alumni.profilePictureUrl && alumni.profilePictureUrl !== newFileUploaded) {
           try {
             await this.fileStorageService.deleteFile(alumni.profilePictureUrl);
-          } catch (deleteError) {
+          } catch (deleteError: any) {
             // Log warning but don't fail - old file is orphaned but new data is saved
             console.warn(`Failed to delete old profile picture: ${deleteError.message}`);
           }
@@ -128,12 +133,12 @@ export class UpdateAlumniProfileUseCase {
           firstName: user.firstName,
           lastName: user.lastName,
         };
-      } catch (error) {
+      } catch (error: any) {
         // Rollback: cleanup newly uploaded file if it exists
         if (newFileUploaded) {
           try {
             await this.fileStorageService.deleteFile(newFileUploaded);
-          } catch (cleanupError) {
+          } catch (cleanupError: any) {
             console.warn(`Failed to cleanup uploaded file after error: ${cleanupError.message}`);
           }
         }
@@ -161,12 +166,37 @@ export class UpdateAlumniProfileUseCase {
     );
 
     const savedAlumni = await this.alumniRepository.update(updatedAlumni);
+    await this.syncInterestProfile(savedAlumni);
 
     return {
       alumni: savedAlumni,
       firstName: user.firstName,
       lastName: user.lastName,
     };
+  }
+
+  private async syncInterestProfile(alumni: Alumni): Promise<void> {
+    const academicWeight = 0.25;
+    const alumniWeight = 0.8;
+    const careerWeight = Math.min(1, 0.6 + (alumni.company || alumni.jobTitle ? 0.15 : 0));
+    const housingWeight = alumni.interests.some((interest) => /housing|rent|apartment/i.test(interest)) ? 0.35 : 0.15;
+    const shoppingWeight = alumni.interests.some((interest) => /shop|shopping|buy/i.test(interest)) ? 0.35 : 0.15;
+    const internshipWeight = alumni.interests.some((interest) => /intern/i.test(interest)) ? 0.5 : 0.1;
+
+    await this.interestProfileRepository.upsert(
+      new UserInterestProfile(
+        alumni.userId,
+        academicWeight,
+        alumniWeight,
+        careerWeight,
+        housingWeight,
+        shoppingWeight,
+        internshipWeight,
+        new Date(),
+        new Date(),
+        new Date(),
+      ),
+    );
   }
 }
 

@@ -1,6 +1,6 @@
 // src/pages/NotePage.tsx
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Navigate, useParams, useNavigate } from 'react-router-dom'
 import { getNote, createCheckpoint, updateNote } from '../api/notes.api'
 import { CollaborativeEditor, type SaveStatus } from '../components/notes/CollaborativeEditor'
 import { PresenceAvatars } from '../components/notes/PresenceAvatar'
@@ -11,7 +11,7 @@ import { RelatedThreadsPanel } from '../components/notes/RelatedThreadsPanel'
 import { useNoteRoom } from '../hooks/useNoteRoom'
 import { useNoteRelatedThreads } from '../hooks/useNoteRelatedThreads'
 import { stringToColor } from '../lib/utils'
-import { getAccessToken } from '../lib/auth'
+import { getAccessToken, getRoleFromAccessToken } from '../lib/auth'
 import { socket } from '../lib/socket'
 import {
   ArrowLeft, History, Share2, BookmarkPlus, Lightbulb,
@@ -38,7 +38,9 @@ export function NotePage() {
   const { noteId } = useParams<{ noteId: string }>()
   const navigate = useNavigate()
   const token = getAccessToken()
+  const role = token ? getRoleFromAccessToken(token) : null
   const currentUserId = token ? decodeUserId(token) : null
+  const canAccessNotes = role !== 'ALUMNI'
 
   const [note, setNote] = useState<Note | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
@@ -61,7 +63,7 @@ export function NotePage() {
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
-  const room = useNoteRoom(noteId!)
+  const room = useNoteRoom(noteId ?? '', canAccessNotes)
   const canRestore = room.canEdit
   const canSaveCheckpoint = room.canEdit
   const isOwner = room.role === 'OWNER'
@@ -85,7 +87,7 @@ export function NotePage() {
   // ─── Initial note fetch ──────────────────────────────────────────────────
 
   const fetchNote = useCallback(async () => {
-    if (!noteId) return
+    if (!noteId || !canAccessNotes) return
     try {
       setFetchError(null)
       const { note } = await getNote(noteId)
@@ -96,7 +98,7 @@ export function NotePage() {
     } finally {
       setLoadingNote(false)
     }
-  }, [noteId])
+  }, [canAccessNotes, noteId])
 
   useEffect(() => {
     fetchNote()
@@ -110,7 +112,7 @@ export function NotePage() {
   // Fix 16 — listen for version-restored broadcast from the server
   // so all collaborators re-seed their editor when anyone restores
   useEffect(() => {
-    if (!noteId) return
+    if (!canAccessNotes || !noteId) return
 
     const onVersionRestored = (data: { noteId: string; content: unknown }) => {
       if (data.noteId !== noteId) return
@@ -125,7 +127,7 @@ export function NotePage() {
     return () => {
       socket.off('notes:version-restored', onVersionRestored)
     }
-  }, [noteId, fetchNote])
+  }, [canAccessNotes, fetchNote, noteId])
 
   // ─── LLM Related Threads ──────────────────────────────────────────────────
 
@@ -232,6 +234,10 @@ useEffect(() => {
   }, [])
 
   // ─── Loading / error states ───────────────────────────────────────────────
+
+  if (!canAccessNotes) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   if (loadingNote) {
     return (

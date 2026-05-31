@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { GeoHelpBoardController } from './geo-help-board.controller';
 
@@ -18,7 +19,7 @@ import { PrismaGeoHelpBoardRepository } from '../../infrastructure/repositories/
 import { RateLimitGuard } from '../../infrastructure/security/rate-limit.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [GeoHelpBoardController],
   providers: [
     CreateGeoHelpSpotUseCase,
