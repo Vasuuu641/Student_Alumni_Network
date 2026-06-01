@@ -17,6 +17,7 @@ import {
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import Button from '../components/Button';
 import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken } from '../lib/auth';
+import { useTheme } from '../theme/theme';
 import {
   createGeoHelpSpot,
   deactivateGeoHelpSpot,
@@ -626,6 +627,7 @@ async function searchLocation(
 
 export function GeoHelpBoardPage() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const token = getAccessToken();
   const isAuthenticated = Boolean(token);
   const userRole = token ? getRoleFromAccessToken(token) : null;
@@ -692,6 +694,7 @@ export function GeoHelpBoardPage() {
   const currentSection = TAB_SECTION_MAP[activeTab];
   const categoryOptions = activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS;
   const apiCategory = category === 'ALL' ? undefined : category;
+  const isRoseTheme = theme === 'rose';
 
   useEffect(() => {
     const defaultCategory = (activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS)[0].value;
@@ -1283,7 +1286,7 @@ export function GeoHelpBoardPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center text-slate-900">
         <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] text-[var(--theme-primary-strong)]">
             <MapPinned size={22} />
           </div>
           <h1 className="mt-4 text-2xl font-extrabold">Sign in to browse campus resources</h1>
@@ -1314,7 +1317,7 @@ export function GeoHelpBoardPage() {
       <section className="mx-auto w-full max-w-6xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-50">Campus Resources</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Campus Resources</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Browse official university resources and student-loved community picks around campus.
             </p>
@@ -1325,7 +1328,7 @@ export function GeoHelpBoardPage() {
               onClick={() => {
                 setIsSuggestModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--theme-primary)_24%,var(--theme-border)_76%)] bg-white px-3 py-2 text-sm font-semibold text-[var(--theme-primary-strong)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--theme-primary-soft)_55%,white_45%)]"
             >
               Suggest a Place
             </button>
@@ -1346,7 +1349,7 @@ export function GeoHelpBoardPage() {
         <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-start gap-3">
-              <div className="mt-1 rounded-lg bg-sky-100 p-2 text-sky-700">
+              <div className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] p-2 text-[var(--theme-primary-strong)]">
                 <LocateFixed size={18} />
               </div>
               <div>
@@ -1362,7 +1365,7 @@ export function GeoHelpBoardPage() {
               type="button"
               onClick={handleUseMyLocation}
               disabled={locationStatus === 'requesting'}
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--theme-action-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {locationStatus === 'requesting' ? <Loader2 size={15} className="animate-spin" /> : <Navigation size={15} />}
               Update location
@@ -1379,7 +1382,7 @@ export function GeoHelpBoardPage() {
               value={locationQuery}
               onChange={(event) => setLocationQuery(event.target.value)}
               placeholder="Refine location with an address or place name"
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
             />
             <button
               type="submit"
@@ -1399,29 +1402,29 @@ export function GeoHelpBoardPage() {
               value={placeSearchQuery}
               onChange={(event) => setPlaceSearchQuery(event.target.value)}
               placeholder="Search a place, e.g. Family Market"
-              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
             />
           </form>
           <input
             value={cityFilter}
             onChange={(event) => setCityFilter(event.target.value)}
             placeholder="City"
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
           />
         </section>
 
         {searchedPlace ? (
-          <section className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          <section className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[color-mix(in_srgb,var(--theme-primary)_24%,var(--theme-border)_76%)] bg-[color-mix(in_srgb,var(--theme-primary-soft)_65%,white_35%)] px-4 py-3 text-sm text-[var(--theme-primary-strong)]">
             <div>
               <p className="font-semibold">Showing: {searchedPlace.label}</p>
-              <p className="text-xs text-sky-700">
+              <p className="text-xs text-[var(--theme-primary-strong)]">
                 {searchedPlaceDistanceKm !== null ? `About ${formatDistance(searchedPlaceDistanceKm)}` : 'Search result centered on the map'}
               </p>
             </div>
             <button
               type="button"
               onClick={clearSearchTarget}
-              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+              className="rounded-lg border border-[color-mix(in_srgb,var(--theme-primary)_24%,var(--theme-border)_76%)] bg-white px-3 py-2 text-xs font-semibold text-[var(--theme-primary-strong)] transition hover:bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)]"
             >
               Clear search
             </button>
@@ -1444,14 +1447,14 @@ export function GeoHelpBoardPage() {
         <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <div className="inline-flex items-center gap-2">
-              <Compass size={16} className="text-sky-700" />
+              <Compass size={16} className="text-[var(--theme-primary-strong)]" />
               <p className="text-sm font-semibold text-slate-700">Interactive map</p>
             </div>
             <a
               href={buildGoogleMapUrl(mapCenterPoint)}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--theme-primary-strong)] hover:underline"
             >
               Open full map <ExternalLink size={12} />
             </a>
@@ -1491,7 +1494,7 @@ export function GeoHelpBoardPage() {
                   options={{
                     suppressMarkers: true,
                     polylineOptions: {
-                      strokeColor: '#0284c7',
+                      strokeColor: '#db2777',
                       strokeOpacity: 0.86,
                       strokeWeight: 5,
                     },
@@ -1503,8 +1506,8 @@ export function GeoHelpBoardPage() {
                 center={{ lat: point.latitude, lng: point.longitude }}
                 radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
                 options={{
-                  strokeColor: '#0ea5e9',
-                  fillColor: '#38bdf8',
+                  strokeColor: isRoseTheme ? '#ec4899' : '#0ea5e9',
+                  fillColor: isRoseTheme ? '#f9a8d4' : '#38bdf8',
                   fillOpacity: 0.1,
                   strokeOpacity: 0.9,
                   strokeWeight: 2,
@@ -1536,7 +1539,7 @@ export function GeoHelpBoardPage() {
                     selectSpot(spot.id, true);
                   }}
                   icon={spot.id === selectedSpotId
-                    ? { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }
+                    ? { url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }
                     : undefined}
                 />
               ))}
@@ -1571,7 +1574,7 @@ export function GeoHelpBoardPage() {
               onClick={() => setActiveTab('OFFICIAL')}
               className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
                 activeTab === 'OFFICIAL'
-                  ? 'border-sky-300 bg-sky-100 text-sky-800'
+                  ? 'border-[color-mix(in_srgb,var(--theme-primary)_36%,var(--theme-border)_64%)] bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] text-[var(--theme-primary-strong)]'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
@@ -1582,7 +1585,7 @@ export function GeoHelpBoardPage() {
               onClick={() => setActiveTab('COMMUNITY')}
               className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
                 activeTab === 'COMMUNITY'
-                  ? 'border-sky-300 bg-sky-100 text-sky-800'
+                  ? 'border-[color-mix(in_srgb,var(--theme-primary)_36%,var(--theme-border)_64%)] bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] text-[var(--theme-primary-strong)]'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
@@ -1613,7 +1616,7 @@ export function GeoHelpBoardPage() {
               onClick={() => setCategory('ALL')}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                 category === 'ALL'
-                  ? 'border-sky-300 bg-sky-100 text-sky-800'
+                  ? 'border-[color-mix(in_srgb,var(--theme-primary)_36%,var(--theme-border)_64%)] bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] text-[var(--theme-primary-strong)]'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
@@ -1626,7 +1629,7 @@ export function GeoHelpBoardPage() {
                 onClick={() => setCategory(item.value)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   category === item.value
-                    ? 'border-sky-300 bg-sky-100 text-sky-800'
+                    ? 'border-[color-mix(in_srgb,var(--theme-primary)_36%,var(--theme-border)_64%)] bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)] text-[var(--theme-primary-strong)]'
                     : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -1673,7 +1676,7 @@ export function GeoHelpBoardPage() {
                     }}
                     className={`geo-help-board-card overflow-hidden rounded-xl border transition ${
                       isSelected
-                        ? 'border-sky-300 bg-sky-50'
+                        ? 'border-[color-mix(in_srgb,var(--theme-primary)_36%,var(--theme-border)_64%)] bg-[color-mix(in_srgb,var(--theme-primary-soft)_65%,white_35%)]'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                     }`}
                   >
@@ -1683,8 +1686,8 @@ export function GeoHelpBoardPage() {
                       className="w-full text-left"
                     >
                       <div className="flex gap-3 p-3">
-                        <div className="geo-help-board-card__icon flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100">
-                          <Building2 size={20} className="text-blue-600" />
+                        <div className="geo-help-board-card__icon flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--theme-primary)_16%,white_84%)]">
+                          <Building2 size={20} className="text-[var(--theme-primary)]" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="geo-help-board-card__title text-sm font-bold text-slate-900 line-clamp-2">{spot.title}</h3>
@@ -1726,7 +1729,7 @@ export function GeoHelpBoardPage() {
                         onClick={() => {
                           window.open(buildDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude }), '_blank');
                         }}
-                        className="flex-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="flex-1 rounded-lg bg-[var(--theme-action-primary)] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         Get directions
                       </button>
@@ -1818,7 +1821,7 @@ export function GeoHelpBoardPage() {
                   void handleRecordVisit(selectedSpot.id);
                 }}
                 disabled={workingSpotId === selectedSpot.id}
-                className="inline-flex items-center rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center rounded-lg bg-[var(--theme-action-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {workingSpotId === selectedSpot.id ? 'Saving...' : 'Mark visited'}
               </button>
@@ -1872,7 +1875,7 @@ export function GeoHelpBoardPage() {
                   value={suggestTitle}
                   onChange={(event) => setSuggestTitle(event.target.value)}
                   placeholder="e.g. Family Market, Registrar Office, or Quiet Bean Cafe"
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
                   required
                 />
               </label>
@@ -1882,7 +1885,7 @@ export function GeoHelpBoardPage() {
                 <select
                   value={suggestCategory}
                   onChange={(event) => setSuggestCategory(event.target.value as GeoHelpSpotCategory)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
                 >
                   {categoryOptions.map((item) => (
                     <option key={item.value} value={item.value}>{item.label}</option>
@@ -1906,7 +1909,7 @@ export function GeoHelpBoardPage() {
                       }
                     }}
                     placeholder="Search exact place to suggest"
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
                   />
                   <button
                     type="button"
@@ -1928,7 +1931,7 @@ export function GeoHelpBoardPage() {
                   value={suggestLocationHint}
                   onChange={(event) => setSuggestLocationHint(event.target.value)}
                   placeholder="Optional: building, landmark, or nearby street"
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
                 />
               </label>
 
@@ -1978,7 +1981,7 @@ export function GeoHelpBoardPage() {
                   value={suggestDescription}
                   onChange={(event) => setSuggestDescription(event.target.value)}
                   rows={3}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--theme-primary)_24%,transparent_76%)]"
                 />
               </label>
 
@@ -1997,7 +2000,7 @@ export function GeoHelpBoardPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingSuggestion}
-                  className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="rounded-lg bg-[var(--theme-action-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}
                 </button>

@@ -148,6 +148,18 @@
     background: color-mix(in srgb, var(--theme-primary-soft) 10%, var(--theme-bg) 90%);
   }
 
+  :root[data-theme='rose'] .geo-help-board-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 10%, var(--theme-bg) 90%);
+  }
+
+  :root[data-theme='rose'] .geo-help-board-page section,
+  :root[data-theme='rose'] .geo-help-board-page aside,
+  :root[data-theme='rose'] .geo-help-board-page article,
+  :root[data-theme='rose'] .geo-help-board-page .geo-help-board-card {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
   :root[data-theme='rose'] .notes-sidebar,
   :root[data-theme='rose'] .notes-create-form,
   :root[data-theme='rose'] .note-card,
