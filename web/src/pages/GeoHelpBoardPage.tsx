@@ -695,6 +695,7 @@ export function GeoHelpBoardPage() {
   const categoryOptions = activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS;
   const apiCategory = category === 'ALL' ? undefined : category;
   const isRoseTheme = theme === 'rose';
+  const isCrimsonTheme = theme === 'crimson';
 
   useEffect(() => {
     const defaultCategory = (activeTab === 'OFFICIAL' ? OFFICIAL_CATEGORY_OPTIONS : COMMUNITY_CATEGORY_OPTIONS)[0].value;
@@ -1506,8 +1507,8 @@ export function GeoHelpBoardPage() {
                 center={{ lat: point.latitude, lng: point.longitude }}
                 radius={locationAccuracyM ?? Math.max(80, radiusKm * 120)}
                 options={{
-                  strokeColor: isRoseTheme ? '#ec4899' : '#0ea5e9',
-                  fillColor: isRoseTheme ? '#f9a8d4' : '#38bdf8',
+                  strokeColor: isCrimsonTheme ? '#be123c' : isRoseTheme ? '#ec4899' : '#0ea5e9',
+                  fillColor: isCrimsonTheme ? '#fecdd3' : isRoseTheme ? '#f9a8d4' : '#38bdf8',
                   fillOpacity: 0.1,
                   strokeOpacity: 0.9,
                   strokeWeight: 2,
