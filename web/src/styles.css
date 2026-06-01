@@ -6418,6 +6418,100 @@
     transform: translateY(-2px);
   }
 
+  :root[data-theme='rose'] .profile-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+  }
+
+  :root[data-theme='rose'] .profile-loading,
+  :root[data-theme='rose'] .profile-header,
+  :root[data-theme='rose'] .profile-section-tabs,
+  :root[data-theme='rose'] .profile-card,
+  :root[data-theme='rose'] .profile-empty-state,
+  :root[data-theme='rose'] .profile-activity-link {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+    box-shadow: none;
+  }
+
+  :root[data-theme='rose'] .profile-header__cover {
+    background:
+      radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--theme-primary) 22%, transparent 78%) 0, transparent 42%),
+      linear-gradient(120deg, var(--theme-primary-strong) 0%, var(--theme-primary) 52%, color-mix(in srgb, var(--theme-primary-soft) 72%, white 28%) 100%);
+  }
+
+  :root[data-theme='rose'] .profile-avatar__image,
+  :root[data-theme='rose'] .profile-avatar__placeholder {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    border-color: var(--theme-surface);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-name,
+  :root[data-theme='rose'] .profile-card__header h2,
+  :root[data-theme='rose'] .profile-activity-title,
+  :root[data-theme='rose'] .info-value,
+  :root[data-theme='rose'] .profile-activity-link span {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .profile-back-button,
+  :root[data-theme='rose'] .profile-headline,
+  :root[data-theme='rose'] .profile-role,
+  :root[data-theme='rose'] .profile-meta,
+  :root[data-theme='rose'] .profile-card__text,
+  :root[data-theme='rose'] .info-label,
+  :root[data-theme='rose'] .profile-activity-link small,
+  :root[data-theme='rose'] .profile-activity-empty {
+    color: #5f4251;
+  }
+
+  :root[data-theme='rose'] .profile-back-button:hover {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-section-tab,
+  :root[data-theme='rose'] .profile-card-edit-link,
+  :root[data-theme='rose'] .profile-console-button {
+    color: #5f4251;
+    background: color-mix(in srgb, var(--theme-surface) 92%, var(--theme-primary-soft) 8%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+  }
+
+  :root[data-theme='rose'] .profile-section-tab--active,
+  :root[data-theme='rose'] .profile-card-edit-link:hover,
+  :root[data-theme='rose'] .profile-console-button:hover,
+  :root[data-theme='rose'] .profile-activity-link:hover,
+  :root[data-theme='rose'] .profile-tag:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-card__header,
+  :root[data-theme='rose'] .profile-actions,
+  :root[data-theme='rose'] .profile-info-row {
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  :root[data-theme='rose'] .profile-tag {
+    background: color-mix(in srgb, var(--theme-primary-soft) 76%, var(--theme-surface) 24%);
+    border-color: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-border) 86%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-submit-button {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .profile-submit-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 88%, black 12%), color-mix(in srgb, var(--theme-primary-strong) 88%, black 12%));
+  }
+
+  :root[data-theme='rose'] .profile-card__header svg {
+    color: var(--theme-primary-strong);
+  }
+
   :root[data-theme='midnight'] .dashboard-v2,
   :root[data-theme='midnight'] .notes-list-page-modern,
   :root[data-theme='midnight'] .threads-page-shell,
