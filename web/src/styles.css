@@ -79,12 +79,15 @@
     --theme-shadow: 0 18px 50px rgba(225, 29, 72, 0.12);
   }
 
-  /* Crimson theme: convert remaining blue controls to crimson variants */
-  :root[data-theme='crimson'] .notes-create-btn,
-  :root[data-theme='crimson'] .notes-create-btn-modern,
-  :root[data-theme='crimson'] .hero-button--primary,
-  :root[data-theme='crimson'] .submit-button--wide,
-  :root[data-theme='crimson'] .hero-button {
+  /* Crimson theme: convert remaining blue controls to crimson variants, but only on post-login pages */
+  :root[data-theme='crimson'] .dashboard-v2 .notes-create-btn,
+  :root[data-theme='crimson'] .notes-list-page-modern .notes-create-btn-modern,
+  :root[data-theme='crimson'] .notes-list-page-modern .hero-button--primary,
+  :root[data-theme='crimson'] .threads-page-shell .hero-button--primary,
+  :root[data-theme='crimson'] .profile-page .hero-button--primary,
+  :root[data-theme='crimson'] .study-group-detail-shell .hero-button--primary,
+  :root[data-theme='crimson'] .geo-help-board-page .hero-button--primary,
+  :root[data-theme='crimson'] .notes-list-page-modern .submit-button--wide {
     background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
     color: var(--primary-foreground);
     box-shadow: 0 6px 18px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
@@ -94,11 +97,19 @@
   /* Notes page: turn blue buttons (Create, New document) to crimson */
   :root[data-theme='crimson'] .notes-create-btn-modern,
   :root[data-theme='crimson'] .hero-button--primary,
-  :root[data-theme='crimson'] .submit-button--wide,
-  :root[data-theme='crimson'] .notes-filter-tab--active {
+  :root[data-theme='crimson'] .submit-button--wide {
     background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
-    color: #fff;
+    color: var(--primary-foreground);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
     border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+  }
+
+  /* Notes filter active tab: use underline style (no filled pill) */
+  :root[data-theme='crimson'] .notes-filter-tab--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    border-bottom-color: var(--theme-primary-strong);
+    font-weight: 600;
   }
 
   /* Threads: make discussion author/profile avatar accent crimson */
@@ -272,6 +283,27 @@
   :root[data-theme='rose'] .dashboard-v2__role-pill,
   :root[data-theme='rose'] .note-card:hover {
     border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+  }
+
+  /* Rose theme: make note hover line pink and sidebar active show a pink side line (no filled box) */
+  :root[data-theme='rose'] .note-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 36%, var(--theme-border) 64%);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-primary) 12%, transparent 88%);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__nav-item--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    box-shadow: inset 3px 0 0 var(--theme-primary);
+    font-weight: 600;
+  }
+
+  /* Rose theme: notes filter active underline */
+  :root[data-theme='rose'] .notes-filter-tab--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    border-bottom-color: var(--theme-primary-strong);
+    font-weight: 600;
   }
 
   :root[data-theme='rose'] .dashboard-v2__role-pill {
@@ -3546,15 +3578,15 @@
   .dashboard-v2__side-card button:not(.dashboard-v2__quick-link) {
     border: 0;
     border-radius: 0.55rem;
-    background: #be123c;
-    color: #ffffff;
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: var(--primary-foreground);
     min-height: 2.05rem;
     font-weight: 700;
     cursor: pointer;
   }
 
   .dashboard-v2__side-card button:not(.dashboard-v2__quick-link):hover {
-    background: #9f1239;
+    background: color-mix(in srgb, var(--theme-primary) 88%, black 12%);
   }
 
   .dashboard-v2__side-card--links {
@@ -8293,6 +8325,19 @@
   :root[data-theme='crimson'] .geo-help-board-page .text-\[var\(--theme-primary-strong\)\] {
     color: var(--theme-primary-strong);
     border-color: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-border) 84%);
+  }
+
+  /* Crimson theme: note hover line in red and sidebar active show a red side line (no filled box) */
+  :root[data-theme='crimson'] .note-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 36%, var(--theme-border) 64%);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-primary) 12%, transparent 88%);
+  }
+
+  :root[data-theme='crimson'] .notes-sidebar__nav-item--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    box-shadow: inset 3px 0 0 var(--theme-primary);
+    font-weight: 600;
   }
 
   :root[data-theme='crimson'] .profile-card__header,
