@@ -79,6 +79,69 @@
     --theme-shadow: 0 18px 50px rgba(225, 29, 72, 0.12);
   }
 
+  /* Crimson theme: convert remaining blue controls to crimson variants, but only on post-login pages */
+  :root[data-theme='crimson'] .dashboard-v2 .notes-create-btn,
+  :root[data-theme='crimson'] .notes-list-page-modern .notes-create-btn-modern,
+  :root[data-theme='crimson'] .notes-list-page-modern .hero-button--primary,
+  :root[data-theme='crimson'] .threads-page-shell .hero-button--primary,
+  :root[data-theme='crimson'] .profile-page .hero-button--primary,
+  :root[data-theme='crimson'] .study-group-detail-shell .hero-button--primary,
+  :root[data-theme='crimson'] .geo-help-board-page .hero-button--primary,
+  :root[data-theme='crimson'] .notes-list-page-modern .submit-button--wide {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: var(--primary-foreground);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+  }
+
+  /* Notes page: turn blue buttons (Create, New document) to crimson */
+  :root[data-theme='crimson'] .notes-create-btn-modern,
+  :root[data-theme='crimson'] .hero-button--primary,
+  :root[data-theme='crimson'] .submit-button--wide {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: var(--primary-foreground);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--theme-primary) 18%, transparent 82%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+  }
+
+  /* Notes filter active tab: use underline style (no filled pill) */
+  :root[data-theme='crimson'] .notes-filter-tab--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    border-bottom-color: var(--theme-primary-strong);
+    font-weight: 600;
+  }
+
+  /* Threads: make discussion author/profile avatar accent crimson */
+  :root[data-theme='crimson'] .discussion-author-avatar,
+  :root[data-theme='crimson'] .thread-reply-avatar,
+  :root[data-theme='crimson'] .dashboard-v2__discussion-avatar,
+  :root[data-theme='crimson'] .dashboard-v2__profile-avatar {
+    background: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface) 88%);
+    color: var(--theme-primary-strong);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--theme-primary) 12%, transparent 88%);
+  }
+
+  /* Study groups: keep buttons unchanged; outgoing chat bubble uses theme primary via component */
+
+  /* Restore transparent/secondary button appearance for study-groups under crimson theme */
+  :root[data-theme='crimson'] .study-groups-shell .hero-button--secondary,
+  :root[data-theme='crimson'] .study-group-detail-shell .hero-button--secondary {
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    border-color: var(--theme-border);
+    box-shadow: 0 2px 8px rgba(38, 58, 115, 0.04);
+  }
+
+  /* Hover like rose theme: subtle yellow accent on secondary buttons in study groups */
+  :root[data-theme='crimson'] .study-groups-shell .hero-button--secondary:hover,
+  :root[data-theme='crimson'] .study-group-detail-shell .hero-button--secondary:hover {
+    background: var(--theme-accent-soft);
+    border-color: var(--theme-accent);
+    color: var(--theme-text);
+  }
+
+
   :root[data-theme='rose'] {
     --theme-primary: #ec4899;
     --theme-primary-strong: #db2777;
@@ -148,6 +211,18 @@
     background: color-mix(in srgb, var(--theme-primary-soft) 10%, var(--theme-bg) 90%);
   }
 
+  :root[data-theme='rose'] .geo-help-board-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 10%, var(--theme-bg) 90%);
+  }
+
+  :root[data-theme='rose'] .geo-help-board-page section,
+  :root[data-theme='rose'] .geo-help-board-page aside,
+  :root[data-theme='rose'] .geo-help-board-page article,
+  :root[data-theme='rose'] .geo-help-board-page .geo-help-board-card {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
   :root[data-theme='rose'] .notes-sidebar,
   :root[data-theme='rose'] .notes-create-form,
   :root[data-theme='rose'] .note-card,
@@ -208,6 +283,27 @@
   :root[data-theme='rose'] .dashboard-v2__role-pill,
   :root[data-theme='rose'] .note-card:hover {
     border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+  }
+
+  /* Rose theme: make note hover line pink and sidebar active show a pink side line (no filled box) */
+  :root[data-theme='rose'] .note-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 36%, var(--theme-border) 64%);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-primary) 12%, transparent 88%);
+  }
+
+  :root[data-theme='rose'] .notes-sidebar__nav-item--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    box-shadow: inset 3px 0 0 var(--theme-primary);
+    font-weight: 600;
+  }
+
+  /* Rose theme: notes filter active underline */
+  :root[data-theme='rose'] .notes-filter-tab--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    border-bottom-color: var(--theme-primary-strong);
+    font-weight: 600;
   }
 
   :root[data-theme='rose'] .dashboard-v2__role-pill {
@@ -3165,7 +3261,7 @@
     border: 0;
     background: transparent;
     padding: 0;
-    color: #2f64f6;
+    color: #be123c;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -3424,8 +3520,8 @@
     align-items: center;
     padding: 0.16rem 0.48rem;
     border-radius: 999px;
-    background: #eaf1ff;
-    color: #2f64f6;
+    background: #ffe4eb;
+    color: #be123c;
     font-size: 0.7rem;
     font-weight: 700;
   }
@@ -3482,11 +3578,15 @@
   .dashboard-v2__side-card button:not(.dashboard-v2__quick-link) {
     border: 0;
     border-radius: 0.55rem;
-    background: #2f64f6;
-    color: #ffffff;
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: var(--primary-foreground);
     min-height: 2.05rem;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .dashboard-v2__side-card button:not(.dashboard-v2__quick-link):hover {
+    background: color-mix(in srgb, var(--theme-primary) 88%, black 12%);
   }
 
   .dashboard-v2__side-card--links {
@@ -6406,6 +6506,100 @@
     transform: translateY(-2px);
   }
 
+  :root[data-theme='rose'] .profile-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+  }
+
+  :root[data-theme='rose'] .profile-loading,
+  :root[data-theme='rose'] .profile-header,
+  :root[data-theme='rose'] .profile-section-tabs,
+  :root[data-theme='rose'] .profile-card,
+  :root[data-theme='rose'] .profile-empty-state,
+  :root[data-theme='rose'] .profile-activity-link {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+    box-shadow: none;
+  }
+
+  :root[data-theme='rose'] .profile-header__cover {
+    background:
+      radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--theme-primary) 22%, transparent 78%) 0, transparent 42%),
+      linear-gradient(120deg, var(--theme-primary-strong) 0%, var(--theme-primary) 52%, color-mix(in srgb, var(--theme-primary-soft) 72%, white 28%) 100%);
+  }
+
+  :root[data-theme='rose'] .profile-avatar__image,
+  :root[data-theme='rose'] .profile-avatar__placeholder {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    border-color: var(--theme-surface);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-name,
+  :root[data-theme='rose'] .profile-card__header h2,
+  :root[data-theme='rose'] .profile-activity-title,
+  :root[data-theme='rose'] .info-value,
+  :root[data-theme='rose'] .profile-activity-link span {
+    color: #111111;
+  }
+
+  :root[data-theme='rose'] .profile-back-button,
+  :root[data-theme='rose'] .profile-headline,
+  :root[data-theme='rose'] .profile-role,
+  :root[data-theme='rose'] .profile-meta,
+  :root[data-theme='rose'] .profile-card__text,
+  :root[data-theme='rose'] .info-label,
+  :root[data-theme='rose'] .profile-activity-link small,
+  :root[data-theme='rose'] .profile-activity-empty {
+    color: #5f4251;
+  }
+
+  :root[data-theme='rose'] .profile-back-button:hover {
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-section-tab,
+  :root[data-theme='rose'] .profile-card-edit-link,
+  :root[data-theme='rose'] .profile-console-button {
+    color: #5f4251;
+    background: color-mix(in srgb, var(--theme-surface) 92%, var(--theme-primary-soft) 8%);
+    border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-border) 88%);
+  }
+
+  :root[data-theme='rose'] .profile-section-tab--active,
+  :root[data-theme='rose'] .profile-card-edit-link:hover,
+  :root[data-theme='rose'] .profile-console-button:hover,
+  :root[data-theme='rose'] .profile-activity-link:hover,
+  :root[data-theme='rose'] .profile-tag:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-card__header,
+  :root[data-theme='rose'] .profile-actions,
+  :root[data-theme='rose'] .profile-info-row {
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  :root[data-theme='rose'] .profile-tag {
+    background: color-mix(in srgb, var(--theme-primary-soft) 76%, var(--theme-surface) 24%);
+    border-color: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-border) 86%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='rose'] .profile-submit-button {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='rose'] .profile-submit-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 88%, black 12%), color-mix(in srgb, var(--theme-primary-strong) 88%, black 12%));
+  }
+
+  :root[data-theme='rose'] .profile-card__header svg {
+    color: var(--theme-primary-strong);
+  }
+
   :root[data-theme='midnight'] .dashboard-v2,
   :root[data-theme='midnight'] .notes-list-page-modern,
   :root[data-theme='midnight'] .threads-page-shell,
@@ -7978,5 +8172,231 @@
       padding: 0.25rem 0.65rem;
       font-size: 0.74rem;
     }
+  }
+
+  /* Crimson theme: full post-login experience (dashboard onward) */
+  :root[data-theme='crimson'] .dashboard-v2,
+  :root[data-theme='crimson'] .notes-list-page,
+  :root[data-theme='crimson'] .notes-list-page-modern,
+  :root[data-theme='crimson'] .profile-page,
+  :root[data-theme='crimson'] .threads-page-shell,
+  :root[data-theme='crimson'] .study-groups-page,
+  :root[data-theme='crimson'] .study-group-detail-page,
+  :root[data-theme='crimson'] .geo-help-board-page {
+    background: color-mix(in srgb, var(--theme-primary-soft) 12%, var(--theme-bg) 88%);
+    color: #111111;
+  }
+
+  :root[data-theme='crimson'] .notes-sidebar,
+  :root[data-theme='crimson'] .notes-create-form,
+  :root[data-theme='crimson'] .note-card,
+  :root[data-theme='crimson'] .dashboard-v2__panel,
+  :root[data-theme='crimson'] .dashboard-v2__profile-card,
+  :root[data-theme='crimson'] .dashboard-v2__side-card,
+  :root[data-theme='crimson'] .dashboard-v2__discussion-card,
+  :root[data-theme='crimson'] .dashboard-v2__topbar,
+  :root[data-theme='crimson'] .profile-loading,
+  :root[data-theme='crimson'] .profile-header,
+  :root[data-theme='crimson'] .profile-section-tabs,
+  :root[data-theme='crimson'] .profile-card,
+  :root[data-theme='crimson'] .profile-empty-state,
+  :root[data-theme='crimson'] .profile-activity-link,
+  :root[data-theme='crimson'] .threads-panel-intro,
+  :root[data-theme='crimson'] .threads-recommend-banner,
+  :root[data-theme='crimson'] .threads-list,
+  :root[data-theme='crimson'] .thread-detail,
+  :root[data-theme='crimson'] .thread-card,
+  :root[data-theme='crimson'] .thread-detail-page__content,
+  :root[data-theme='crimson'] .thread-detail-page__state,
+  :root[data-theme='crimson'] .thread-detail__header,
+  :root[data-theme='crimson'] .thread-reply-box,
+  :root[data-theme='crimson'] .thread-reply-edit-wrap textarea,
+  :root[data-theme='crimson'] .thread-reply-action-btn,
+  :root[data-theme='crimson'] .thread-collapse-toggle,
+  :root[data-theme='crimson'] .thread-open-btn,
+  :root[data-theme='crimson'] .threads-modal,
+  :root[data-theme='crimson'] .threads-modal__header button,
+  :root[data-theme='crimson'] .threads-modal__form input,
+  :root[data-theme='crimson'] .threads-modal__form textarea,
+  :root[data-theme='crimson'] .similarity-panel,
+  :root[data-theme='crimson'] .similarity-panel__results button,
+  :root[data-theme='crimson'] .thread-reply-collapsed-summary,
+  :root[data-theme='crimson'] .study-groups-shell .bg-white,
+  :root[data-theme='crimson'] .study-groups-shell .bg-slate-50,
+  :root[data-theme='crimson'] .study-groups-shell .rounded-3xl,
+  :root[data-theme='crimson'] .study-groups-shell article,
+  :root[data-theme='crimson'] .study-groups-shell .rounded-2xl,
+  :root[data-theme='crimson'] .study-groups-shell .border-slate-200,
+  :root[data-theme='crimson'] .study-groups-shell .border-slate-300,
+  :root[data-theme='crimson'] .study-groups-shell .border-dashed,
+  :root[data-theme='crimson'] .study-group-detail-shell,
+  :root[data-theme='crimson'] .study-group-detail-shell .bg-white,
+  :root[data-theme='crimson'] .study-group-detail-shell .bg-slate-50,
+  :root[data-theme='crimson'] .study-group-detail-shell .rounded-3xl,
+  :root[data-theme='crimson'] .study-group-detail-shell aside,
+  :root[data-theme='crimson'] .study-group-detail-shell section,
+  :root[data-theme='crimson'] .geo-help-board-page section,
+  :root[data-theme='crimson'] .geo-help-board-page aside,
+  :root[data-theme='crimson'] .geo-help-board-page article,
+  :root[data-theme='crimson'] .geo-help-board-page .geo-help-board-card {
+    background: color-mix(in srgb, var(--theme-surface) 94%, var(--theme-primary-soft) 6%);
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+    box-shadow: none;
+  }
+
+  :root[data-theme='crimson'] .dashboard-v2 h1,
+  :root[data-theme='crimson'] .dashboard-v2 h2,
+  :root[data-theme='crimson'] .dashboard-v2 h3,
+  :root[data-theme='crimson'] .notes-list-title,
+  :root[data-theme='crimson'] .note-card__title,
+  :root[data-theme='crimson'] .profile-name,
+  :root[data-theme='crimson'] .profile-card__header h2,
+  :root[data-theme='crimson'] .profile-activity-title,
+  :root[data-theme='crimson'] .threads-header h1,
+  :root[data-theme='crimson'] .thread-main h3,
+  :root[data-theme='crimson'] .study-groups-shell h1,
+  :root[data-theme='crimson'] .study-groups-shell h2,
+  :root[data-theme='crimson'] .study-groups-shell h3,
+  :root[data-theme='crimson'] .study-group-detail-shell h1,
+  :root[data-theme='crimson'] .study-group-detail-shell h2,
+  :root[data-theme='crimson'] .geo-help-board-page h1,
+  :root[data-theme='crimson'] .geo-help-board-page h2,
+  :root[data-theme='crimson'] .geo-help-board-page h3 {
+    color: #111111;
+  }
+
+  :root[data-theme='crimson'] .dashboard-v2 p,
+  :root[data-theme='crimson'] .dashboard-v2 small,
+  :root[data-theme='crimson'] .notes-list-subtitle,
+  :root[data-theme='crimson'] .note-card__meta,
+  :root[data-theme='crimson'] .profile-headline,
+  :root[data-theme='crimson'] .profile-role,
+  :root[data-theme='crimson'] .profile-meta,
+  :root[data-theme='crimson'] .profile-card__text,
+  :root[data-theme='crimson'] .profile-activity-link small,
+  :root[data-theme='crimson'] .threads-header p,
+  :root[data-theme='crimson'] .thread-main p,
+  :root[data-theme='crimson'] .thread-meta-row,
+  :root[data-theme='crimson'] .study-groups-shell p,
+  :root[data-theme='crimson'] .study-groups-shell .text-slate-600,
+  :root[data-theme='crimson'] .study-groups-shell .text-slate-500,
+  :root[data-theme='crimson'] .study-group-detail-shell p,
+  :root[data-theme='crimson'] .study-group-detail-shell .text-slate-600,
+  :root[data-theme='crimson'] .study-group-detail-shell .text-slate-500,
+  :root[data-theme='crimson'] .geo-help-board-page p,
+  :root[data-theme='crimson'] .geo-help-board-page .text-slate-600,
+  :root[data-theme='crimson'] .geo-help-board-page .text-slate-500 {
+    color: #6a3f4c;
+  }
+
+  :root[data-theme='crimson'] .dashboard-v2__profile-cover,
+  :root[data-theme='crimson'] .profile-header__cover,
+  :root[data-theme='crimson'] .profile-submit-button,
+  :root[data-theme='crimson'] .threads-primary-btn,
+  :root[data-theme='crimson'] .study-group-detail-shell .threads-primary-btn,
+  :root[data-theme='crimson'] .study-group-detail-shell .hero-button--primary,
+  :root[data-theme='crimson'] .study-group-detail-shell .submit-button,
+  :root[data-theme='crimson'] .geo-help-board-page .bg-\[var\(--theme-action-primary\)\] {
+    background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-strong));
+    color: #ffffff;
+  }
+
+  :root[data-theme='crimson'] .dashboard-v2__quick-icon--blue,
+  :root[data-theme='crimson'] .dashboard-v2__discussion-avatar,
+  :root[data-theme='crimson'] .dashboard-v2__profile-avatar,
+  :root[data-theme='crimson'] .dashboard-v2__side-card-icon,
+  :root[data-theme='crimson'] .note-card__icon,
+  :root[data-theme='crimson'] .profile-avatar__image,
+  :root[data-theme='crimson'] .profile-avatar__placeholder,
+  :root[data-theme='crimson'] .profile-section-tab--active,
+  :root[data-theme='crimson'] .profile-tag,
+  :root[data-theme='crimson'] .geo-help-board-page .bg-\[color-mix\(in_srgb\,var\(--theme-primary\)_16\%\,white_84\%\)\] {
+    background: color-mix(in srgb, var(--theme-primary-soft) 72%, var(--theme-surface) 28%);
+    border-color: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-border) 82%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='crimson'] .profile-section-tab,
+  :root[data-theme='crimson'] .profile-card-edit-link,
+  :root[data-theme='crimson'] .profile-console-button,
+  :root[data-theme='crimson'] .threads-secondary-btn,
+  :root[data-theme='crimson'] .threads-tab,
+  :root[data-theme='crimson'] .geo-help-board-page button[class*='border-slate-300'],
+  :root[data-theme='crimson'] .geo-help-board-page .text-\[var\(--theme-primary-strong\)\] {
+    color: var(--theme-primary-strong);
+    border-color: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-border) 84%);
+  }
+
+  /* Crimson theme: note hover line in red and sidebar active show a red side line (no filled box) */
+  :root[data-theme='crimson'] .note-card:hover {
+    border-color: color-mix(in srgb, var(--theme-primary) 36%, var(--theme-border) 64%);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-primary) 12%, transparent 88%);
+  }
+
+  :root[data-theme='crimson'] .notes-sidebar__nav-item--active {
+    background: transparent;
+    color: var(--theme-primary-strong);
+    box-shadow: inset 3px 0 0 var(--theme-primary);
+    font-weight: 600;
+  }
+
+  :root[data-theme='crimson'] .profile-card__header,
+  :root[data-theme='crimson'] .profile-actions,
+  :root[data-theme='crimson'] .profile-info-row,
+  :root[data-theme='crimson'] .geo-help-board-page .border-slate-100,
+  :root[data-theme='crimson'] .geo-help-board-page .border-slate-200,
+  :root[data-theme='crimson'] .geo-help-board-page .border-slate-300,
+  :root[data-theme='crimson'] .study-groups-shell .border-slate-100,
+  :root[data-theme='crimson'] .study-group-detail-shell .border-slate-100,
+  :root[data-theme='crimson'] .thread-card,
+  :root[data-theme='crimson'] .thread-detail {
+    border-color: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-border) 90%);
+  }
+
+  :root[data-theme='crimson'] .profile-back-button:hover,
+  :root[data-theme='crimson'] .profile-card-edit-link:hover,
+  :root[data-theme='crimson'] .profile-console-button:hover,
+  :root[data-theme='crimson'] .profile-activity-link:hover,
+  :root[data-theme='crimson'] .threads-tab--active,
+  :root[data-theme='crimson'] .threads-secondary-btn:hover,
+  :root[data-theme='crimson'] .thread-open-btn:hover,
+  :root[data-theme='crimson'] .thread-reply-action-btn:hover,
+  :root[data-theme='crimson'] .study-groups-shell aside button:hover,
+  :root[data-theme='crimson'] .study-group-detail-shell aside button:hover,
+  :root[data-theme='crimson'] .geo-help-board-page button:hover {
+    background: color-mix(in srgb, var(--theme-primary-soft) 70%, var(--theme-surface) 30%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='crimson'] .study-groups-shell .bg-sky-100,
+  :root[data-theme='crimson'] .study-groups-shell .bg-sky-50,
+  :root[data-theme='crimson'] .study-groups-shell .text-sky-700,
+  :root[data-theme='crimson'] .study-groups-shell .text-sky-600,
+  :root[data-theme='crimson'] .study-group-detail-shell .bg-sky-100,
+  :root[data-theme='crimson'] .study-group-detail-shell .bg-sky-50,
+  :root[data-theme='crimson'] .study-group-detail-shell .text-sky-700,
+  :root[data-theme='crimson'] .study-group-detail-shell .text-sky-600,
+  :root[data-theme='crimson'] .geo-help-board-page .bg-sky-50,
+  :root[data-theme='crimson'] .geo-help-board-page .bg-sky-100,
+  :root[data-theme='crimson'] .geo-help-board-page .text-sky-700,
+  :root[data-theme='crimson'] .geo-help-board-page .text-sky-600 {
+    background: color-mix(in srgb, var(--theme-primary-soft) 75%, var(--theme-surface) 25%);
+    border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-border) 80%);
+    color: var(--theme-primary-strong);
+  }
+
+  :root[data-theme='crimson'] .threads-search:focus-within,
+  :root[data-theme='crimson'] .thread-reply-box textarea:focus,
+  :root[data-theme='crimson'] .thread-reply-edit-wrap textarea:focus,
+  :root[data-theme='crimson'] .geo-help-board-page input:focus,
+  :root[data-theme='crimson'] .geo-help-board-page textarea:focus,
+  :root[data-theme='crimson'] .geo-help-board-page select:focus,
+  :root[data-theme='crimson'] .study-groups-shell input:focus,
+  :root[data-theme='crimson'] .study-groups-shell textarea:focus,
+  :root[data-theme='crimson'] .study-group-detail-shell input:focus,
+  :root[data-theme='crimson'] .study-group-detail-shell textarea:focus {
+    border-color: color-mix(in srgb, var(--theme-primary) 44%, var(--theme-border) 56%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent 84%);
   }
 }

@@ -407,8 +407,9 @@ export function StudyGroupDetailPage() {
                               ) : null}
                               <div
                                 className={`rounded-2xl px-4 py-2 text-sm leading-6 ${
-                                  own ? 'rounded-br-md bg-blue-600 text-white' : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
+                                  own ? 'rounded-br-md' : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
                                 }`}
+                                style={own ? { background: 'var(--theme-primary)', color: 'var(--primary-foreground)' } : undefined}
                               >
                                 {post.content}
                               </div>
