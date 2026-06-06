@@ -52,6 +52,7 @@ interface NoteData {
   title: string
   content: any
   ownerId: string
+  role?: string 
 }
 
 
@@ -167,10 +168,25 @@ export function NoteScreen() {
   const canEdit = canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
 
-  useEffect(() => {
-    if (!token) navigation.replace('Login')
-    if (!canAccessNotes) navigation.replace('NotesList' as any)
-  }, [token, canAccessNotes, navigation])
+  const noteRoleLabel: string = (() => {
+  const r = note?.role?.toUpperCase()
+    if (r === 'OWNER' || isOwner) return 'Owner'
+    if (r === 'EDITOR' || canEdit) return 'Editor'
+    return 'Viewer'
+  })()
+ 
+  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+    ? 'bg-[#eaf1ff]' : 'bg-[#f0f4fa]'
+  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+    ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
+ 
+ 
+   useEffect(() => {
+    if (!authReady) return
+    if (!token) navigation.replace('Login', undefined)
+    else if (!canAccessNotes) navigation.replace('Notes', undefined)
+  }, [authReady, token, canAccessNotes, navigation])
+
 
     const fetchNote = useCallback(async () => {
     if (!authReady || !noteId || !token) return
@@ -324,9 +340,9 @@ export function NoteScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
-  return (
+    return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-
+ 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
         {/* Back */}
@@ -334,15 +350,15 @@ export function NoteScreen() {
           className="p-1"
           onPress={async () => {
             await flushPendingSave()
-            navigation.navigate('Notes')
+            navigation.navigate('Notes', undefined)
           }}
           hitSlop={8}
           activeOpacity={0.7}
         >
           <ArrowLeft size={20} color="#101d36" />
         </TouchableOpacity>
-
-        {/* Title */}
+ 
+        {/* Title + role badge */}
         <View className="flex-1 overflow-hidden">
           {editingTitle ? (
             <TextInput
@@ -365,12 +381,18 @@ export function NoteScreen() {
               </Text>
             </Pressable>
           )}
+          {/* Role badge — mirrors web "Owner" / "Editor" / "Viewer" label */}
+          <View className={`self-start mt-0.5 px-[6px] py-px rounded ${noteRoleBg}`}>
+            <Text className={`text-[10px] font-semibold ${noteRoleColor}`}>
+              {noteRoleLabel}
+            </Text>
+          </View>
         </View>
-
+ 
         {/* Right actions */}
         <View className="flex-row items-center gap-1">
           <SaveIndicator status={saveStatus} />
-
+ 
           {canEdit && (
             <TouchableOpacity
               className="p-[7px] rounded-lg"
@@ -386,7 +408,7 @@ export function NoteScreen() {
               )}
             </TouchableOpacity>
           )}
-
+ 
           {isOwner && (
             <TouchableOpacity
               className={`p-[7px] rounded-lg ${showShare ? 'bg-[#2f64f6]' : ''}`}
@@ -397,7 +419,7 @@ export function NoteScreen() {
               <Share2 size={20} color={showShare ? '#fff' : '#2f64f6'} />
             </TouchableOpacity>
           )}
-
+ 
           <TouchableOpacity
             className={`p-[7px] rounded-lg ${showVersionHistory ? 'bg-[#2f64f6]' : ''}`}
             onPress={() => { setShowVersionHistory(true); setShowShare(false) }}
@@ -408,7 +430,7 @@ export function NoteScreen() {
           </TouchableOpacity>
         </View>
       </View>
-
+ 
       {/* ── Editor ─────────────────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         className="flex-1"
@@ -416,7 +438,7 @@ export function NoteScreen() {
         keyboardVerticalOffset={0}
       >
         <RichText editor={editor} style={{ flex: 1 }} />
-
+ 
         {canEdit && (
           <View
             className="bg-white border-t border-[#f0f4fa]"
@@ -426,7 +448,7 @@ export function NoteScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-
+ 
       {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
         noteId={noteId}
@@ -436,7 +458,7 @@ export function NoteScreen() {
         onClose={() => setShowVersionHistory(false)}
         onRestored={handleRestored}
       />
-
+ 
       {token && (
         <MobileSharePanel
           noteId={noteId}
@@ -449,6 +471,7 @@ export function NoteScreen() {
     </View>
   )
 }
+
 
 // ─── Save indicator ───────────────────────────────────────────────────────────
 
