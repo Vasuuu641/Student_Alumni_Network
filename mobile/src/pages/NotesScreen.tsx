@@ -1,15 +1,3 @@
-// screens/NoteScreen.tsx
-// Mobile equivalent of src/pages/NotePage.tsx
-// Styled with NativeWind (Tailwind CSS for React Native)
-//
-// Dependencies:
-//   npx expo install @10play/tentap-editor react-native-webview
-//   npx expo install react-native-safe-area-context
-//   npm install lucide-react-native
-//   npm install @react-navigation/native @react-navigation/native-stack
-//
-// Collaborative cursors omitted — TenTap real-time collab is a paid Pro feature.
-
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
