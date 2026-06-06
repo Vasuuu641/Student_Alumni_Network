@@ -1,17 +1,14 @@
 // screens/NoteScreen.tsx
 // Mobile equivalent of src/pages/NotePage.tsx
+// Styled with NativeWind (Tailwind CSS for React Native)
 //
 // Dependencies:
 //   npx expo install @10play/tentap-editor react-native-webview
 //   npx expo install react-native-safe-area-context
-//   yarn add lucide-react-native
-//   @react-navigation/native + @react-navigation/native-stack
+//   npm install lucide-react-native
+//   npm install @react-navigation/native @react-navigation/native-stack
 //
-// Note: @10play/tentap-editor requires an Expo Dev Client build for full
-// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
-//
-// Collaborative cursors are intentionally omitted — TenTap's real-time
-// collab is a paid Pro feature. Autosave + version history covers mobile.
+// Collaborative cursors omitted — TenTap real-time collab is a paid Pro feature.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -37,31 +34,33 @@ import {
   TenTapStartKit,
 } from '@10play/tentap-editor'
 import {
+  AlertCircle,
   ArrowLeft,
-  Archive,
-  ArchiveRestore,
   BookmarkPlus,
   CheckCircle2,
-  AlertCircle,
   FileText,
   History,
-  Share2,
-  Users,
+  Lightbulb,
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
 import { getAccessToken } from '../lib/auth-storage'
 import { getRoleFromAccessToken } from '../lib/jwt'
-import type { RootStackParamList } from '../navigation/root-stack'
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel'
-import { useNotePresence } from '../hooks/UseNotesPresence'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
+import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel'
+import { useRelatedThreads } from '../hooks/UseRelatedThreads'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Nav = NativeStackNavigationProp<RootStackParamList>
-type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>
+type RootStackParamList = {
+  NotesList: undefined
+  Note: { noteId: string }
+  Login: undefined
+}
 
+type Nav = NativeStackNavigationProp<RootStackParamList>
+type NoteRoute = RouteProp<RootStackParamList, 'Note'>
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface NoteData {
@@ -69,8 +68,6 @@ interface NoteData {
   title: string
   content: any
   ownerId: string
-  status: 'ACTIVE' | 'ARCHIVED'
-  role?: string   // e.g. "OWNER" | "EDITOR" | "VIEWER" — returned by the API
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,9 +84,7 @@ function decodeUserId(token: string): string | null {
 function tiptapJsonToHtml(json: any): string {
   if (!json) return ''
   if (typeof json === 'string') return json
-  if (typeof json === 'object' && json.type === 'doc') {
-    return jsonNodeToHtml(json)
-  }
+  if (typeof json === 'object' && json.type === 'doc') return jsonNodeToHtml(json)
   return ''
 }
 
@@ -102,8 +97,7 @@ function jsonNodeToHtml(node: any): string {
   }
   if (node.type === 'heading') {
     const level = node.attrs?.level ?? 1
-    const inner = (node.content ?? []).map(jsonNodeToHtml).join('')
-    return `<h${level}>${inner}</h${level}>`
+    return `<h${level}>${(node.content ?? []).map(jsonNodeToHtml).join('')}</h${level}>`
   }
   if (node.type === 'bulletList') return `<ul>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ul>`
   if (node.type === 'orderedList') return `<ol>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ol>`
@@ -126,16 +120,17 @@ function jsonNodeToHtml(node: any): string {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function NoteScreen() {
+
   const navigation = useNavigation<Nav>()
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
   const { noteId } = route.params
-
+ 
   const [token, setToken] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
-
+ 
   useEffect(() => {
     getAccessToken().then((t) => {
       setToken(t)
@@ -154,8 +149,7 @@ export function NoteScreen() {
 
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShare, setShowShare] = useState(false)
-  const [archiving, setArchiving] = useState(false)
-  const [isEmpty, setIsEmpty] = useState(false)
+  const [showAIInsights, setShowAIInsights] = useState(false)
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
@@ -172,6 +166,11 @@ export function NoteScreen() {
   const autosaveArmedRef = useRef(false)
   const hasSetInitialContentRef = useRef(false)
 
+  const canEdit = canAccessNotes && role !== 'ALUMNI'
+  const isOwner = note ? note.ownerId === currentUserId : false
+
+  // ─── TenTap editor ──────────────────────────────────────────────────────────
+
   const editor = useEditorBridge({
     autofocus: false,
     avoidIosKeyboard: true,
@@ -184,38 +183,34 @@ export function NoteScreen() {
     debounceInterval: 500,
   })
 
-  const canEdit = canAccessNotes && role !== 'ALUMNI'
-  const isOwner = note ? note.ownerId === currentUserId : false
-  const isArchived = note?.status === 'ARCHIVED'
+  // ─── AI related threads ──────────────────────────────────────────────────────
 
-  // ─── Presence ──────────────────────────────────────────────────────────────
-  const { onlineCount, othersOnline } = useNotePresence({
+  const {
+    threads: relatedThreads,
+    isLoading: aiLoading,
+    hasRequested: aiHasRequested,
+    canRequestSuggestions,
+    cooldownRemainingMs,
+    requestSuggestions,
+  } = useRelatedThreads({
     noteId,
-    userId: currentUserId,
-    enabled: !!note && authReady,
+    token,
+    noteContent: htmlContent ?? '',
+    title: note?.title ?? '',
+    contentJson: note?.content ?? null,
+    enabled: showAIInsights,
   })
 
-  // Derive display role label — prefer API-returned role, fall back to ownership check
-  const noteRoleLabel: string = (() => {
-    const r = note?.role?.toUpperCase()
-    if (r === 'OWNER' || isOwner) return 'Owner'
-    if (r === 'EDITOR' || canEdit) return 'Editor'
-    return 'Viewer'
-  })()
-
-  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? 'bg-[#eaf1ff]' : 'bg-[#f0f4fa]'
-  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
-
+  // ─── Auth redirect ───────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!authReady) return
-    if (!token) navigation.replace('Login', undefined)
-    else if (!canAccessNotes) navigation.replace('Notes', undefined)
-  }, [authReady, token, canAccessNotes, navigation])
+    if (!token) navigation.replace('Login')
+    if (!canAccessNotes) navigation.replace('NotesList' as any)
+  }, [token, canAccessNotes, navigation])
 
-  const fetchNote = useCallback(async () => {
+  // ─── Fetch note ──────────────────────────────────────────────────────────────
+
+    const fetchNote = useCallback(async () => {
     if (!authReady || !noteId || !token) return
     try {
       setFetchError(null)
@@ -229,40 +224,33 @@ export function NoteScreen() {
       setLoadingNote(false)
     }
   }, [authReady, noteId, token])
-
+ 
   useEffect(() => { fetchNote() }, [fetchNote])
+
+
+  // ─── Seed editor once note loads ─────────────────────────────────────────────
 
   useEffect(() => {
     if (!note || hasSetInitialContentRef.current) return
-    const htmlSeed = tiptapJsonToHtml(note.content)
-    editor.setContent(htmlSeed)
+    editor.setContent(tiptapJsonToHtml(note.content))
     hasSetInitialContentRef.current = true
-    // Detect empty note for placeholder display
-    const isContentEmpty = !note.content ||
-      (typeof note.content === 'object' &&
-        Array.isArray(note.content?.content) &&
-        note.content.content.length === 0) ||
-      (typeof note.content === 'string' && note.content.trim() === '')
-    setIsEmpty(isContentEmpty)
     setTimeout(() => {
       editor.setEditable(canEdit)
       autosaveArmedRef.current = true
     }, 600)
   }, [note, editor, canEdit])
 
+  // ─── Autosave on content change ──────────────────────────────────────────────
+
   useEffect(() => {
-    if (!autosaveArmedRef.current) return
-    if (!htmlContent) return
-    // Clear empty placeholder as soon as content appears
-    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
-      setIsEmpty(false)
-    }
+    if (!autosaveArmedRef.current || !htmlContent) return
     void persistContent(htmlContent)
-  }, [htmlContent, isEmpty]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [htmlContent]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Persist ─────────────────────────────────────────────────────────────────
 
   const persistContent = useCallback(async (content: string) => {
-    if (!canEdit || !token || !noteId) return
-    if (!autosaveArmedRef.current) return
+    if (!canEdit || !token || !noteId || !autosaveArmedRef.current) return
     if (content === lastSavedRef.current) return
     if (inFlightRef.current) {
       hasPendingRef.current = true
@@ -290,32 +278,27 @@ export function NoteScreen() {
   }, [canEdit, token, noteId])
 
   const flushPendingSave = useCallback(async () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = null
-    }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
     if (autosaveArmedRef.current && token && noteId && canEdit) {
       try {
         const latestHtml = await editor.getHTML()
         await persistContent(latestHtml)
-      } catch {
-        // ignore — best-effort flush
-      }
+      } catch { /* best-effort */ }
     }
   }, [editor, token, noteId, canEdit, persistContent])
 
+  // ─── AppState flush on background ────────────────────────────────────────────
+
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        void flushPendingSave()
-      }
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'background' || next === 'inactive') void flushPendingSave()
     })
     return () => sub.remove()
   }, [flushPendingSave])
 
-  useEffect(() => {
-    return () => { void flushPendingSave() }
-  }, [flushPendingSave])
+  useEffect(() => () => { void flushPendingSave() }, [flushPendingSave])
+
+  // ─── Title editing ────────────────────────────────────────────────────────────
 
   function startEditTitle() {
     if (!isOwner) return
@@ -335,19 +318,7 @@ export function NoteScreen() {
     }
   }
 
-  const handleToggleArchive = async () => {
-    if (!token || !note || !isOwner) return
-    const nextStatus = isArchived ? 'ACTIVE' : 'ARCHIVED'
-    try {
-      setArchiving(true)
-      await updateNote(token, noteId, { status: nextStatus })
-      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev)
-    } catch {
-      // silently fail — user can retry
-    } finally {
-      setArchiving(false)
-    }
-  }
+  // ─── Checkpoint ───────────────────────────────────────────────────────────────
 
   const handleSaveCheckpoint = async () => {
     if (!token) return
@@ -359,6 +330,8 @@ export function NoteScreen() {
       setSavingCheckpoint(false)
     }
   }
+
+  // ─── Version restore ──────────────────────────────────────────────────────────
 
   const handleRestored = useCallback(async () => {
     hasSetInitialContentRef.current = false
@@ -383,8 +356,8 @@ export function NoteScreen() {
       <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
         <FileText size={40} color="#94a3b8" strokeWidth={1.3} />
         <Text className="text-[15px] text-[#5f7291]">{fetchError ?? 'Note not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
-          <Text className="text-sm font-semibold text-[#2f64f6]">← Back to notes</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('NotesList')}>
+          <Text className="text-[14px] font-semibold text-[#2f64f6]">← Back to notes</Text>
         </TouchableOpacity>
       </View>
     )
@@ -395,27 +368,24 @@ export function NoteScreen() {
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
+      {/* Header */}
+      <View className="flex-row items-center px-3.5 py-2.5 border-b border-[#f0f4fa] gap-2">
         {/* Back */}
         <TouchableOpacity
           className="p-1"
-          onPress={async () => {
-            await flushPendingSave()
-            navigation.navigate('Notes', undefined)
-          }}
+          onPress={async () => { await flushPendingSave(); navigation.navigate('NotesList') }}
           hitSlop={8}
           activeOpacity={0.7}
         >
           <ArrowLeft size={20} color="#101d36" />
         </TouchableOpacity>
 
-        {/* Title + role badge */}
+        {/* Title */}
         <View className="flex-1 overflow-hidden">
           {editingTitle ? (
             <TextInput
               ref={titleInputRef}
-              className="text-base font-semibold text-[#101d36] p-0 border-b-2 border-[#2f64f6]"
+              className="text-[16px] font-semibold text-[#101d36] p-0 border-b-[1.5px] border-[#2f64f6]"
               value={titleDraft}
               onChangeText={setTitleDraft}
               onBlur={commitTitle}
@@ -426,25 +396,17 @@ export function NoteScreen() {
           ) : (
             <Pressable onPress={startEditTitle}>
               <Text
-                className={`text-base font-semibold text-[#101d36] ${isOwner ? 'underline decoration-dotted decoration-[#dce6f3]' : ''}`}
+                className={`text-[16px] font-semibold text-[#101d36] ${isOwner ? 'underline decoration-dotted decoration-[#dce6f3]' : ''}`}
                 numberOfLines={1}
               >
                 {note.title || 'Untitled document'}
               </Text>
             </Pressable>
           )}
-          {/* Role badge — mirrors web "Owner" / "Editor" / "Viewer" label */}
-          <View className={`self-start mt-0.5 px-[6px] py-px rounded ${noteRoleBg}`}>
-            <Text className={`text-[10px] font-semibold ${noteRoleColor}`}>
-              {noteRoleLabel}
-            </Text>
-          </View>
         </View>
 
         {/* Right actions */}
         <View className="flex-row items-center gap-1">
-          {/* Presence indicator — mirrors web "● N online" */}
-          <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} />
           <SaveIndicator status={saveStatus} />
 
           {canEdit && (
@@ -455,27 +417,9 @@ export function NoteScreen() {
               hitSlop={6}
               activeOpacity={0.7}
             >
-              {savingCheckpoint ? (
-                <ActivityIndicator size="small" color="#2f64f6" />
-              ) : (
-                <BookmarkPlus size={20} color="#2f64f6" />
-              )}
-            </TouchableOpacity>
-          )}
-
-          {isOwner && (
-            <TouchableOpacity
-              className={`p-[7px] rounded-lg ${isArchived ? 'bg-[#fef3c7]' : ''}`}
-              onPress={handleToggleArchive}
-              disabled={archiving}
-              hitSlop={6}
-              activeOpacity={0.7}
-            >
-              {archiving
-                ? <ActivityIndicator size="small" color="#f59e0b" />
-                : isArchived
-                  ? <ArchiveRestore size={20} color="#f59e0b" />
-                  : <Archive size={20} color="#5f7291" />
+              {savingCheckpoint
+                ? <ActivityIndicator size="small" color="#2f64f6" />
+                : <BookmarkPlus size={20} color="#2f64f6" />
               }
             </TouchableOpacity>
           )}
@@ -483,73 +427,50 @@ export function NoteScreen() {
           {isOwner && (
             <TouchableOpacity
               className={`p-[7px] rounded-lg ${showShare ? 'bg-[#2f64f6]' : ''}`}
-              onPress={() => { setShowShare(true); setShowVersionHistory(false) }}
+              onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false) }}
               hitSlop={6}
               activeOpacity={0.7}
             >
-              <Share2 size={20} color={showShare ? '#fff' : '#2f64f6'} />
+              {/* Using BookmarkPlus as placeholder — swap for Share2 if available in your lucide version */}
+              <Text className={`text-[13px] font-semibold ${showShare ? 'text-white' : 'text-[#2f64f6]'}`}>Share</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             className={`p-[7px] rounded-lg ${showVersionHistory ? 'bg-[#2f64f6]' : ''}`}
-            onPress={() => { setShowVersionHistory(true); setShowShare(false) }}
+            onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false) }}
             hitSlop={6}
             activeOpacity={0.7}
           >
             <History size={20} color={showVersionHistory ? '#fff' : '#2f64f6'} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            className={`p-[7px] rounded-lg ${showAIInsights ? 'bg-[#f59e0b]' : ''}`}
+            onPress={() => { setShowAIInsights(true); setShowShare(false); setShowVersionHistory(false) }}
+            hitSlop={6}
+            activeOpacity={0.7}
+          >
+            <Lightbulb size={20} color={showAIInsights ? '#fff' : '#f59e0b'} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Archived banner ───────────────────────────────────────────────── */}
-      {isArchived && (
-        <View className="flex-row items-center gap-2 px-4 py-2 bg-[#fef3c7] border-b border-[#fde68a]">
-          <Archive size={13} color="#f59e0b" />
-          <Text className="flex-1 text-xs text-[#92400e] font-medium">
-            This note is archived. Unarchive it to enable editing.
-          </Text>
-          {isOwner && (
-            <TouchableOpacity onPress={handleToggleArchive} activeOpacity={0.7}>
-              <Text className="text-xs font-bold text-[#f59e0b]">Unarchive</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {/* ── Editor ─────────────────────────────────────────────────────────── */}
+      {/* Editor */}
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <View style={{ flex: 1 }}>
-          <RichText editor={editor} style={{ flex: 1 }} />
-          {/* Empty state — shown for new/blank notes until the user starts typing */}
-          {isEmpty && canEdit && !isArchived && (
-            <View
-              className="absolute left-0 right-0 top-0"
-              style={{ paddingTop: 16, paddingHorizontal: 24 }}
-              pointerEvents="none"
-            >
-              <Text className="text-[15px] text-[#c8d5e8]">
-                Start writing your note…
-              </Text>
-            </View>
-          )}
-        </View>
-
+        <RichText editor={editor} className="flex-1" />
         {canEdit && (
-          <View
-            className="bg-white border-t border-[#f0f4fa]"
-            style={{ paddingBottom: insets.bottom }}
-          >
+          <View className="bg-white border-t border-[#f0f4fa]" style={{ paddingBottom: insets.bottom }}>
             <Toolbar editor={editor} />
           </View>
         )}
       </KeyboardAvoidingView>
 
-      {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
+      {/* Bottom sheet panels */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -568,35 +489,20 @@ export function NoteScreen() {
           onClose={() => setShowShare(false)}
         />
       )}
-    </View>
-  )
-}
 
-// ─── Presence indicator ──────────────────────────────────────────────────────
-
-interface PresenceIndicatorProps {
-  onlineCount: number
-  othersOnline: number
-}
-
-function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps) {
-  // Don't show anything until at least one person is online (self)
-  if (onlineCount === 0) return null
-
-  const isAlone = othersOnline === 0
-  const dotColor = isAlone ? '#94a3b8' : '#22c55e'
-  const label = isAlone
-    ? 'Only you'
-    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`
-
-  return (
-    <View className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-[#f0f4fa] border border-[#dce6f3]">
-      {/* Pulsing dot */}
-      <View
-        className="w-[7px] h-[7px] rounded-full"
-        style={{ backgroundColor: dotColor }}
-      />
-      <Text className="text-[10px] font-medium text-[#5f7291]">{label}</Text>
+      {token && (
+        <MobileAIInsightsPanel
+          token={token}
+          threads={relatedThreads}
+          isLoading={aiLoading}
+          hasRequested={aiHasRequested}
+          canRequestSuggestions={canRequestSuggestions}
+          cooldownRemainingMs={cooldownRemainingMs}
+          onRequestSuggestions={requestSuggestions}
+          visible={showAIInsights}
+          onClose={() => setShowAIInsights(false)}
+        />
+      )}
     </View>
   )
 }
@@ -606,21 +512,21 @@ function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps
 function SaveIndicator({ status }: { status: SaveStatus }) {
   if (status === 'idle') return null
 
-  const colorMap = {
-    saving: { text: 'text-[#f4a300]', border: 'border-[#f4a30033]', bg: 'bg-[#f4a30018]', icon: '#f4a300' },
-    saved:  { text: 'text-[#1f8a4c]', border: 'border-[#1f8a4c33]', bg: 'bg-[#1f8a4c18]', icon: '#1f8a4c' },
-    error:  { text: 'text-[#c53b4f]', border: 'border-[#c53b4f33]', bg: 'bg-[#c53b4f18]', icon: '#c53b4f' },
-  }
-  const c = colorMap[status]
+  const colorClass = status === 'saving'
+    ? 'border-[#f4a300]/20 bg-[#f4a300]/10'
+    : status === 'saved'
+    ? 'border-[#1f8a4c]/20 bg-[#1f8a4c]/10'
+    : 'border-[#c53b4f]/20 bg-[#c53b4f]/10'
+
+  const textColor = status === 'saving' ? '#f4a300' : status === 'saved' ? '#1f8a4c' : '#c53b4f'
+  const label = status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Failed'
 
   return (
-    <View className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${c.border} ${c.bg}`}>
-      {status === 'saving' && <ActivityIndicator size={10} color={c.icon} />}
-      {status === 'saved' && <CheckCircle2 size={11} color={c.icon} />}
-      {status === 'error' && <AlertCircle size={11} color={c.icon} />}
-      <Text className={`text-[11px] font-semibold ${c.text}`}>
-        {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Failed'}
-      </Text>
+    <View className={`flex-row items-center gap-1 px-2 py-1 rounded-lg border ${colorClass}`}>
+      {status === 'saving' && <ActivityIndicator size={10} color={textColor} />}
+      {status === 'saved' && <CheckCircle2 size={11} color={textColor} />}
+      {status === 'error' && <AlertCircle size={11} color={textColor} />}
+      <Text className="text-[11px] font-semibold" style={{ color: textColor }}>{label}</Text>
     </View>
   )
 }
