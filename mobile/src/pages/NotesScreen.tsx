@@ -1,3 +1,17 @@
+// screens/NoteScreen.tsx
+// Mobile equivalent of src/pages/NotePage.tsx
+//
+// Dependencies:
+//   npx expo install @10play/tentap-editor react-native-webview
+//   npx expo install react-native-safe-area-context
+//   yarn add lucide-react-native
+//   @react-navigation/native + @react-navigation/native-stack
+//
+// Note: @10play/tentap-editor requires an Expo Dev Client build for full
+// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
+//
+// Collaborative cursors are intentionally omitted — TenTap's real-time
+// collab is a paid Pro feature. Autosave + version history covers mobile.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -24,12 +38,15 @@ import {
 } from '@10play/tentap-editor'
 import {
   ArrowLeft,
+  Archive,
+  ArchiveRestore,
   BookmarkPlus,
   CheckCircle2,
   AlertCircle,
   FileText,
   History,
   Share2,
+  Users,
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
@@ -37,24 +54,24 @@ import { getAccessToken } from '../lib/auth-storage'
 import { getRoleFromAccessToken } from '../lib/jwt'
 import type { RootStackParamList } from '../navigation/root-stack'
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel'
+import { useNotePresence } from '../hooks/UseNotesPresence'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
+type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>
 
-type NoteRoute = RouteProp<{ Notes: { noteId: string } }, 'Notes'>
- 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
- 
+
 interface NoteData {
   id: string
   title: string
   content: any
   ownerId: string
-  role?: string 
+  status: 'ACTIVE' | 'ARCHIVED'
+  role?: string   // e.g. "OWNER" | "EDITOR" | "VIEWER" — returned by the API
 }
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,12 +130,12 @@ export function NoteScreen() {
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
   const { noteId } = route.params
- 
+
   const [token, setToken] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
- 
+
   useEffect(() => {
     getAccessToken().then((t) => {
       setToken(t)
@@ -130,21 +147,23 @@ export function NoteScreen() {
   }, [])
 
   const canAccessNotes = role !== 'ALUMNI'
- 
+
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
- 
+
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShare, setShowShare] = useState(false)
- 
+  const [archiving, setArchiving] = useState(false)
+  const [isEmpty, setIsEmpty] = useState(false)
+
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
- 
+
   const [titleDraft, setTitleDraft] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<TextInput>(null)
- 
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>('')
   const inFlightRef = useRef(false)
@@ -167,28 +186,36 @@ export function NoteScreen() {
 
   const canEdit = canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
+  const isArchived = note?.status === 'ARCHIVED'
 
+  // ─── Presence ──────────────────────────────────────────────────────────────
+  const { onlineCount, othersOnline } = useNotePresence({
+    noteId,
+    userId: currentUserId,
+    enabled: !!note && authReady,
+  })
+
+  // Derive display role label — prefer API-returned role, fall back to ownership check
   const noteRoleLabel: string = (() => {
-  const r = note?.role?.toUpperCase()
+    const r = note?.role?.toUpperCase()
     if (r === 'OWNER' || isOwner) return 'Owner'
     if (r === 'EDITOR' || canEdit) return 'Editor'
     return 'Viewer'
   })()
- 
+
   const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'bg-[#eaf1ff]' : 'bg-[#f0f4fa]'
   const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
- 
- 
-   useEffect(() => {
+
+
+  useEffect(() => {
     if (!authReady) return
     if (!token) navigation.replace('Login', undefined)
     else if (!canAccessNotes) navigation.replace('Notes', undefined)
   }, [authReady, token, canAccessNotes, navigation])
 
-
-    const fetchNote = useCallback(async () => {
+  const fetchNote = useCallback(async () => {
     if (!authReady || !noteId || !token) return
     try {
       setFetchError(null)
@@ -210,6 +237,13 @@ export function NoteScreen() {
     const htmlSeed = tiptapJsonToHtml(note.content)
     editor.setContent(htmlSeed)
     hasSetInitialContentRef.current = true
+    // Detect empty note for placeholder display
+    const isContentEmpty = !note.content ||
+      (typeof note.content === 'object' &&
+        Array.isArray(note.content?.content) &&
+        note.content.content.length === 0) ||
+      (typeof note.content === 'string' && note.content.trim() === '')
+    setIsEmpty(isContentEmpty)
     setTimeout(() => {
       editor.setEditable(canEdit)
       autosaveArmedRef.current = true
@@ -219,8 +253,12 @@ export function NoteScreen() {
   useEffect(() => {
     if (!autosaveArmedRef.current) return
     if (!htmlContent) return
+    // Clear empty placeholder as soon as content appears
+    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+      setIsEmpty(false)
+    }
     void persistContent(htmlContent)
-  }, [htmlContent]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [htmlContent, isEmpty]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const persistContent = useCallback(async (content: string) => {
     if (!canEdit || !token || !noteId) return
@@ -297,6 +335,20 @@ export function NoteScreen() {
     }
   }
 
+  const handleToggleArchive = async () => {
+    if (!token || !note || !isOwner) return
+    const nextStatus = isArchived ? 'ACTIVE' : 'ARCHIVED'
+    try {
+      setArchiving(true)
+      await updateNote(token, noteId, { status: nextStatus })
+      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev)
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setArchiving(false)
+    }
+  }
+
   const handleSaveCheckpoint = async () => {
     if (!token) return
     try {
@@ -331,7 +383,7 @@ export function NoteScreen() {
       <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
         <FileText size={40} color="#94a3b8" strokeWidth={1.3} />
         <Text className="text-[15px] text-[#5f7291]">{fetchError ?? 'Note not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Notes')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
           <Text className="text-sm font-semibold text-[#2f64f6]">← Back to notes</Text>
         </TouchableOpacity>
       </View>
@@ -340,9 +392,9 @@ export function NoteScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
-    return (
+  return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
- 
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
         {/* Back */}
@@ -357,7 +409,7 @@ export function NoteScreen() {
         >
           <ArrowLeft size={20} color="#101d36" />
         </TouchableOpacity>
- 
+
         {/* Title + role badge */}
         <View className="flex-1 overflow-hidden">
           {editingTitle ? (
@@ -388,11 +440,13 @@ export function NoteScreen() {
             </Text>
           </View>
         </View>
- 
+
         {/* Right actions */}
         <View className="flex-row items-center gap-1">
+          {/* Presence indicator — mirrors web "● N online" */}
+          <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} />
           <SaveIndicator status={saveStatus} />
- 
+
           {canEdit && (
             <TouchableOpacity
               className="p-[7px] rounded-lg"
@@ -408,7 +462,24 @@ export function NoteScreen() {
               )}
             </TouchableOpacity>
           )}
- 
+
+          {isOwner && (
+            <TouchableOpacity
+              className={`p-[7px] rounded-lg ${isArchived ? 'bg-[#fef3c7]' : ''}`}
+              onPress={handleToggleArchive}
+              disabled={archiving}
+              hitSlop={6}
+              activeOpacity={0.7}
+            >
+              {archiving
+                ? <ActivityIndicator size="small" color="#f59e0b" />
+                : isArchived
+                  ? <ArchiveRestore size={20} color="#f59e0b" />
+                  : <Archive size={20} color="#5f7291" />
+              }
+            </TouchableOpacity>
+          )}
+
           {isOwner && (
             <TouchableOpacity
               className={`p-[7px] rounded-lg ${showShare ? 'bg-[#2f64f6]' : ''}`}
@@ -419,7 +490,7 @@ export function NoteScreen() {
               <Share2 size={20} color={showShare ? '#fff' : '#2f64f6'} />
             </TouchableOpacity>
           )}
- 
+
           <TouchableOpacity
             className={`p-[7px] rounded-lg ${showVersionHistory ? 'bg-[#2f64f6]' : ''}`}
             onPress={() => { setShowVersionHistory(true); setShowShare(false) }}
@@ -430,15 +501,44 @@ export function NoteScreen() {
           </TouchableOpacity>
         </View>
       </View>
- 
+
+      {/* ── Archived banner ───────────────────────────────────────────────── */}
+      {isArchived && (
+        <View className="flex-row items-center gap-2 px-4 py-2 bg-[#fef3c7] border-b border-[#fde68a]">
+          <Archive size={13} color="#f59e0b" />
+          <Text className="flex-1 text-xs text-[#92400e] font-medium">
+            This note is archived. Unarchive it to enable editing.
+          </Text>
+          {isOwner && (
+            <TouchableOpacity onPress={handleToggleArchive} activeOpacity={0.7}>
+              <Text className="text-xs font-bold text-[#f59e0b]">Unarchive</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* ── Editor ─────────────────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <RichText editor={editor} style={{ flex: 1 }} />
- 
+        <View style={{ flex: 1 }}>
+          <RichText editor={editor} style={{ flex: 1 }} />
+          {/* Empty state — shown for new/blank notes until the user starts typing */}
+          {isEmpty && canEdit && !isArchived && (
+            <View
+              className="absolute left-0 right-0 top-0"
+              style={{ paddingTop: 16, paddingHorizontal: 24 }}
+              pointerEvents="none"
+            >
+              <Text className="text-[15px] text-[#c8d5e8]">
+                Start writing your note…
+              </Text>
+            </View>
+          )}
+        </View>
+
         {canEdit && (
           <View
             className="bg-white border-t border-[#f0f4fa]"
@@ -448,7 +548,7 @@ export function NoteScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
- 
+
       {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
         noteId={noteId}
@@ -458,7 +558,7 @@ export function NoteScreen() {
         onClose={() => setShowVersionHistory(false)}
         onRestored={handleRestored}
       />
- 
+
       {token && (
         <MobileSharePanel
           noteId={noteId}
@@ -472,6 +572,34 @@ export function NoteScreen() {
   )
 }
 
+// ─── Presence indicator ──────────────────────────────────────────────────────
+
+interface PresenceIndicatorProps {
+  onlineCount: number
+  othersOnline: number
+}
+
+function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps) {
+  // Don't show anything until at least one person is online (self)
+  if (onlineCount === 0) return null
+
+  const isAlone = othersOnline === 0
+  const dotColor = isAlone ? '#94a3b8' : '#22c55e'
+  const label = isAlone
+    ? 'Only you'
+    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`
+
+  return (
+    <View className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-[#f0f4fa] border border-[#dce6f3]">
+      {/* Pulsing dot */}
+      <View
+        className="w-[7px] h-[7px] rounded-full"
+        style={{ backgroundColor: dotColor }}
+      />
+      <Text className="text-[10px] font-medium text-[#5f7291]">{label}</Text>
+    </View>
+  )
+}
 
 // ─── Save indicator ───────────────────────────────────────────────────────────
 
