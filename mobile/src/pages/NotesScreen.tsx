@@ -1,17 +1,3 @@
-// screens/NoteScreen.tsx
-// Mobile equivalent of src/pages/NotePage.tsx
-//
-// Dependencies:
-//   npx expo install @10play/tentap-editor react-native-webview
-//   npx expo install react-native-safe-area-context
-//   yarn add lucide-react-native
-//   @react-navigation/native + @react-navigation/native-stack
-//
-// Note: @10play/tentap-editor requires an Expo Dev Client build for full
-// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
-//
-// Collaborative cursors are intentionally omitted — TenTap's real-time
-// collab is a paid Pro feature. Autosave + version history covers mobile.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -47,29 +33,27 @@ import {
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
-import { getAccessToken, getRoleFromAccessToken } from '../lib/auth'
+import { getAccessToken } from '../lib/auth-storage'
+import { getRoleFromAccessToken } from '../lib/jwt'
+import type { RootStackParamList } from '../navigation/root-stack'
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type RootStackParamList = {
-  NotesList: undefined
-  Note: { noteId: string }
-  Login: undefined
-}
-
 type Nav = NativeStackNavigationProp<RootStackParamList>
-type NoteRoute = RouteProp<RootStackParamList, 'Note'>
 
+type NoteRoute = RouteProp<{ Notes: { noteId: string } }, 'Notes'>
+ 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
-
+ 
 interface NoteData {
   id: string
   title: string
   content: any
   ownerId: string
 }
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -128,26 +112,38 @@ export function NoteScreen() {
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
   const { noteId } = route.params
+ 
+  const [token, setToken] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+ 
+  useEffect(() => {
+    getAccessToken().then((t) => {
+      setToken(t)
+      const r = t ? String(getRoleFromAccessToken(t)) : null
+      setRole(r)
+      setCurrentUserId(t ? decodeUserId(t) : null)
+      setAuthReady(true)
+    })
+  }, [])
 
-  const token = getAccessToken()
-  const role = token ? getRoleFromAccessToken(token) : null
-  const currentUserId = token ? decodeUserId(token) : null
   const canAccessNotes = role !== 'ALUMNI'
-
+ 
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
-
+ 
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShare, setShowShare] = useState(false)
-
+ 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
-
+ 
   const [titleDraft, setTitleDraft] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<TextInput>(null)
-
+ 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>('')
   const inFlightRef = useRef(false)
@@ -176,20 +172,20 @@ export function NoteScreen() {
     if (!canAccessNotes) navigation.replace('NotesList' as any)
   }, [token, canAccessNotes, navigation])
 
-  const fetchNote = useCallback(async () => {
-    if (!noteId || !token) return
+    const fetchNote = useCallback(async () => {
+    if (!authReady || !noteId || !token) return
     try {
       setFetchError(null)
-      const { note } = await getNote(token, noteId)
-      setNote(note)
-      setTitleDraft(note.title)
-      lastSavedRef.current = JSON.stringify(note.content ?? null)
+      const fetchedNote = await getNote(token, noteId)
+      setNote(fetchedNote)
+      setTitleDraft(fetchedNote.title)
+      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null)
     } catch {
       setFetchError('Failed to load note')
     } finally {
       setLoadingNote(false)
     }
-  }, [noteId, token])
+  }, [authReady, noteId, token])
 
   useEffect(() => { fetchNote() }, [fetchNote])
 
@@ -319,7 +315,7 @@ export function NoteScreen() {
       <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
         <FileText size={40} color="#94a3b8" strokeWidth={1.3} />
         <Text className="text-[15px] text-[#5f7291]">{fetchError ?? 'Note not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NotesList')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notes')}>
           <Text className="text-sm font-semibold text-[#2f64f6]">← Back to notes</Text>
         </TouchableOpacity>
       </View>
@@ -338,7 +334,7 @@ export function NoteScreen() {
           className="p-1"
           onPress={async () => {
             await flushPendingSave()
-            navigation.navigate('NotesList')
+            navigation.navigate('Notes')
           }}
           hitSlop={8}
           activeOpacity={0.7}
