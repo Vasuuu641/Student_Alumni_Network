@@ -27,15 +27,11 @@ import {
   type Note,
   type NoteStatus,
 } from '../api/notes.api'
-import { getAccessToken, getRoleFromAccessToken } from '../lib/auth-session'
+import { getAccessToken } from '../lib/auth-storage'
+import { getRoleFromAccessToken } from '../lib/jwt'
+import type { RootStackParamList } from '../navigation/root-stack'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type RootStackParamList = {
-  NotesList: undefined
-  Note: { noteId: string }
-  Login: undefined
-}
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
@@ -47,9 +43,19 @@ export function NotesListScreen() {
   const navigation = useNavigation<Nav>()
   const insets = useSafeAreaInsets()
 
-  const token = getAccessToken()
-  const role = token ? getRoleFromAccessToken(token) : null
+   // getAccessToken is async — resolve it once into state
+  const [token, setToken] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState(false)
 
+    useEffect(() => {
+    getAccessToken().then((t) => {
+      setToken(t)
+      setRole(t ? String(getRoleFromAccessToken(t)) : null)
+      setAuthReady(true)
+      })
+    }, [])
+ 
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +78,7 @@ export function NotesListScreen() {
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
-  const fetchNotes = useCallback(async () => {
+    const fetchNotes = useCallback(async () => {
     if (!token) return
     try {
       setError(null)
@@ -84,14 +90,14 @@ export function NotesListScreen() {
       setLoading(false)
     }
   }, [token])
-
+ 
   useEffect(() => {
     fetchNotes()
   }, [fetchNotes])
 
   // ─── Actions ─────────────────────────────────────────────────────────────────
 
-  async function handleCreate() {
+    async function handleCreate() {
     if (!token) return
     const title = newTitle.trim() || 'Untitled document'
     try {
@@ -100,12 +106,14 @@ export function NotesListScreen() {
       const { noteId } = await createNote(token, title)
       setShowCreateModal(false)
       setNewTitle('')
-      navigation.navigate('Note', { noteId })
+      // TODO: add NoteDetail: { noteId: string } to RootStackParamList, then remove the cast
+      navigation.navigate('NoteDetail' as any, { noteId } as any)
     } catch {
       setCreateError('Failed to create note')
       setCreating(false)
     }
   }
+
 
   function openCreateModal() {
     setNewTitle('')
@@ -224,7 +232,7 @@ export function NotesListScreen() {
           renderItem={({ item }) => (
             <NoteCard
               note={item}
-              onPress={() => navigation.navigate('Note', { noteId: item.id })}
+              onPress={() => navigation.navigate('Notes', { noteId: item.id } as any)}
               onArchive={() => handleArchive(item.id, item.status)}
             />
           )}
