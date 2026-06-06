@@ -206,7 +206,7 @@ export function MobileVersionHistoryPanel({
           </Text>
 
           {/* Snapshot preview */}
-          {selectedVersion?.snapshotJson && (
+          {!!selectedVersion?.snapshotJson && (
             <ScrollView
               className="bg-[#f5f8ff] rounded-lg p-[10px] border border-[#dce6f3]"
               style={{ maxHeight: 120 }}
