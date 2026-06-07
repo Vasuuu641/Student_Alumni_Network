@@ -1,8 +1,13 @@
 // src/lib/socket.ts
 import { io, Socket } from 'socket.io-client'
-import { getAccessToken } from './auth'
+import { getAccessToken } from './auth-storage'
+import Constants from 'expo-constants'
 
-const RAW_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+const RAW_URL =
+  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
+  process.env.EXPO_PUBLIC_API_BASE_URL ??
+  'http://localhost:3000'
+
 const URL = RAW_URL.replace(/\/$/, '')
 
 export const socket: Socket = io(`${URL}/notes`, {

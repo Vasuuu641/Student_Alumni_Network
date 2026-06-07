@@ -102,7 +102,7 @@ export function DashboardPage({ navigation }: Props) {
 
         setStatsLoading(true);
 
-        const [notesResponse, studyGroupsResponse, ...threadResponses] = await Promise.all([
+        const [{ notes: userNotes }, studyGroupsResponse, ...threadResponses] = await Promise.all([
           listUserNotes(token),
           profile.role === 'ALUMNI' ? Promise.resolve([]) : listStudyGroups(token),
           ...panels.map((panel) => listThreads(token, { panel, take: 25, sortBy: 'newest' })),
@@ -112,7 +112,7 @@ export function DashboardPage({ navigation }: Props) {
           return;
         }
 
-        setNotesCount(notesResponse.length);
+        setNotesCount(userNotes.length);
         setStudyGroupsCount(studyGroupsResponse.filter((group) => group.status !== 'DELETED').length);
         setDiscussionCount(threadResponses.reduce((sum, response) => sum + response.total, 0));
         setRecentDiscussions(
@@ -193,7 +193,7 @@ export function DashboardPage({ navigation }: Props) {
     }
 
     if (tab === 'notes') {
-      openNotice('Notes will be added in the next mobile update.');
+      navigation.navigate('Notes');
       return;
     }
   }
@@ -323,7 +323,7 @@ export function DashboardPage({ navigation }: Props) {
               accent="blue"
               icon={faBookOpen as IconProp}
               actionLabel="View all notes"
-              onPress={() => openNotice('Notes will be added in the next mobile update.')}
+              onPress={() => navigation.navigate('Notes')}
             />
 
             <DashboardStatCard
@@ -332,7 +332,7 @@ export function DashboardPage({ navigation }: Props) {
               accent="gold"
               icon={faComments as IconProp}
               actionLabel="Join discussions"
-              onPress={() => openNotice('Discussions will be added in the next mobile update.')}
+              onPress={() => navigation.navigate('Discussions')}
             />
 
             <DashboardStatCard
@@ -341,7 +341,7 @@ export function DashboardPage({ navigation }: Props) {
               accent="green"
               icon={faUsers as IconProp}
               actionLabel="Browse groups"
-              onPress={() => openNotice('Groups will be added in the next mobile update.')} />
+              onPress={() => navigation.navigate('StudyGroups')} />
           </View>
 
             <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
@@ -350,7 +350,7 @@ export function DashboardPage({ navigation }: Props) {
             </View>
 
             <View className="flex-row flex-wrap gap-2">
-              <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => openNotice('Notes will be added in the next mobile update.')} />
+              <ActionPill icon={faBookOpen as IconProp} label="Notes" tone="blue" onPress={() => navigation.navigate('Notes')} />
               <ActionPill icon={faComments as IconProp} label="Discussions" tone="gold" onPress={() => navigation.navigate('Discussions')} />
               <ActionPill icon={faUsers as IconProp} label="Groups" tone="green" onPress={() => navigation.navigate('StudyGroups')} />
               <ActionPill icon={faCompass as IconProp} label="Geo Board" tone="purple" onPress={() => navigation.navigate('GeoHelpBoard')} />
@@ -360,7 +360,7 @@ export function DashboardPage({ navigation }: Props) {
           <View className="mt-4 rounded-[26px] border border-[#e3ebf7] bg-white p-4" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-[20px] font-extrabold tracking-[-0.03em] text-[#101d36]" style={{ color: tokens.text }}>Recent Discussions</Text>
-              <Pressable onPress={() => openNotice('Discussion details will be added in the next mobile update.')}>
+              <Pressable onPress={() => navigation.navigate('Discussions')}>
                 <Text className="text-sm font-semibold text-[#2f64f6]" style={{ color: tokens.primary }}>View all</Text>
               </Pressable>
             </View>
