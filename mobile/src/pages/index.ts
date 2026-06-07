@@ -12,3 +12,5 @@ export { AdminLayout } from './admin/AdminLayout';
 export { AdminUsersPage } from './admin/AdminUsersPage';
 export { AdminGeoModerationPage } from './admin/AdminGeoModerationPage';
 export { AdminThreadsModerationPage } from './admin/AdminThreadsModerationPage';
+export { NotesListScreen } from './NotesListScreen'
+export { NoteScreen } from './NotesScreen'

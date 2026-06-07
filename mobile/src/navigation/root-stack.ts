@@ -13,4 +13,6 @@ export type RootStackParamList = {
   AdminUsers: undefined;
   AdminGeoModeration: undefined;
   AdminThreadsModeration: undefined;
+  Notes: undefined;
+  NoteScreen: { noteId: string };
 };
