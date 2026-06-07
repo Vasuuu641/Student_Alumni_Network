@@ -32,7 +32,7 @@ import {
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
-import { getAccessToken } from '../lib/auth-storage'
+import { getValidAccessToken } from '../lib/auth-session'
 import { getRoleFromAccessToken } from '../lib/jwt'
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
@@ -120,7 +120,7 @@ export function NoteScreen() {
   const [authReady, setAuthReady] = useState(false)
  
   useEffect(() => {
-    getAccessToken().then((t) => {
+    getValidAccessToken().then((t) => {
       setToken(t)
       const r = t ? String(getRoleFromAccessToken(t)) : null
       setRole(r)
@@ -192,9 +192,9 @@ export function NoteScreen() {
   // ─── Auth redirect ───────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!token) navigation.replace('Login')
-    if (!canAccessNotes) navigation.replace('NotesList' as any)
-  }, [token, canAccessNotes, navigation])
+  if (!authReady) return   // ← this is the critical guard
+  if (!token) navigation.replace('Login', undefined)
+}, [authReady, token, navigation])
 
   // ─── Fetch note ──────────────────────────────────────────────────────────────
 

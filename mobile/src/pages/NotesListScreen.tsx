@@ -27,7 +27,7 @@ import {
   type Note,
   type NoteStatus,
 } from '../api/notes.api'
-import { getAccessToken } from '../lib/auth-storage'
+import { getValidAccessToken } from '../lib/auth-session'
 import { getRoleFromAccessToken } from '../lib/jwt'
 import type { RootStackParamList } from '../navigation/root-stack'
 
@@ -49,7 +49,7 @@ export function NotesListScreen() {
   const [authReady, setAuthReady] = useState(false)
 
     useEffect(() => {
-    getAccessToken().then((t) => {
+    getValidAccessToken().then((t) => {
       setToken(t)
       setRole(t ? String(getRoleFromAccessToken(t)) : null)
       setAuthReady(true)
@@ -68,13 +68,14 @@ export function NotesListScreen() {
   const [createError, setCreateError] = useState<string | null>(null)
 
   // Redirect if not authed or ALUMNI
+  // Redirect once auth is resolved
   useEffect(() => {
-    if (!token || !role) {
-      navigation.replace('Login')
-    } else if (String(role) === 'ALUMNI') {
-      navigation.replace('Login')
+    if (!authReady) return
+    if (!token || !role || role === 'ALUMNI') {
+      navigation.replace('Login', undefined)
     }
-  }, [token, role, navigation])
+  }, [authReady, token, role, navigation])
+
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
