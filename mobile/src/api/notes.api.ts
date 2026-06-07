@@ -137,3 +137,10 @@ export async function restoreVersion(
 ): Promise<{ success: boolean }> {
   return requestJson(`/notes/${noteId}/restore/${versionNumber}`, { token, method: 'POST' });
 }
+
+export async function getRelatedThreads(
+  token: string,
+  noteId: string,
+): Promise<{ threads: RelatedThread[] }> {
+  return requestJson(`/notes/${noteId}/related-threads`, { token })
+}

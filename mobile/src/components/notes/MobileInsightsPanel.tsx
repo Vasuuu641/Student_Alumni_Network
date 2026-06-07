@@ -31,7 +31,6 @@ import type { RelatedThread } from '../../api/notes.api'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  token: string
   threads: RelatedThread[]
   isLoading: boolean
   hasRequested: boolean
@@ -40,6 +39,7 @@ interface Props {
   onRequestSuggestions: () => void
   visible: boolean
   onClose: () => void
+  token: string    // required for fetching thread preview details
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,7 +61,6 @@ function similarityBg(score: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MobileAIInsightsPanel({
-  token,
   threads,
   isLoading,
   hasRequested,
@@ -70,6 +69,7 @@ export function MobileAIInsightsPanel({
   onRequestSuggestions,
   visible,
   onClose,
+  token,
 }: Props) {
   const insets = useSafeAreaInsets()
   const cooldownSeconds = Math.ceil(cooldownRemainingMs / 1000)
@@ -85,17 +85,17 @@ export function MobileAIInsightsPanel({
   const previewSummary = threads.find((t) => t.threadId === selectedThreadId) ?? null
 
   // ─── Open thread preview ─────────────────────────────────────────────────────
-    const openPreview = useCallback(async (threadId: string) => {
+  const openPreview = useCallback(async (threadId: string) => {
     setSelectedThreadId(threadId)
     setPreviewLoading(true)
     setPreviewError(null)
     setSelectedThread(null)
     setSelectedReplies([])
 
-      try {
+    try {
       const [{ thread }, { replies }] = await Promise.all([
-        getThread(token, threadId),                                    // ← token added
-        listReplies(token, { threadId, sortBy: 'newest', take: 100 }), // ← token added
+        getThread(token, threadId),
+        listReplies(token, { threadId, sortBy: 'newest', take: 100 }),
       ])
       setSelectedThread(thread)
       const sorted = replies
@@ -107,8 +107,7 @@ export function MobileAIInsightsPanel({
     } finally {
       setPreviewLoading(false)
     }
-  }, [token]) // ← token in deps
-
+  }, [token])
 
   // ─── Close preview (back to list) ────────────────────────────────────────────
   const closePreview = useCallback(() => {

@@ -108,7 +108,7 @@ export function NotesListScreen() {
       setShowCreateModal(false)
       setNewTitle('')
       // TODO: add NoteDetail: { noteId: string } to RootStackParamList, then remove the cast
-      navigation.navigate('NoteDetail' as any, { noteId } as any)
+      navigation.navigate('NoteScreen', { noteId } as any)
     } catch {
       setCreateError('Failed to create note')
       setCreating(false)
