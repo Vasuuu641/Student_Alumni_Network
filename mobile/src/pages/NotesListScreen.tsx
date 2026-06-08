@@ -31,8 +31,6 @@ import { getValidAccessToken } from '../lib/auth-session'
 import { getRoleFromAccessToken } from '../lib/jwt'
 import type { RootStackParamList } from '../navigation/root-stack'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
 type NoteFilter = NoteStatus | 'ALL'
@@ -43,19 +41,22 @@ export function NotesListScreen() {
   const navigation = useNavigation<Nav>()
   const insets = useSafeAreaInsets()
 
-   // getAccessToken is async — resolve it once into state
+  // getAccessToken is async — resolve it once into state
   const [token, setToken] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
 
-    useEffect(() => {
+  useEffect(() => {
+    // Use getValidAccessToken so expired tokens are refreshed before we check role.
+    // Raw getAccessToken can return an expired token that getRoleFromAccessToken
+    // fails to parse, producing role=null and an immediate redirect to Login.
     getValidAccessToken().then((t) => {
       setToken(t)
       setRole(t ? String(getRoleFromAccessToken(t)) : null)
       setAuthReady(true)
-      })
-    }, [])
- 
+    })
+  }, [])
+
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +68,6 @@ export function NotesListScreen() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
-  // Redirect if not authed or ALUMNI
   // Redirect once auth is resolved
   useEffect(() => {
     if (!authReady) return
@@ -76,11 +76,10 @@ export function NotesListScreen() {
     }
   }, [authReady, token, role, navigation])
 
-
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
-    const fetchNotes = useCallback(async () => {
-    if (!token) return
+  const fetchNotes = useCallback(async () => {
+    if (!authReady || !token) return
     try {
       setError(null)
       const { notes } = await listUserNotes(token)
@@ -90,15 +89,15 @@ export function NotesListScreen() {
     } finally {
       setLoading(false)
     }
-  }, [token])
- 
+  }, [authReady, token])
+
   useEffect(() => {
     fetchNotes()
   }, [fetchNotes])
 
   // ─── Actions ─────────────────────────────────────────────────────────────────
 
-    async function handleCreate() {
+  async function handleCreate() {
     if (!token) return
     const title = newTitle.trim() || 'Untitled document'
     try {
@@ -107,14 +106,12 @@ export function NotesListScreen() {
       const { noteId } = await createNote(token, title)
       setShowCreateModal(false)
       setNewTitle('')
-      // TODO: add NoteDetail: { noteId: string } to RootStackParamList, then remove the cast
       navigation.navigate('NoteScreen', { noteId } as any)
     } catch {
       setCreateError('Failed to create note')
       setCreating(false)
     }
   }
-
 
   function openCreateModal() {
     setNewTitle('')
@@ -233,7 +230,7 @@ export function NotesListScreen() {
           renderItem={({ item }) => (
             <NoteCard
               note={item}
-              onPress={() => navigation.navigate('Notes', { noteId: item.id } as any)}
+              onPress={() => navigation.navigate('NoteScreen', { noteId: item.id } as any)}
               onArchive={() => handleArchive(item.id, item.status)}
             />
           )}
@@ -322,10 +319,12 @@ interface NoteCardProps {
 function NoteCard({ note, onPress, onArchive }: NoteCardProps) {
   const isArchived = note.status === 'ARCHIVED'
   return (
-    <TouchableOpacity
+    // Pressable handles nested touchables correctly on Android —
+    // TouchableOpacity inside TouchableOpacity breaks on Android (inner always wins)
+    <Pressable
       className="flex-row items-center bg-white rounded-xl px-[14px] py-[14px] border border-[#dce6f3] gap-3 shadow-sm"
       onPress={onPress}
-      activeOpacity={0.75}
+      android_ripple={{ color: '#eaf1ff', borderless: false }}
     >
       <View className={`w-9 h-9 rounded-lg items-center justify-center ${isArchived ? 'bg-[#f0f4fa]' : 'bg-[#eaf1ff]'}`}>
         <FileText size={18} color={isArchived ? '#94a3b8' : '#2f64f6'} />
@@ -349,10 +348,14 @@ function NoteCard({ note, onPress, onArchive }: NoteCardProps) {
         </View>
       </View>
 
-      <TouchableOpacity className="p-1" onPress={onArchive} hitSlop={10} activeOpacity={0.6}>
+      <Pressable
+        className="p-1"
+        onPress={(e) => { onArchive() }}
+        hitSlop={10}
+      >
         <Archive size={15} color="#94a3b8" />
-      </TouchableOpacity>
-    </TouchableOpacity>
+      </Pressable>
+    </Pressable>
   )
 }
 
