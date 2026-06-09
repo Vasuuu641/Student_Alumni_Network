@@ -134,7 +134,9 @@ export function NoteScreen() {
   const navigation = useNavigation<Nav>()
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
-  const { noteId } = route.params
+  // (route.params as any) guards against RootStackParamList not yet having
+  // NoteScreen: { noteId: string } — add it to root-stack.ts to remove the cast
+  const noteId: string = (route.params as any)?.noteId ?? ''
 
   const [token, setToken] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
@@ -241,7 +243,11 @@ export function NoteScreen() {
   }, [authReady, token, canAccessNotes, navigation])
 
   const fetchNote = useCallback(async () => {
-    if (!authReady || !noteId || !token) return
+    if (!authReady || !noteId || !token) {
+      // Only release the spinner once auth has resolved — before that we're still waiting
+      if (authReady) setLoadingNote(false)
+      return
+    }
     try {
       setFetchError(null)
       const fetchedNote = await getNote(token, noteId)
@@ -260,25 +266,67 @@ export function NoteScreen() {
   useEffect(() => {
     if (!note) return
 
-    if (!hasSetInitialContentRef.current) {
-      // First time note loads — seed content and detect empty state
-      const htmlSeed = tiptapJsonToHtml(note.content)
-      editor.setContent(htmlSeed)
-      hasSetInitialContentRef.current = true
-      const isContentEmpty = !note.content ||
-        (typeof note.content === 'object' &&
-          Array.isArray(note.content?.content) &&
-          note.content.content.length === 0) ||
-        (typeof note.content === 'string' && note.content.trim() === '')
-      setIsEmpty(isContentEmpty)
-    }
+    const htmlSeed = tiptapJsonToHtml(note.content)
 
-    // Always sync editability — runs again when canEdit changes (auth resolves
-    // after note loads, which is the common case on first open)
-    setTimeout(() => {
+    const isContentEmpty = !note.content ||
+      (typeof note.content === 'object' &&
+        Array.isArray(note.content?.content) &&
+        note.content.content.length === 0) ||
+      (typeof note.content === 'string' && note.content.trim() === '')
+
+    // TenTap has no onReady callback in this version — the editor silently
+    // no-ops setContent while the WebView is still loading. We detect readiness
+    // by intercepting the console.warn it emits: "Editor isn't ready yet".
+    // Strategy: patch console.warn temporarily, call setContent, if the warning
+    // fires we know the editor isn't ready and retry after 200ms.
+    let attempts = 0
+    const MAX_ATTEMPTS = 40  // 40 * 150ms = 6 seconds max
+
+    const trySetContent = () => {
+      attempts += 1
+      let notReadyYet = false
+
+      // Temporarily intercept the TenTap warning
+      const originalWarn = console.warn
+      console.warn = (...args: any[]) => {
+        const msg = args[0]
+        if (typeof msg === 'string' && msg.includes('ready')) {
+          notReadyYet = true
+        } else {
+          originalWarn(...args)
+        }
+      }
+
+      try {
+        editor.setContent(htmlSeed)
+      } finally {
+        console.warn = originalWarn
+      }
+
+      if (notReadyYet) {
+        // WebView not ready — will retry
+        return false
+      }
+
+      // Success — editor accepted the content
+      hasSetInitialContentRef.current = true
+      setIsEmpty(isContentEmpty)
       editor.setEditable(canEdit)
       if (canEdit) autosaveArmedRef.current = true
-    }, 200)
+      return true
+    }
+
+    // Try immediately, then retry every 150ms until success or timeout
+    if (!trySetContent()) {
+      const interval = setInterval(() => {
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval)
+          return
+        }
+        if (trySetContent()) clearInterval(interval)
+      }, 150)
+      return () => clearInterval(interval)
+    }
   }, [note, editor, canEdit])
 
   useEffect(() => {
