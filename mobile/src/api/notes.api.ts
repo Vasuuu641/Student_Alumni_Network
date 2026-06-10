@@ -56,7 +56,8 @@ export async function getNote(
   token: string,
   noteId: string,
 ): Promise<Note> {
-  return requestJson(`/notes/${noteId}`, { token });
+  const res = await requestJson<{ note: Note }>(`/notes/${noteId}`, { token });
+  return res.note;
 }
 // PATCH /notes/:id
 // Both content and metadata are optional — send only what changed

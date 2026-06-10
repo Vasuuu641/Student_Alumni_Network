@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
   AppState,
   AppStateStatus,
+  InteractionManager,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -47,7 +48,6 @@ import {
   History,
   Share2,
   Sparkles,
-  Users,
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
@@ -128,14 +128,15 @@ function jsonNodeToHtml(node: any): string {
   return (node.content ?? []).map(jsonNodeToHtml).join('')
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Outer shell: auth + fetch ─────────────────────────────────────────────────
+// Handles auth resolution and note fetching. Only renders the editor once the
+// note data is ready so we can pass initialContent to useEditorBridge — this
+// is the only reliable way to seed content without fighting the WebView lifecycle.
 
 export function NoteScreen() {
   const navigation = useNavigation<Nav>()
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
-  // (route.params as any) guards against RootStackParamList not yet having
-  // NoteScreen: { noteId: string } — add it to root-stack.ts to remove the cast
   const noteId: string = (route.params as any)?.noteId ?? ''
 
   const [token, setToken] = useState<string | null>(null)
@@ -155,35 +156,159 @@ export function NoteScreen() {
 
   const canAccessNotes = role !== 'ALUMNI'
 
+  // screenReady becomes true once the React Navigation transition animation
+  // has fully settled. We defer NoteEditor (and its inner WebView) until this
+  // point — WebViews inside navigated screens won't paint their content until
+  // the native layer is committed, which only happens after the animation ends.
+  const [screenReady, setScreenReady] = useState(false)
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setScreenReady(true)
+    })
+    return () => task.cancel()
+  }, [])
+
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
-  const [showShare, setShowShare] = useState(false)
-  const [showAIInsights, setShowAIInsights] = useState(false)
-  const [archiving, setArchiving] = useState(false)
-  const [isEmpty, setIsEmpty] = useState(false)
+  useEffect(() => {
+    if (!authReady) return
+    if (!token) navigation.replace('Login', undefined)
+    else if (!canAccessNotes) navigation.replace('Notes', undefined)
+  }, [authReady, token, canAccessNotes, navigation])
+
+  const fetchNote = useCallback(async (withToken?: string) => {
+    const t = withToken ?? token
+    if (!authReady || !noteId || !t) {
+      if (authReady) setLoadingNote(false)
+      return
+    }
+    try {
+      setFetchError(null)
+      const fetchedNote = await getNote(t, noteId)
+      setNote(fetchedNote)
+    } catch {
+      setFetchError('Failed to load note')
+    } finally {
+      setLoadingNote(false)
+    }
+  }, [authReady, noteId, token])
+
+  useEffect(() => { fetchNote() }, [fetchNote])
+
+  // ─── Loading / error states ──────────────────────────────────────────────────
+
+  if (loadingNote || !screenReady) {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
+        <ActivityIndicator size="large" color="#2f64f6" />
+        <Text className="text-[15px] text-[#5f7291]">Loading note…</Text>
+      </View>
+    )
+  }
+
+  if (fetchError || !note) {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
+        <FileText size={40} color="#94a3b8" strokeWidth={1.3} />
+        <Text className="text-[15px] text-[#5f7291]">{fetchError ?? 'Note not found'}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
+          <Text className="text-sm font-semibold text-[#2f64f6]">← Back to notes</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // Note is ready — hand off to the editor. It only mounts here, so initialContent
+  // is set once and never needs to be injected post-mount via setContent.
+  return (
+    <NoteEditor
+      key={note.id}           // remount on version restore
+      note={note}
+      noteId={noteId}
+      token={token!}
+      currentUserId={currentUserId}
+      canEdit={authReady && canAccessNotes && role !== 'ALUMNI'}
+      insets={insets}
+      navigation={navigation}
+      onNoteChange={setNote}
+      onRefresh={() => fetchNote()}
+    />
+  )
+}
+
+// ─── Inner editor ─────────────────────────────────────────────────────────────
+// Receives note data as props so it can pass initialContent to useEditorBridge.
+// This is the only reliable approach — once the WebView mounts with the right
+// HTML baked in, no post-mount setContent injection is needed.
+
+interface NoteEditorProps {
+  note: NoteData
+  noteId: string
+  token: string
+  currentUserId: string | null
+  canEdit: boolean
+  insets: { top: number; bottom: number }
+  navigation: Nav
+  onNoteChange: (updater: (prev: NoteData | null) => NoteData | null) => void
+  onRefresh: () => Promise<void>
+}
+
+function NoteEditor({
+  note,
+  noteId,
+  token,
+  currentUserId,
+  canEdit,
+  insets,
+  navigation,
+  onNoteChange,
+  onRefresh,
+}: NoteEditorProps) {
+  const isOwner = note.ownerId === currentUserId
+  const isArchived = note.status === 'ARCHIVED'
+
+  // Compute the initial HTML seed once — passed straight to useEditorBridge so
+  // TenTap bakes it into the WebView's initial HTML. No setContent needed.
+  const initialHtml = tiptapJsonToHtml(note.content)
+
+  const isContentEmpty = !note.content ||
+    (typeof note.content === 'object' &&
+      Array.isArray(note.content?.content) &&
+      note.content.content.length === 0) ||
+    (typeof note.content === 'string' && note.content.trim() === '') ||
+    initialHtml.replace(/<[^>]*>/g, '').trim() === ''
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const [isEmpty, setIsEmpty] = useState(isContentEmpty)
 
-  const [titleDraft, setTitleDraft] = useState('')
+  const [titleDraft, setTitleDraft] = useState(note.title)
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<TextInput>(null)
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastSavedRef = useRef<string>('')
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [showAIInsights, setShowAIInsights] = useState(false)
+
+  const lastSavedRef = useRef<string>(initialHtml)
   const inFlightRef = useRef(false)
   const hasPendingRef = useRef(false)
   const pendingContentRef = useRef<string>('')
   const autosaveArmedRef = useRef(false)
-  const hasSetInitialContentRef = useRef(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ─── Editor ──────────────────────────────────────────────────────────────────
+  // initialContent is set here so the WebView bakes it into its initial HTML.
+  // editable starts false so the toolbar doesn't flash before content appears.
   const editor = useEditorBridge({
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
+    initialContent: initialHtml,
     bridgeExtensions: TenTapStartKit,
   })
 
@@ -192,19 +317,29 @@ export function NoteScreen() {
     debounceInterval: 500,
   })
 
-  const canEdit = authReady && canAccessNotes && role !== 'ALUMNI'
-  const isOwner = note ? note.ownerId === currentUserId : false
-  const isArchived = note?.status === 'ARCHIVED'
+  // Once the WebView has confirmed content (htmlContent first fires), unlock editing.
+  // We use a ref to only do this once per mount.
+  const editableArmedRef = useRef(false)
+  useEffect(() => {
+    if (editableArmedRef.current) return
+    // htmlContent is undefined until the WebView fires its first update.
+    // When it becomes a string (even empty), the bridge is alive.
+    if (htmlContent === undefined) return
+    editableArmedRef.current = true
+    if (canEdit) {
+      editor.setEditable(true)
+      autosaveArmedRef.current = true
+    }
+  }, [htmlContent, canEdit, editor])
 
   // ─── Presence ──────────────────────────────────────────────────────────────
   const { onlineCount, othersOnline } = useNotePresence({
     noteId,
     userId: currentUserId,
-    enabled: !!note && authReady,
+    enabled: true,
   })
 
   // ─── AI Insights ───────────────────────────────────────────────────────────
-  // Extract plain text from htmlContent for the content-length check
   const plainTextContent = htmlContent
     ? htmlContent.replace(/<[^>]*>/g, '').trim()
     : ''
@@ -222,7 +357,7 @@ export function NoteScreen() {
     noteContent: plainTextContent,
   })
 
-  // Derive display role label — prefer API-returned role, fall back to ownership check
+  // ─── Derive display role label ─────────────────────────────────────────────
   const noteRoleLabel: string = (() => {
     const r = note?.role?.toUpperCase()
     if (r === 'OWNER' || isOwner) return 'Owner'
@@ -230,109 +365,16 @@ export function NoteScreen() {
     return 'Viewer'
   })()
 
-  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+  const noteRoleBg = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'bg-[#eaf1ff]' : 'bg-[#f0f4fa]'
-  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+  const noteRoleColor = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
 
-
-  useEffect(() => {
-    if (!authReady) return
-    if (!token) navigation.replace('Login', undefined)
-    else if (!canAccessNotes) navigation.replace('Notes', undefined)
-  }, [authReady, token, canAccessNotes, navigation])
-
-  const fetchNote = useCallback(async () => {
-    if (!authReady || !noteId || !token) {
-      // Only release the spinner once auth has resolved — before that we're still waiting
-      if (authReady) setLoadingNote(false)
-      return
-    }
-    try {
-      setFetchError(null)
-      const fetchedNote = await getNote(token, noteId)
-      setNote(fetchedNote)
-      setTitleDraft(fetchedNote.title)
-      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null)
-    } catch {
-      setFetchError('Failed to load note')
-    } finally {
-      setLoadingNote(false)
-    }
-  }, [authReady, noteId, token])
-
-  useEffect(() => { fetchNote() }, [fetchNote])
-
-  useEffect(() => {
-    if (!note) return
-
-    const htmlSeed = tiptapJsonToHtml(note.content)
-
-    const isContentEmpty = !note.content ||
-      (typeof note.content === 'object' &&
-        Array.isArray(note.content?.content) &&
-        note.content.content.length === 0) ||
-      (typeof note.content === 'string' && note.content.trim() === '')
-
-    // TenTap has no onReady callback in this version — the editor silently
-    // no-ops setContent while the WebView is still loading. We detect readiness
-    // by intercepting the console.warn it emits: "Editor isn't ready yet".
-    // Strategy: patch console.warn temporarily, call setContent, if the warning
-    // fires we know the editor isn't ready and retry after 200ms.
-    let attempts = 0
-    const MAX_ATTEMPTS = 40  // 40 * 150ms = 6 seconds max
-
-    const trySetContent = () => {
-      attempts += 1
-      let notReadyYet = false
-
-      // Temporarily intercept the TenTap warning
-      const originalWarn = console.warn
-      console.warn = (...args: any[]) => {
-        const msg = args[0]
-        if (typeof msg === 'string' && msg.includes('ready')) {
-          notReadyYet = true
-        } else {
-          originalWarn(...args)
-        }
-      }
-
-      try {
-        editor.setContent(htmlSeed)
-      } finally {
-        console.warn = originalWarn
-      }
-
-      if (notReadyYet) {
-        // WebView not ready — will retry
-        return false
-      }
-
-      // Success — editor accepted the content
-      hasSetInitialContentRef.current = true
-      setIsEmpty(isContentEmpty)
-      editor.setEditable(canEdit)
-      if (canEdit) autosaveArmedRef.current = true
-      return true
-    }
-
-    // Try immediately, then retry every 150ms until success or timeout
-    if (!trySetContent()) {
-      const interval = setInterval(() => {
-        if (attempts >= MAX_ATTEMPTS) {
-          clearInterval(interval)
-          return
-        }
-        if (trySetContent()) clearInterval(interval)
-      }, 150)
-      return () => clearInterval(interval)
-    }
-  }, [note, editor, canEdit])
+  // ─── Autosave ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!autosaveArmedRef.current) return
     if (!htmlContent) return
-    // Clear empty placeholder as soon as content appears
     if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
       setIsEmpty(false)
     }
@@ -396,6 +438,8 @@ export function NoteScreen() {
     return () => { void flushPendingSave() }
   }, [flushPendingSave])
 
+  // ─── Actions ──────────────────────────────────────────────────────────────
+
   function startEditTitle() {
     if (!isOwner) return
     setEditingTitle(true)
@@ -408,7 +452,7 @@ export function NoteScreen() {
     if (trimmed === note?.title || !token) return
     try {
       await updateNote(token, noteId, { title: trimmed })
-      setNote((prev) => prev ? { ...prev, title: trimmed } : prev)
+      onNoteChange((prev) => prev ? { ...prev, title: trimmed } : prev)
     } catch {
       setTitleDraft(note?.title ?? '')
     }
@@ -420,7 +464,7 @@ export function NoteScreen() {
     try {
       setArchiving(true)
       await updateNote(token, noteId, { status: nextStatus })
-      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev)
+      onNoteChange((prev) => prev ? { ...prev, status: nextStatus } : prev)
     } catch {
       // silently fail — user can retry
     } finally {
@@ -440,34 +484,12 @@ export function NoteScreen() {
   }
 
   const handleRestored = useCallback(async () => {
-    hasSetInitialContentRef.current = false
+    // Reset autosave arm, close panel, then remount via key change (handled by parent)
     autosaveArmedRef.current = false
+    editableArmedRef.current = false
     setShowVersionHistory(false)
-    await fetchNote()
-  }, [fetchNote])
-
-  // ─── Loading / error states ───────────────────────────────────────────────────
-
-  if (loadingNote) {
-    return (
-      <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
-        <ActivityIndicator size="large" color="#2f64f6" />
-        <Text className="text-[15px] text-[#5f7291]">Loading note…</Text>
-      </View>
-    )
-  }
-
-  if (fetchError || !note) {
-    return (
-      <View className="flex-1 items-center justify-center gap-3 bg-[#f5f8ff]" style={{ paddingTop: insets.top }}>
-        <FileText size={40} color="#94a3b8" strokeWidth={1.3} />
-        <Text className="text-[15px] text-[#5f7291]">{fetchError ?? 'Note not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
-          <Text className="text-sm font-semibold text-[#2f64f6]">← Back to notes</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
+    await onRefresh()
+  }, [onRefresh])
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -640,36 +662,32 @@ export function NoteScreen() {
       {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
         noteId={noteId}
-        token={token!}
+        token={token}
         canRestore={canEdit}
         visible={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
         onRestored={handleRestored}
       />
 
-      {token && (
-        <MobileSharePanel
-          noteId={noteId}
-          token={token}
-          isOwner={isOwner}
-          visible={showShare}
-          onClose={() => setShowShare(false)}
-        />
-      )}
+      <MobileSharePanel
+        noteId={noteId}
+        token={token}
+        isOwner={isOwner}
+        visible={showShare}
+        onClose={() => setShowShare(false)}
+      />
 
-      {token && (
-        <MobileAIInsightsPanel
-          token={token}
-          threads={relatedThreads}
-          isLoading={threadsLoading}
-          hasRequested={threadsRequested}
-          canRequestSuggestions={canRequestSuggestions}
-          cooldownRemainingMs={cooldownRemainingMs}
-          onRequestSuggestions={() => void requestSuggestions()}
-          visible={showAIInsights}
-          onClose={() => setShowAIInsights(false)}
-        />
-      )}
+      <MobileAIInsightsPanel
+        token={token}
+        threads={relatedThreads}
+        isLoading={threadsLoading}
+        hasRequested={threadsRequested}
+        canRequestSuggestions={canRequestSuggestions}
+        cooldownRemainingMs={cooldownRemainingMs}
+        onRequestSuggestions={() => void requestSuggestions()}
+        visible={showAIInsights}
+        onClose={() => setShowAIInsights(false)}
+      />
     </View>
   )
 }
@@ -710,8 +728,8 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
 
   const colorMap = {
     saving: { text: 'text-[#f4a300]', border: 'border-[#f4a30033]', bg: 'bg-[#f4a30018]', icon: '#f4a300' },
-    saved:  { text: 'text-[#1f8a4c]', border: 'border-[#1f8a4c33]', bg: 'bg-[#1f8a4c18]', icon: '#1f8a4c' },
-    error:  { text: 'text-[#c53b4f]', border: 'border-[#c53b4f33]', bg: 'bg-[#c53b4f18]', icon: '#c53b4f' },
+    saved: { text: 'text-[#1f8a4c]', border: 'border-[#1f8a4c33]', bg: 'bg-[#1f8a4c18]', icon: '#1f8a4c' },
+    error: { text: 'text-[#c53b4f]', border: 'border-[#c53b4f33]', bg: 'bg-[#c53b4f18]', icon: '#c53b4f' },
   }
   const c = colorMap[status]
 
