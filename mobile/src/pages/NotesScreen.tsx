@@ -298,39 +298,31 @@ function NoteEditor({
   const inFlightRef = useRef(false)
   const hasPendingRef = useRef(false)
   const pendingContentRef = useRef<string>('')
-  const autosaveArmedRef = useRef(false)
+  const autosaveArmedRef = useRef(canEdit)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ─── Editor ──────────────────────────────────────────────────────────────────
   // initialContent is set here so the WebView bakes it into its initial HTML.
-  // editable starts false so the toolbar doesn't flash before content appears.
+  // We set editable directly to canEdit. To prevent the WebView from rendering blank
+  // on iOS (due to display: 'none' preventing the page from loading/painting), we
+  // override the theme webview style to have display: 'flex' immediately.
   const editor = useEditorBridge({
     autofocus: false,
     avoidIosKeyboard: true,
-    editable: false,
+    editable: canEdit,
     initialContent: initialHtml,
     bridgeExtensions: TenTapStartKit,
+    theme: {
+      webview: {
+        display: 'flex',
+      },
+    },
   })
 
   const htmlContent = useEditorContent(editor, {
     type: 'html',
     debounceInterval: 500,
   })
-
-  // Once the WebView has confirmed content (htmlContent first fires), unlock editing.
-  // We use a ref to only do this once per mount.
-  const editableArmedRef = useRef(false)
-  useEffect(() => {
-    if (editableArmedRef.current) return
-    // htmlContent is undefined until the WebView fires its first update.
-    // When it becomes a string (even empty), the bridge is alive.
-    if (htmlContent === undefined) return
-    editableArmedRef.current = true
-    if (canEdit) {
-      editor.setEditable(true)
-      autosaveArmedRef.current = true
-    }
-  }, [htmlContent, canEdit, editor])
 
   // ─── Presence ──────────────────────────────────────────────────────────────
   const { onlineCount, othersOnline } = useNotePresence({
@@ -375,7 +367,17 @@ function NoteEditor({
   useEffect(() => {
     if (!autosaveArmedRef.current) return
     if (!htmlContent) return
-    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+
+    // Skip false empty state on initial load. If the editor reports empty content
+    // but the note originally had content and the editor has not been focused yet,
+    // we ignore the update.
+    const isHtmlEmpty = htmlContent.replace(/<[^>]*>/g, '').trim().length === 0
+    const wasHtmlEmpty = initialHtml.replace(/<[^>]*>/g, '').trim().length === 0
+    if (isHtmlEmpty && !wasHtmlEmpty && !editor.getEditorState().isFocused) {
+      return
+    }
+
+    if (isEmpty && !isHtmlEmpty) {
       setIsEmpty(false)
     }
     void persistContent(htmlContent)
@@ -486,7 +488,6 @@ function NoteEditor({
   const handleRestored = useCallback(async () => {
     // Reset autosave arm, close panel, then remount via key change (handled by parent)
     autosaveArmedRef.current = false
-    editableArmedRef.current = false
     setShowVersionHistory(false)
     await onRefresh()
   }, [onRefresh])
