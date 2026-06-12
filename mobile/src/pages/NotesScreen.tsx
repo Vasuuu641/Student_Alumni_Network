@@ -643,9 +643,6 @@ function NoteEditor({
               style={{ paddingTop: 16, paddingHorizontal: 24 }}
               pointerEvents="none"
             >
-              <Text className="text-[15px] text-[#c8d5e8]">
-                Start writing your note…
-              </Text>
             </View>
           )}
         </View>
