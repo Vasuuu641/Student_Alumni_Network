@@ -116,7 +116,7 @@ export class CohereNoteLLMService implements NoteLLMService {
             );
           }
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to embed note ${noteId}:`, error.message);
         throw error;
       }
@@ -200,7 +200,7 @@ export class CohereNoteLLMService implements NoteLLMService {
         voteScore: Number(r.voteScore),
         similarityScore: Number(r.similarity),
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to find related threads:', error.message);
       throw error;
     }

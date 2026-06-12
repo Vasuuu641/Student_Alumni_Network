@@ -40,7 +40,7 @@ export class CohereThreadLLMService implements ThreadLLMService {
           SET embedding = ${vectorLiteral}::vector,
               "updatedAt" = ${now}::timestamp
       `;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to embed thread ${threadId}:`, error.message);
       throw error;
     }
@@ -109,7 +109,7 @@ export class CohereThreadLLMService implements ThreadLLMService {
         voteScore: Number(r.voteScore),
         similarityScore: Number(r.similarity),
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to find similar threads:', error.message);
       throw error;
     }
