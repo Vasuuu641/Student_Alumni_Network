@@ -331,11 +331,16 @@ function NoteEditor({
     enabled: true,
   })
 
+  
   // ─── AI Insights ───────────────────────────────────────────────────────────
-  const plainTextContent = htmlContent
-    ? htmlContent.replace(/<[^>]*>/g, '').trim()
-    : ''
-
+  // useEditorContent only emits a value AFTER the user edits — it stays empty
+  // on mount even though the note has content. Fall back to initialHtml
+  // (derived from note.content) so canRequestSuggestions is correct for
+  // existing notes the user hasn't touched yet.
+  const plainTextContent = (htmlContent || initialHtml)
+    .replace(/<[^>]*>/g, '')
+    .trim()
+ 
   const {
     threads: relatedThreads,
     isLoading: threadsLoading,
@@ -347,6 +352,9 @@ function NoteEditor({
     noteId,
     token,
     noteContent: plainTextContent,
+    title: note.title,
+    contentJson: note.content,
+    enabled: showAIInsights,
   })
 
   // ─── Derive display role label ─────────────────────────────────────────────
@@ -643,9 +651,6 @@ function NoteEditor({
               style={{ paddingTop: 16, paddingHorizontal: 24 }}
               pointerEvents="none"
             >
-              <Text className="text-[15px] text-[#c8d5e8]">
-                Start writing your note…
-              </Text>
             </View>
           )}
         </View>

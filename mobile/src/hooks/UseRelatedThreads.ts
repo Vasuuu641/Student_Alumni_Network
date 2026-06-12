@@ -1,20 +1,21 @@
 // hooks/useRelatedThreads.ts
 // Manages AI-powered related thread suggestions for a note.
-// Mirrors the web's useRelatedThreads hook — no DOM APIs used.
+// Mirrors the web's useNoteRelatedThreads hook — socket-based, not REST.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { getRelatedThreads, type RelatedThread } from '../api/notes.api'
+import { useCallback, useEffect, useState } from 'react'
+import { socket } from '../lib/socket'
+import type { RelatedThread } from '../api/notes.api'
 
-const COOLDOWN_MS = 30_000      // 30 s between requests — match your web config
-const MIN_CONTENT_LENGTH = 50   // minimum chars before suggestions are allowed
+const MIN_CONTENT_CHARS = 20
+const REQUEST_COOLDOWN_MS = 5000
 
 interface UseRelatedThreadsOptions {
   noteId: string
-  token: string | null
-  noteContent: string    // plain-text content used for length check + sent to API
-  title?: string         // optional — not used by this hook but accepted for compat
-  contentJson?: any      // optional — not used by this hook but accepted for compat
-  enabled?: boolean      // optional — if false, requestSuggestions is a no-op
+  token: string | null   // accepted for API-compat, unused — socket auth handles this
+  noteContent: string     // accepted for compat — contentJson is used instead
+  title?: string
+  contentJson?: unknown
+  enabled?: boolean
 }
 
 interface UseRelatedThreadsResult {
@@ -23,77 +24,88 @@ interface UseRelatedThreadsResult {
   hasRequested: boolean
   canRequestSuggestions: boolean
   cooldownRemainingMs: number
-  requestSuggestions: () => Promise<void>
+  requestSuggestions: () => void
   reset: () => void
 }
 
 export function useRelatedThreads({
   noteId,
-  token,
-  noteContent,
+  title = '',
+  contentJson = null,
   enabled = true,
 }: UseRelatedThreadsOptions): UseRelatedThreadsResult {
   const [threads, setThreads] = useState<RelatedThread[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasRequested, setHasRequested] = useState(false)
-  const [lastRequestAt, setLastRequestAt] = useState<number | null>(null)
-  const [cooldownRemainingMs, setCooldownRemainingMs] = useState(0)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
 
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cooldownRemainingMs = Math.max(0, cooldownUntil - now)
 
-  // ─── Cooldown ticker ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (lastRequestAt === null) return
-
-    // Start ticking every 500ms to update the remaining cooldown
-    tickRef.current = setInterval(() => {
-      const elapsed = Date.now() - lastRequestAt
-      const remaining = Math.max(0, COOLDOWN_MS - elapsed)
-      setCooldownRemainingMs(remaining)
-      if (remaining === 0 && tickRef.current) {
-        clearInterval(tickRef.current)
-        tickRef.current = null
-      }
-    }, 500)
-
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current)
+    if (!enabled) {
+      setThreads([])
+      setIsLoading(false)
+      setHasRequested(false)
+      setCooldownUntil(0)
     }
-  }, [lastRequestAt])
+  }, [enabled])
 
-  const canRequestSuggestions = noteContent.trim().length >= MIN_CONTENT_LENGTH
+  useEffect(() => {
+    if (cooldownRemainingMs <= 0) return
+    const timer = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(timer)
+  }, [cooldownRemainingMs])
 
-  // ─── Request ──────────────────────────────────────────────────────────────────
-  const requestSuggestions = useCallback(async () => {
+  const contentText = title + ' ' + JSON.stringify(contentJson ?? '')
+  const canRequestSuggestions = contentText.trim().length >= MIN_CONTENT_CHARS
+
+  const requestSuggestions = useCallback(() => {
     if (!enabled) return
-    if (!token || !noteId || isLoading) return
-    if (!canRequestSuggestions) return
     if (cooldownRemainingMs > 0) return
 
-    setIsLoading(true)
     setHasRequested(true)
-    setLastRequestAt(Date.now())
-    setCooldownRemainingMs(COOLDOWN_MS)
 
-    try {
-      const { threads: fetched } = await getRelatedThreads(token, noteId)
-      setThreads(fetched)
-    } catch {
+    if (contentText.trim().length < MIN_CONTENT_CHARS) {
       setThreads([])
-    } finally {
+      setIsLoading(false)
+      return
+    }
+
+    if (!socket.connected) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    socket.emit('notes:request-related-threads', { noteId, title, contentJson })
+    setCooldownUntil(Date.now() + REQUEST_COOLDOWN_MS)
+    setNow(Date.now())
+  }, [enabled, cooldownRemainingMs, noteId, title, contentJson, contentText])
+
+  useEffect(() => {
+    const handler = (data: { noteId: string; results: RelatedThread[] }) => {
+      if (data.noteId !== noteId) return
+      setThreads(data.results)
       setIsLoading(false)
     }
-  }, [token, noteId, isLoading, canRequestSuggestions, cooldownRemainingMs])
+    socket.on('notes:related-threads', handler)
+    return () => {
+      socket.off('notes:related-threads', handler)
+    }
+  }, [noteId])
+
+  useEffect(() => {
+  const errHandler = (e: { message: string }) => console.log('Socket error:', e.message)
+  socket.on('error', errHandler)
+  return () => { socket.off('error', errHandler) }
+}, [])
 
   const reset = useCallback(() => {
     setThreads([])
     setHasRequested(false)
-    setLastRequestAt(null)
-    setCooldownRemainingMs(0)
-    if (tickRef.current) {
-      clearInterval(tickRef.current)
-      tickRef.current = null
-    }
+    setCooldownUntil(0)
+    setIsLoading(false)
   }, [])
 
   return {

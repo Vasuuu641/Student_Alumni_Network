@@ -2,6 +2,7 @@
 import { io, Socket } from 'socket.io-client'
 import { getAccessToken } from './auth-storage'
 import Constants from 'expo-constants'
+import { getValidAccessToken } from './auth-session'
 
 const RAW_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
@@ -19,8 +20,8 @@ export const socket: Socket = io(`${URL}/notes`, {
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 8000,
-  auth: (cb) => {
-    const token = getAccessToken()
-    cb({ token })
-  },
+  auth: async (cb) => {
+  const token = await getValidAccessToken()
+  cb({ token })
+},
 })
