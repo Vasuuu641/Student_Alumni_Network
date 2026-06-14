@@ -172,6 +172,7 @@ export function NoteScreen() {
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!authReady) return
@@ -225,7 +226,7 @@ export function NoteScreen() {
   // is set once and never needs to be injected post-mount via setContent.
   return (
     <NoteEditor
-      key={note.id}           // remount on version restore
+      key={`${note.id}-${refreshKey}`}          // remount on version restore
       note={note}
       noteId={noteId}
       token={token!}
@@ -234,7 +235,7 @@ export function NoteScreen() {
       insets={insets}
       navigation={navigation}
       onNoteChange={setNote}
-      onRefresh={() => fetchNote()}
+      onRefresh={async () => { await fetchNote(); setRefreshKey((k) => k + 1) }}
     />
   )
 }
