@@ -182,6 +182,7 @@ export function NoteScreen() {
   const pendingContentRef = useRef<string>('')
   const autosaveArmedRef = useRef(false)
   const hasSetInitialContentRef = useRef(false)
+  const [editorReady, setEditorReady] = useState(false)
 
   const editor = useEditorBridge({
     autofocus: false,
@@ -195,10 +196,7 @@ export function NoteScreen() {
     debounceInterval: 500,
   })
 
-  // editorState would normally come from useEditorState(editor) but that hook
-  // is not exported from this version of TenTap. Buttons still work — just
-  // without active-state highlighting. Pass undefined and toolbar degrades gracefully.
-  const editorState = undefined
+
 
   const canEdit = authReady && canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
@@ -280,7 +278,23 @@ export function NoteScreen() {
   useEffect(() => { fetchNote() }, [fetchNote])
 
   useEffect(() => {
-    if (!note) return
+    // Check if the editor is already ready
+    const state = editor.getEditorState() as any
+    if (state && state.isReady) {
+      setEditorReady(true)
+      return
+    }
+
+    // Subscribe to state updates to detect when the editor becomes ready
+    return editor._subscribeToEditorStateUpdate((updatedState: any) => {
+      if (updatedState && updatedState.isReady) {
+        setEditorReady(true)
+      }
+    })
+  }, [editor])
+
+  useEffect(() => {
+    if (!note || !editorReady || hasSetInitialContentRef.current) return
 
     const htmlSeed = tiptapJsonToHtml(note.content)
 
@@ -290,60 +304,12 @@ export function NoteScreen() {
         note.content.content.length === 0) ||
       (typeof note.content === 'string' && note.content.trim() === '')
 
-    // TenTap has no onReady callback in this version — the editor silently
-    // no-ops setContent while the WebView is still loading. We detect readiness
-    // by intercepting the console.warn it emits: "Editor isn't ready yet".
-    // Strategy: patch console.warn temporarily, call setContent, if the warning
-    // fires we know the editor isn't ready and retry after 200ms.
-    let attempts = 0
-    const MAX_ATTEMPTS = 40  // 40 * 150ms = 6 seconds max
-
-    const trySetContent = () => {
-      attempts += 1
-      let notReadyYet = false
-
-      // Temporarily intercept the TenTap warning
-      const originalWarn = console.warn
-      console.warn = (...args: any[]) => {
-        const msg = args[0]
-        if (typeof msg === 'string' && msg.includes('ready')) {
-          notReadyYet = true
-        } else {
-          originalWarn(...args)
-        }
-      }
-
-      try {
-        editor.setContent(htmlSeed)
-      } finally {
-        console.warn = originalWarn
-      }
-
-      if (notReadyYet) {
-        // WebView not ready — will retry
-        return false
-      }
-
-      // Success — editor accepted the content
-      hasSetInitialContentRef.current = true
-      setIsEmpty(isContentEmpty)
-      editor.setEditable(canEdit)
-      if (canEdit) autosaveArmedRef.current = true
-      return true
-    }
-
-    // Try immediately, then retry every 150ms until success or timeout
-    if (!trySetContent()) {
-      const interval = setInterval(() => {
-        if (attempts >= MAX_ATTEMPTS) {
-          clearInterval(interval)
-          return
-        }
-        if (trySetContent()) clearInterval(interval)
-      }, 150)
-      return () => clearInterval(interval)
-    }
-  }, [note, editor, canEdit])
+    editor.setContent(htmlSeed)
+    hasSetInitialContentRef.current = true
+    setIsEmpty(isContentEmpty)
+    editor.setEditable(canEdit)
+    if (canEdit) autosaveArmedRef.current = true
+  }, [note, editor, canEdit, editorReady])
 
   useEffect(() => {
     if (!autosaveArmedRef.current) return
@@ -488,7 +454,17 @@ export function NoteScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+    // KAV wraps everything: behavior="padding" pushes toolbar above keyboard on
+    // iOS. Android uses softwareKeyboardLayoutMode="resize" (app.json), so KAV
+    // is disabled there to avoid a double-adjustment.
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#fff' }}
+      behavior="padding"
+      enabled={Platform.OS === 'ios'}
+      keyboardVerticalOffset={0}
+    >
+      {/* Safe-area + header + banner — not flex-1 so they don’t steal editor space */}
+      <View style={{ paddingTop: insets.top }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
@@ -621,36 +597,33 @@ export function NoteScreen() {
         </View>
       )}
 
-      {/* ── Editor ─────────────────────────────────────────────────────────── */}
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <View style={{ flex: 1 }}>
-          <RichText editor={editor} style={{ flex: 1 }} />
-          {/* Empty state — shown for new/blank notes until the user starts typing */}
-          {isEmpty && canEdit && !isArchived && (
-            <View
-              className="absolute left-0 right-0 top-0"
-              style={{ paddingTop: 16, paddingHorizontal: 24 }}
-              pointerEvents="none"
-            >
-              <Text className="text-[15px] text-[#c8d5e8]">
-                Start writing your note…
-              </Text>
-            </View>
-          )}
-        </View>
+      </View>{/* end: header + banner wrapper */}
 
-        {canEdit && (
-          <MobileEditorToolbar
-            editor={editor}
-            editorState={editorState}
-            bottomInset={insets.bottom}
-          />
+      {/* ── Editor ──────────────────────────────────────────────────────────── */}
+      <View style={{ flex: 1 }}>
+        <RichText editor={editor} style={{ flex: 1 }} />
+        {/* Empty state — shown for new/blank notes until the user starts typing */}
+        {isEmpty && canEdit && !isArchived && (
+          <View
+            className="absolute left-0 right-0 top-0"
+            style={{ paddingTop: 16, paddingHorizontal: 24 }}
+            pointerEvents="none"
+          >
+            <Text className="text-[15px] text-[#c8d5e8]">
+              Start writing your note…
+            </Text>
+          </View>
         )}
-      </KeyboardAvoidingView>
+      </View>{/* end: editor */}
+
+      {/* Toolbar sits here, at the bottom of the KAV. On iOS, the KAV’s
+          "padding" behaviour pushes it above the keyboard automatically. */}
+      {canEdit && (
+        <MobileEditorToolbar
+          editor={editor}
+          bottomInset={insets.bottom}
+        />
+      )}
 
       {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
@@ -685,7 +658,7 @@ export function NoteScreen() {
           onClose={() => setShowAIInsights(false)}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 

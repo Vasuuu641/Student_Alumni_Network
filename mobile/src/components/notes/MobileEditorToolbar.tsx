@@ -4,13 +4,13 @@
 // Row 1 (tools)  — keyboard dismiss, undo, redo, horizontal rule
 // Row 2 (format) — scrollable: paragraph/H1/H2/H3, font size, bold, italic,
 //                  underline, strikethrough, highlight, inline code,
-//                  bullet list, ordered list, blockquote, align L/C/R
+//                  bullet list, ordered list, blockquote
 //
-// Usage (in NoteEditor):
-//   const editorState = useEditorState(editor)
-//   <MobileEditorToolbar editor={editor} editorState={editorState} bottomInset={insets.bottom} />
+// Editor state is sourced from useBridgeState(editor) internally — the parent
+// screen does not need to pass editorState as a prop.
+// <MobileEditorToolbar editor={editor} bottomInset={insets.bottom} />
 
-import { useCallback, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Keyboard,
   Pressable,
@@ -19,10 +19,8 @@ import {
   View,
 } from 'react-native'
 import type { EditorBridge } from '@10play/tentap-editor'
+import { useBridgeState } from '@10play/tentap-editor'
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bold,
   Code,
   Heading1,
@@ -46,26 +44,8 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface EditorState {
-  isBoldActive?: boolean
-  isItalicActive?: boolean
-  isUnderlineActive?: boolean
-  isStrikeActive?: boolean
-  isHighlightActive?: boolean
-  isCodeActive?: boolean
-  isBulletListActive?: boolean
-  isOrderedListActive?: boolean
-  isBlockquoteActive?: boolean
-  activeHeadingLevel?: number | false
-  activeTextAlign?: string
-  canUndo?: boolean
-  canRedo?: boolean
-  [key: string]: any
-}
-
 interface Props {
   editor: EditorBridge
-  editorState?: EditorState
   bottomInset?: number
 }
 
@@ -87,7 +67,11 @@ const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function MobileEditorToolbar({ editor, editorState, bottomInset = 0 }: Props) {
+export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ editor, bottomInset = 0 }: Props) {
+  // Subscribe to live editor state — scoped to this component so the parent
+  // NoteScreen does NOT re-render on every keystroke / selection change.
+  const editorState = useBridgeState(editor)
+
   const [showFontPicker, setShowFontPicker] = useState(false)
   const [fontSize, setFontSize] = useState(16)
 
@@ -96,24 +80,23 @@ export function MobileEditorToolbar({ editor, editorState, bottomInset = 0 }: Pr
   function applyFontSize(size: number) {
     setFontSize(size)
     setShowFontPicker(false)
-    // Font size requires the fontSize bridge extension which isn't in TenTapStartKit
-    // Local state tracks the selected size for UI only
+    // Font size requires the fontSize bridge extension which isn't in TenTapStartKit.
+    // Local state tracks the selected size for UI feedback only.
   }
 
-  // ── Active state helpers ─────────────────────────────────────────────────
-  const isBold        = !!editorState?.isBoldActive
-  const isItalic      = !!editorState?.isItalicActive
-  const isUnderline   = !!editorState?.isUnderlineActive
-  const isStrike      = !!editorState?.isStrikeActive
-  const isHighlight   = !!editorState?.isHighlightActive
-  const isCode        = !!editorState?.isCodeActive
-  const isBullet      = !!editorState?.isBulletListActive
-  const isOrdered     = !!editorState?.isOrderedListActive
-  const isBlockquote  = !!editorState?.isBlockquoteActive
-  const headingLevel  = editorState?.activeHeadingLevel
-  const textAlign     = editorState?.activeTextAlign ?? 'left'
-  const canUndo       = editorState?.canUndo ?? true
-  const canRedo       = editorState?.canRedo ?? true
+  // ── Active state helpers — correct TenTap BridgeState field names ────────
+  const isBold       = !!editorState?.isBoldActive
+  const isItalic     = !!editorState?.isItalicActive
+  const isUnderline  = !!editorState?.isUnderlineActive
+  const isStrike     = !!editorState?.isStrikeActive
+  const isHighlight  = !!editorState?.activeHighlight   // HighlightBridge: string|undefined
+  const isCode       = !!editorState?.isCodeActive
+  const isBullet     = !!editorState?.isBulletListActive
+  const isOrdered    = !!editorState?.isOrderedListActive
+  const isBlockquote = !!editorState?.isBlockquoteActive
+  const headingLevel = editorState?.headingLevel        // HeadingBridge: number|undefined
+  const canUndo      = editorState?.canUndo ?? false
+  const canRedo      = editorState?.canRedo ?? false
 
   return (
     <View style={{ backgroundColor: TOOLBAR_BG, paddingBottom: bottomInset }}>
@@ -209,7 +192,11 @@ export function MobileEditorToolbar({ editor, editorState, bottomInset = 0 }: Pr
       >
         {/* ── Block type ──────────────────────────────────────────────────── */}
         <FmtBtn
-          onPress={() => run(() => { try { (editor as any).setParagraph() } catch { /* not supported */ } })}
+          onPress={() => run(() => {
+            // toggleHeading on an already-active heading converts the node back
+            // to a paragraph — the HeadingBridge has no dedicated setParagraph.
+            if (headingLevel) editor.toggleHeading(headingLevel as any)
+          })}
           active={!headingLevel}
           icon={<Pilcrow size={16} color={!headingLevel ? ACTIVE_FG : DEFAULT_FG} />}
         />
@@ -312,28 +299,10 @@ export function MobileEditorToolbar({ editor, editorState, bottomInset = 0 }: Pr
           icon={<Quote size={16} color={isBlockquote ? ACTIVE_FG : DEFAULT_FG} />}
         />
 
-        <Sep />
-
-        {/* ── Alignment ────────────────────────────────────────────────────── */}
-        <FmtBtn
-          onPress={() => run(() => { try { (editor as any).setTextAlign('left') } catch { /* not supported */ } })}
-          active={textAlign === 'left'}
-          icon={<AlignLeft size={16} color={textAlign === 'left' ? ACTIVE_FG : DEFAULT_FG} />}
-        />
-        <FmtBtn
-          onPress={() => run(() => { try { (editor as any).setTextAlign('center') } catch { /* not supported */ } })}
-          active={textAlign === 'center'}
-          icon={<AlignCenter size={16} color={textAlign === 'center' ? ACTIVE_FG : DEFAULT_FG} />}
-        />
-        <FmtBtn
-          onPress={() => run(() => { try { (editor as any).setTextAlign('right') } catch { /* not supported */ } })}
-          active={textAlign === 'right'}
-          icon={<AlignRight size={16} color={textAlign === 'right' ? ACTIVE_FG : DEFAULT_FG} />}
-        />
       </ScrollView>
     </View>
   )
-}
+})
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
