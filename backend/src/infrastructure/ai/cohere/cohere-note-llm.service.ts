@@ -52,18 +52,18 @@ export class CohereNoteLLMService implements NoteLLMService {
   private readonly activeEmbeddings = new Map<string, Promise<void>>();
 
   async embedNote(noteId: string, title: string, contentJson: unknown): Promise<void> {
-    // Wait for any existing embedding request for this note to complete
     const existing = this.activeEmbeddings.get(noteId);
-    if (existing) {
-      try {
-        await existing;
-      } catch {
-        // ignore errors from previous attempts
-      }
-    }
 
-    // Create a new promise for this request
+    // Create a new promise for this request that chains after the existing one
     const promise = (async () => {
+      if (existing) {
+        try {
+          await existing;
+        } catch {
+          // ignore errors from previous attempts
+        }
+      }
+
       try {
         const bodyText = this.extractTextFromTipTap(contentJson);
         const fullText = `${title}\n\n${bodyText}`.trim();

@@ -33,7 +33,7 @@ interface Props {
   canRestore: boolean
   visible: boolean
   onClose: () => void
-  onRestored: () => void
+  onRestored: () => void | Promise<void>
 }
 
 export function MobileVersionHistoryPanel({
@@ -77,21 +77,23 @@ export function MobileVersionHistoryPanel({
 
   // ─── Restore ───────────────────────────────────────────────────────────────
 
-  async function handleRestore() {
+    async function handleRestore() {
     if (!selectedVersion) return
     try {
       setRestoring(selectedVersion.versionNumber)
       await restoreVersion(token, noteId, selectedVersion.versionNumber)
       setConfirmVisible(false)
       setSelectedVersion(null)
-      onRestored()
+      // Close panel first so user sees the loading screen during remount,
+      // then call onRestored which triggers fetchNote + refreshKey bump
       onClose()
+      await onRestored()
     } catch {
       setError(`Failed to restore version ${selectedVersion.versionNumber}`)
       setRestoring(null)
     }
   }
-
+ 
   function openConfirm(version: NoteVersion) {
     setSelectedVersion(version)
     setConfirmVisible(true)

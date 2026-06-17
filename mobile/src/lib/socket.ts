@@ -1,6 +1,5 @@
 // src/lib/socket.ts
 import { io, Socket } from 'socket.io-client'
-import { getAccessToken } from './auth-storage'
 import Constants from 'expo-constants'
 import { getValidAccessToken } from './auth-session'
 
