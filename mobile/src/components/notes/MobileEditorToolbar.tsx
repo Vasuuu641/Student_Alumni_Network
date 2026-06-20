@@ -99,7 +99,8 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
   const canRedo      = editorState?.canRedo ?? false
 
   return (
-    <View style={{ backgroundColor: TOOLBAR_BG, paddingBottom: bottomInset }}>
+    // DEBUG: yellow = whole toolbar root. Remove after diagnosing.
+    <View style={{ backgroundColor: 'yellow', paddingBottom: bottomInset }}>
 
       {/* ── Font size picker overlay ─────────────────────────────────────── */}
       {showFontPicker && (
@@ -178,18 +179,39 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
         />
       </View>
 
-      {/* ── Row 2: Formatting (horizontally scrollable) ──────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
-        contentContainerStyle={{
-          paddingHorizontal: 6,
-          paddingVertical: 5,
-          alignItems: 'center',
-          gap: 2,
-        }}
-      >
+      {/* >>> CHANGED ───────────────────────────────────────────────────────
+          Row 2: Formatting (horizontally scrollable)
+
+          Wrapped in a View with an explicit height: 44. A horizontal
+          ScrollView has no intrinsic content height of its own in React
+          Native — it normally borrows one from a flex-bounded ancestor.
+          That worked fine while the toolbar's parent was a stable,
+          non-animating KeyboardAvoidingView. Now that the parent is an
+          Animated.View whose marginBottom changes every frame during the
+          keyboard show/hide transition, RN can re-measure this subtree
+          mid-animation and resolve the ScrollView's height as 0 — Row 1
+          (a plain View) isn't affected because plain Views size from their
+          own content regardless of ancestor animation, but ScrollView does
+          not. Giving it a fixed height removes the ambiguity entirely,
+          independent of whatever the ancestor's margin is doing.
+
+          44 matches each button's effective tap height (paddingVertical: 6
+          * 2 + icon size 16 + a little breathing room) — adjust if FmtBtn's
+          padding changes. */}
+      <View style={{ height: 44, backgroundColor: 'red' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          contentContainerStyle={{
+            paddingHorizontal: 6,
+            paddingVertical: 5,
+            alignItems: 'center',
+            gap: 2,
+            backgroundColor: 'blue',
+          }}
+        >
+        {/* <<< CHANGED */}
         {/* ── Block type ──────────────────────────────────────────────────── */}
         <FmtBtn
           onPress={() => run(() => {
@@ -299,7 +321,10 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
           icon={<Quote size={16} color={isBlockquote ? ACTIVE_FG : DEFAULT_FG} />}
         />
 
-      </ScrollView>
+        {/* >>> CHANGED: closing tags for the new height-bounded wrapper */}
+        </ScrollView>
+      </View>
+      {/* <<< CHANGED */}
     </View>
   )
 })

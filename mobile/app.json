@@ -29,10 +29,16 @@
       ],
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.vasu.unibridge"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4e456ca5-b55c-4bf7-b537-46440f48a26c"
+      }
     }
   }
 }
