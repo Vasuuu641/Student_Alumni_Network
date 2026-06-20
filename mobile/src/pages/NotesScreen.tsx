@@ -16,15 +16,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Animated,
   AppState,
   AppStateStatus,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  // <<< CHANGED
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
@@ -46,7 +46,6 @@ import {
   History,
   Share2,
   Sparkles,
-  Users,
 } from 'lucide-react-native'
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api'
@@ -59,6 +58,8 @@ import { useNotePresence } from '../hooks/UseNotesPresence'
 import { useRelatedThreads } from '../hooks/UseRelatedThreads'
 import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
+import { useAnimatedKeyboardHeight } from '../hooks/useAnimatedKeyboardHeight'
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,12 @@ export function NoteScreen() {
   const autosaveArmedRef = useRef(false)
   const hasSetInitialContentRef = useRef(false)
   const [editorReady, setEditorReady] = useState(false)
+
+  // >>> CHANGED: replaces KeyboardAvoidingView. heightAnim drives the
+  // toolbar's marginBottom; isKeyboardVisible zeroes out the safe-area
+  // bottomInset while the keyboard covers the home-indicator area.
+  const { heightAnim: keyboardHeight, isVisible: isKeyboardVisible } = useAnimatedKeyboardHeight()
+  // <<< CHANGED
 
   const editor = useEditorBridge({
     autofocus: false,
@@ -454,15 +461,14 @@ export function NoteScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    // KAV wraps everything: behavior="padding" pushes toolbar above keyboard on
-    // iOS. Android uses softwareKeyboardLayoutMode="resize" (app.json), so KAV
-    // is disabled there to avoid a double-adjustment.
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff' }}
-      behavior="padding"
-      enabled={Platform.OS === 'ios'}
-      keyboardVerticalOffset={0}
-    >
+    // >>> CHANGED: KeyboardAvoidingView removed entirely. It only animated
+    // the toolbar correctly on iOS (behavior="padding"); on Android it was
+    // disabled in favor of softwareKeyboardLayoutMode="resize", which only
+    // resizes the WebView itself — not this toolbar sitting outside it. Both
+    // platforms now go through the same useAnimatedKeyboardHeight path below.
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    {/* <<< CHANGED */}
+
       {/* Safe-area + header + banner — not flex-1 so they don’t steal editor space */}
       <View style={{ paddingTop: insets.top }}>
 
@@ -616,14 +622,21 @@ export function NoteScreen() {
         )}
       </View>{/* end: editor */}
 
-      {/* Toolbar sits here, at the bottom of the KAV. On iOS, the KAV’s
-          "padding" behaviour pushes it above the keyboard automatically. */}
+      {/* >>> CHANGED: toolbar wrapped in Animated.View whose marginBottom
+          tracks live keyboard height (replaces the old KAV-driven push).
+          bottomInset is zeroed while the keyboard is visible since the
+          keyboard itself already covers the home-indicator safe area —
+          leaving insets.bottom here would add a redundant gap under the
+          toolbar whenever the keyboard is open. */}
       {canEdit && (
-        <MobileEditorToolbar
-          editor={editor}
-          bottomInset={insets.bottom}
-        />
+        <Animated.View style={{ marginBottom: keyboardHeight }}>
+          <MobileEditorToolbar
+            editor={editor}
+            bottomInset={isKeyboardVisible ? 0 : insets.bottom}
+          />
+        </Animated.View>
       )}
+      {/* <<< CHANGED */}
 
       {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
@@ -658,7 +671,7 @@ export function NoteScreen() {
           onClose={() => setShowAIInsights(false)}
         />
       )}
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
