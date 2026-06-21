@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Your location helps show nearby campus resources and suggest places accurately."
-      }
+      },
+      "bundleIdentifier": "com.vasu.unibridge"
     },
     "android": {
       "adaptiveIcon": {
