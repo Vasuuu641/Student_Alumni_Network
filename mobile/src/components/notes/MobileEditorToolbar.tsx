@@ -99,8 +99,7 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
   const canRedo      = editorState?.canRedo ?? false
 
   return (
-    // DEBUG: yellow = whole toolbar root. Remove after diagnosing.
-    <View style={{ backgroundColor: 'yellow', paddingBottom: bottomInset }}>
+    <View style={{ backgroundColor: TOOLBAR_BG, paddingBottom: bottomInset }}>
 
       {/* ── Font size picker overlay ─────────────────────────────────────── */}
       {showFontPicker && (
@@ -179,26 +178,19 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
         />
       </View>
 
-      {/* >>> CHANGED ───────────────────────────────────────────────────────
-          Row 2: Formatting (horizontally scrollable)
-
-          Wrapped in a View with an explicit height: 44. A horizontal
-          ScrollView has no intrinsic content height of its own in React
-          Native — it normally borrows one from a flex-bounded ancestor.
-          That worked fine while the toolbar's parent was a stable,
-          non-animating KeyboardAvoidingView. Now that the parent is an
-          Animated.View whose marginBottom changes every frame during the
-          keyboard show/hide transition, RN can re-measure this subtree
-          mid-animation and resolve the ScrollView's height as 0 — Row 1
-          (a plain View) isn't affected because plain Views size from their
-          own content regardless of ancestor animation, but ScrollView does
-          not. Giving it a fixed height removes the ambiguity entirely,
-          independent of whatever the ancestor's margin is doing.
-
-          44 matches each button's effective tap height (paddingVertical: 6
-          * 2 + icon size 16 + a little breathing room) — adjust if FmtBtn's
-          padding changes. */}
-      <View style={{ height: 44, backgroundColor: 'red' }}>
+      {/* ── Row 2: Formatting (horizontally scrollable) ────────────────────
+          height: 44 here is a LOCAL bound for the ScrollView only — this is
+          the documented RN requirement that ScrollViews need a non-zero
+          bounded height to render their content at all, independent of the
+          ancestor. This is NOT the same kind of fixed-height guess as the
+          outer toolbar wrapper used to have in NoteEditorPane (which was
+          removed after debug testing showed it was the actual cause of Row
+          2 disappearing under keyboard animation — see NoteEditorPane.tsx
+          for that history). This local height is sized to the row's own
+          known content (FmtBtn's fixed padding/icon size), not a guess at
+          the whole toolbar's footprint, so it isn't subject to the same
+          squeeze. */}
+      <View style={{ height: 44 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -208,7 +200,6 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
             paddingVertical: 5,
             alignItems: 'center',
             gap: 2,
-            backgroundColor: 'blue',
           }}
         >
         {/* <<< CHANGED */}

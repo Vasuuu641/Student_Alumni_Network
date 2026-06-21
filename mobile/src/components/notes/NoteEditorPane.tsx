@@ -199,40 +199,25 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
   useImperativeHandle(ref, () => ({ flushPendingSave }), [flushPendingSave])
 
   // >>> CHANGED ───────────────────────────────────────────────────────────
-  // Previously this returned a fragment, making the editor View and the
-  // toolbar's Animated.View two *separate* flex children of NoteScreen's
-  // root container. On Android, once the keyboard genuinely resizes the
-  // window (which only happens correctly in a Dev Client build, not Expo
-  // Go — see the project README notes), both flex:1 / flex-sibling regions
-  // have to renegotiate their share of the now-smaller height in the same
-  // layout pass as RichText's WebView. ScrollViews need a real non-zero
-  // bounded height to render anything at all (this is documented RN
-  // behavior, not a bug specific to this component) — if the WebView's
-  // layout pass claims space before the toolbar's measurement settles, the
-  // toolbar's available height can transiently resolve to ~0. Row 1 (a
-  // plain View, no ScrollView) can still paint in a sliver of squeezed
-  // space; Row 2's ScrollView cannot.
+  // Reverted the fixed-height (TOOLBAR_HEIGHT = 96) approach from the
+  // previous pass. Debug screenshots showed Row 2 (bold/italic/underline
+  // etc, with real icons) DOES render correctly — but only once the
+  // keyboard finishes closing. While the keyboard was open and
+  // marginBottom was actively animating to a large value, Row 2 vanished;
+  // Row 1 stayed visible the whole time. That's the signature of the fixed
+  // height guess being too small for what Row 1 + Row 2 actually need once
+  // real fonts/icons are measured on this device — under a shrinking
+  // available budget, something (most likely RN's Yoga layout engine
+  // reconciling the animated margin against a height it was already
+  // constrained by) drops Row 2 first. Once marginBottom relaxes back to 0,
+  // the budget is restored and Row 2 reappears.
   //
-  // Fix: wrap everything in one View style={{ flex: 1 }}, and make the
-  // toolbar a *fixed-height, non-flex* block (TOOLBAR_HEIGHT) rather than a
-  // flex-sibling. Only the RichText container is flex:1 now. When Android
-  // shrinks the available height, the math becomes "fixed toolbar height
-  // stays fixed, RichText's region absorbs 100% of the shrink" — there is
-  // no longer a layout pass where the toolbar's height is ambiguous or can
-  // be squeezed toward zero, regardless of WebView resize timing.
-  const TOOLBAR_HEIGHT = 96 // Row 1 (≈44) + Row 2 (44) + small borders/padding
-  // bottomInset only adds real height when the keyboard is closed — once
-  // it's open, MobileEditorToolbar zeroes its own paddingBottom (see
-  // isKeyboardVisible below), so don't double-count it here.
-  const toolbarContainerHeight = TOOLBAR_HEIGHT + (isKeyboardVisible ? 0 : bottomInset)
-  // NOTE: MobileEditorToolbar's font-size picker overlay adds extra height
-  // above Row 1 when toggled open. That overlay is not accounted for in
-  // TOOLBAR_HEIGHT — it will be clipped by this fixed-height container if
-  // opened. If you hit that, either bump toolbarContainerHeight while the
-  // picker is open (would need a small piece of state lifted up from
-  // MobileEditorToolbar), or render the picker as an absolutely-positioned
-  // overlay instead of in-flow. Not fixed here since it's outside the scope
-  // of the keyboard-hiding bug this change addresses.
+  // Fix: stop guessing a height. Let Row 1 and Row 2 size themselves from
+  // their own content (their original behavior, before any of these
+  // changes) and use ONLY marginBottom to push the whole toolbar above the
+  // keyboard. There is no longer a hard ceiling that Row 2 can be squeezed
+  // against.
+  // <<< CHANGED
 
   return (
     <View style={{ flex: 1 }}>
@@ -252,13 +237,9 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
       </View>
 
       {canEdit && (
-        // DEBUG: green border = the fixed-height wrapper itself. Remove after diagnosing.
         <Animated.View
           style={{
-            height: toolbarContainerHeight,
             marginBottom: keyboardHeight,
-            borderWidth: 3,
-            borderColor: 'lime',
           }}
         >
           <MobileEditorToolbar
