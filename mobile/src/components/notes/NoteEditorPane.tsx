@@ -31,7 +31,9 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Animated, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import { useKeyboardHandler } from 'react-native-keyboard-controller'
 import {
   RichText,
   useEditorBridge,
@@ -59,8 +61,6 @@ interface Props {
   canEdit: boolean
   isArchived: boolean
   bottomInset: number
-  keyboardHeight: Animated.Value
-  isKeyboardVisible: boolean
   onSaveStatusChange: (status: SaveStatus) => void
   /** Live plain-text content, used by NoteScreen for AI-insights eligibility. */
   onContentChange: (html: string) => void
@@ -109,14 +109,60 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
     canEdit,
     isArchived,
     bottomInset,
-    keyboardHeight,
-    isKeyboardVisible,
     onSaveStatusChange,
     onContentChange,
   },
   ref
 ) {
   const [isEmpty, setIsEmpty] = useState(isContentEmpty)
+
+  // >>> CHANGED ───────────────────────────────────────────────────────────
+  // Keyboard tracking via react-native-keyboard-controller's
+  // useKeyboardHandler — reads keyboard frame changes from native code via
+  // a Reanimated worklet, updating a SharedValue on the UI thread directly.
+  // Requires <KeyboardProvider> wrapping the navigation root (App.tsx),
+  // react-native-reanimated 4.1.x, and react-native-worklets (both
+  // installed alongside it).
+  //
+  // Single handler registration (not two) so the animated height and the
+  // isKeyboardVisible flag can never drift out of sync with each other —
+  // both are derived from the exact same event stream.
+  const keyboardHeightSV = useSharedValue(0)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+
+  // DEBUG: plain-JS mirror of keyboardHeightSV so we can render the actual
+  // numeric value on screen. Remove once the toolbar positioning is fixed.
+  const [debugKeyboardHeight, setDebugKeyboardHeight] = useState(0)
+
+  useKeyboardHandler(
+    {
+      onStart: (e) => {
+        'worklet'
+        if (e.height > 0) {
+          runOnJS(setIsKeyboardVisible)(true)
+        }
+      },
+      onMove: (e) => {
+        'worklet'
+        keyboardHeightSV.value = Math.max(e.height, 0)
+        runOnJS(setDebugKeyboardHeight)(Math.round(e.height))
+      },
+      onEnd: (e) => {
+        'worklet'
+        keyboardHeightSV.value = Math.max(e.height, 0)
+        runOnJS(setDebugKeyboardHeight)(Math.round(e.height))
+        if (e.height === 0) {
+          runOnJS(setIsKeyboardVisible)(false)
+        }
+      },
+    },
+    []
+  )
+
+  const toolbarAnimatedStyle = useAnimatedStyle(() => ({
+    marginBottom: keyboardHeightSV.value,
+  }))
+  // <<< CHANGED
 
   const lastSavedRef = useRef<string>(initialHtml)
   const inFlightRef = useRef(false)
@@ -199,24 +245,18 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
   useImperativeHandle(ref, () => ({ flushPendingSave }), [flushPendingSave])
 
   // >>> CHANGED ───────────────────────────────────────────────────────────
-  // Reverted the fixed-height (TOOLBAR_HEIGHT = 96) approach from the
-  // previous pass. Debug screenshots showed Row 2 (bold/italic/underline
-  // etc, with real icons) DOES render correctly — but only once the
-  // keyboard finishes closing. While the keyboard was open and
-  // marginBottom was actively animating to a large value, Row 2 vanished;
-  // Row 1 stayed visible the whole time. That's the signature of the fixed
-  // height guess being too small for what Row 1 + Row 2 actually need once
-  // real fonts/icons are measured on this device — under a shrinking
-  // available budget, something (most likely RN's Yoga layout engine
-  // reconciling the animated margin against a height it was already
-  // constrained by) drops Row 2 first. Once marginBottom relaxes back to 0,
-  // the budget is restored and Row 2 reappears.
-  //
-  // Fix: stop guessing a height. Let Row 1 and Row 2 size themselves from
-  // their own content (their original behavior, before any of these
-  // changes) and use ONLY marginBottom to push the whole toolbar above the
-  // keyboard. There is no longer a hard ceiling that Row 2 can be squeezed
-  // against.
+  // Switched keyboard tracking from RN's JS-only Keyboard API
+  // (useAnimatedKeyboardHeight, since removed) to
+  // react-native-keyboard-controller's useKeyboardHandler, set up above.
+  // The earlier fixed-height experiments (TOOLBAR_HEIGHT) were a red
+  // herring — debug screenshots confirmed Row 2 renders correctly with
+  // real content, but only once the keyboard finished closing. That is the
+  // signature of a confirmed react-native-screens bug (#2124): native-stack
+  // screen children can get an incorrect layout pass specifically while
+  // Fabric/New-Arch is reconciling a JS-driven Animated.Value-based resize
+  // on Android. Reanimated's worklet-driven SharedValue updates the UI
+  // thread directly, bypassing that unreliable JS-triggered re-layout path
+  // entirely — which is the actual fix, not another height guess.
   // <<< CHANGED
 
   return (
@@ -234,14 +274,30 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
             </Text>
           </View>
         )}
+        {/* DEBUG: shows live keyboardHeightSV value. Positioned absolute +
+            top so it stays visible regardless of what's happening to the
+            toolbar's own marginBottom below. Remove once fixed. */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            backgroundColor: 'black',
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 6,
+            zIndex: 999,
+          }}
+        >
+          <Text style={{ color: 'lime', fontSize: 12, fontFamily: 'monospace' }}>
+            kb: {debugKeyboardHeight} | vis: {isKeyboardVisible ? 'Y' : 'N'}
+          </Text>
+        </View>
       </View>
 
       {canEdit && (
-        <Animated.View
-          style={{
-            marginBottom: keyboardHeight,
-          }}
-        >
+        <Animated.View style={[toolbarAnimatedStyle, { borderWidth: 2, borderColor: 'red' }]}>
           <MobileEditorToolbar
             editor={editor}
             bottomInset={isKeyboardVisible ? 0 : bottomInset}
@@ -250,5 +306,4 @@ export const NoteEditorPane = forwardRef<NoteEditorPaneHandle, Props>(function N
       )}
     </View>
   )
-  // <<< CHANGED
 })

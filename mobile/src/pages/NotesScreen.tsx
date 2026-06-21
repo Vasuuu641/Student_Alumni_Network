@@ -34,7 +34,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Animated,
   AppState,
   AppStateStatus,
   Platform,
@@ -70,14 +69,11 @@ import { useNotePresence } from '../hooks/UseNotesPresence'
 import { useRelatedThreads } from '../hooks/UseRelatedThreads'
 import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
-import { useAnimatedKeyboardHeight } from '../hooks/useAnimatedKeyboardHeight'
-// >>> CHANGED: editor + autosave logic now lives in this child component
 import {
   NoteEditorPane,
   type NoteEditorPaneHandle,
   type SaveStatus,
 } from '../components/notes/NoteEditorPane'
-// <<< CHANGED
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +206,13 @@ export function NoteScreen() {
   const editorPaneRef = useRef<NoteEditorPaneHandle>(null)
   // <<< CHANGED
 
-  const { heightAnim: keyboardHeight, isVisible: isKeyboardVisible } = useAnimatedKeyboardHeight()
+  // >>> CHANGED: keyboard tracking moved into NoteEditorPane itself (via
+  // react-native-keyboard-controller's useKeyboardHandler) rather than
+  // being computed here and passed down as props. See NoteEditorPane.tsx
+  // for why — the RN-Keyboard-event-driven version used here previously
+  // didn't survive native-stack + Fabric's Android keyboard resize layout
+  // pass reliably.
+  // <<< CHANGED
 
   const canEdit = authReady && canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
@@ -545,8 +547,6 @@ export function NoteScreen() {
         canEdit={canEdit}
         isArchived={isArchived}
         bottomInset={insets.bottom}
-        keyboardHeight={keyboardHeight}
-        isKeyboardVisible={isKeyboardVisible}
         onSaveStatusChange={setSaveStatus}
         onContentChange={setLiveHtmlContent}
       />

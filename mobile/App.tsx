@@ -8,6 +8,7 @@ import { enableScreens } from 'react-native-screens';
 import { DashboardPage, DiscussionsPage, GeoHelpBoardPage, HomePage, LoginPage, ProfilePage, RegisterPage, ThreadDetailPage, StudyGroupsPage, StudyGroupDetailPage, AdminLayout, NotesListScreen, NoteScreen } from './src/pages';
 import type { RootStackParamList } from './src/navigation/root-stack';
 import { ThemeProvider } from './src/theme/theme';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 enableScreens();
 
@@ -18,6 +19,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
+          <KeyboardProvider>
           <NavigationContainer>
             <Stack.Navigator
               initialRouteName="Home"
@@ -41,6 +43,7 @@ export default function App() {
               <Stack.Screen name="NoteScreen" component={NoteScreen} />
             </Stack.Navigator>
           </NavigationContainer>
+          </KeyboardProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
