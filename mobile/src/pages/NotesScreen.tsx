@@ -1,35 +1,11 @@
 // screens/NoteScreen.tsx
 // Mobile equivalent of src/pages/NotePage.tsx
 //
-// Dependencies:
-//   npx expo install @10play/tentap-editor react-native-webview
-//   npx expo install react-native-safe-area-context
-//   yarn add lucide-react-native
-//   @react-navigation/native + @react-navigation/native-stack
-//
-// Note: @10play/tentap-editor requires an Expo Dev Client build for full
-// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
-//
-// Collaborative cursors are intentionally omitted — TenTap's real-time
-// collab is a paid Pro feature. Autosave + version history covers mobile.
-//
-// >>> CHANGED (structural): the TenTap editor bridge now lives in a child
-// component, NoteEditorPane, which only mounts once `note` has finished
-// loading. Previously useEditorBridge was called here unconditionally on
-// first render (before note content existed), then content was patched in
-// later via editor.setContent() once a hand-rolled "isReady" subscription
-// fired. That subscription was attached inside a useEffect keyed on the
-// `editor` object — if any extra render happened before the WebView's
-// one-time ready event arrived, the subscription could miss it permanently,
-// leaving the note blank until a full unmount/remount (leave + re-enter)
-// happened to luck into the right timing. This is most visible on real
-// devices, where WebView bridge init is slower than some dev environments.
-//
-// Mounting NoteEditorPane only after `note` is loaded, and passing content
-// straight into useEditorBridge's initialContent option, removes the race
-// entirely — there's nothing to "catch up" on after the fact. See
-// components/notes/NoteEditorPane.tsx for the bridge + autosave logic.
-// <<< CHANGED
+// The TenTap editor bridge lives in NoteEditorPane (child component) which
+// only mounts once `note` has finished loading, eliminating the readiness
+// race that previously caused blank content on first entry.
+// Keyboard tracking is JS-only (useAnimatedKeyboardHeight) — no Reanimated
+// or react-native-keyboard-controller required.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -86,7 +62,7 @@ interface NoteData {
   content: any
   ownerId: string
   status: 'ACTIVE' | 'ARCHIVED'
-  role?: string    // "OWNER" | "EDITOR" | "VIEWER" — returned by the API
+  role?: string
   updatedAt?: string
   createdAt?: string
 }
@@ -155,8 +131,6 @@ export function NoteScreen() {
   const navigation = useNavigation<Nav>()
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
-  // (route.params as any) guards against RootStackParamList not yet having
-  // NoteScreen: { noteId: string } — add it to root-stack.ts to remove the cast
   const noteId: string = (route.params as any)?.noteId ?? ''
 
   const [token, setToken] = useState<string | null>(null)
@@ -178,13 +152,7 @@ export function NoteScreen() {
 
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
-  // >>> CHANGED: now actually used — bumped on version restore to force
-  // NoteEditorPane to fully unmount/remount with fresh initialContent.
-  // Previously declared but unused; the old code tried to reset content via
-  // mutable refs (hasSetInitialContentRef etc.) instead, which lived on the
-  // editor-owning component that no longer exists here.
   const [refreshKey, setRefreshKey] = useState(0)
-  // <<< CHANGED
   const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -199,20 +167,8 @@ export function NoteScreen() {
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<TextInput>(null)
 
-  // >>> CHANGED: live editor HTML, reported up from NoteEditorPane via
-  // onContentChange. Replaces the old useEditorContent(editor, ...) call
-  // that lived directly in this component.
   const [liveHtmlContent, setLiveHtmlContent] = useState('')
   const editorPaneRef = useRef<NoteEditorPaneHandle>(null)
-  // <<< CHANGED
-
-  // >>> CHANGED: keyboard tracking moved into NoteEditorPane itself (via
-  // react-native-keyboard-controller's useKeyboardHandler) rather than
-  // being computed here and passed down as props. See NoteEditorPane.tsx
-  // for why — the RN-Keyboard-event-driven version used here previously
-  // didn't survive native-stack + Fabric's Android keyboard resize layout
-  // pass reliably.
-  // <<< CHANGED
 
   const canEdit = authReady && canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
@@ -226,9 +182,6 @@ export function NoteScreen() {
   })
 
   // ─── AI Insights ───────────────────────────────────────────────────────────
-  // liveHtmlContent stays '' until NoteEditorPane mounts and reports its
-  // first value — fall back to initialHtml (derived from note.content) so
-  // canRequestSuggestions is correct even before/without edits.
   const initialHtml = note ? tiptapJsonToHtml(note.content) : ''
   const plainTextContent = (liveHtmlContent || initialHtml)
     .replace(/<[^>]*>/g, '')
@@ -250,7 +203,6 @@ export function NoteScreen() {
     enabled: showAIInsights,
   })
 
-  // Derive display role label — prefer API-returned role, fall back to ownership check
   const noteRoleLabel: string = (() => {
     const r = note?.role?.toUpperCase()
     if (r === 'OWNER' || isOwner) return 'Owner'
@@ -263,7 +215,6 @@ export function NoteScreen() {
   const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
 
-
   useEffect(() => {
     if (!authReady) return
     if (!token) navigation.replace('Login', undefined)
@@ -272,7 +223,6 @@ export function NoteScreen() {
 
   const fetchNote = useCallback(async () => {
     if (!authReady || !noteId || !token) {
-      // Only release the spinner once auth has resolved — before that we're still waiting
       if (authReady) setLoadingNote(false)
       return
     }
@@ -289,12 +239,6 @@ export function NoteScreen() {
   }, [authReady, noteId, token])
 
   useEffect(() => { fetchNote() }, [fetchNote])
-
-  // >>> CHANGED: the editorReady subscription effect and the
-  // note/editor/canEdit/editorReady content-seeding effect are both gone.
-  // NoteEditorPane handles its own initial content at construction time —
-  // there's nothing left for NoteScreen to coordinate here.
-  // <<< CHANGED
 
   const flushPendingSave = useCallback(async () => {
     await editorPaneRef.current?.flushPendingSave()
@@ -339,7 +283,7 @@ export function NoteScreen() {
       await updateNote(token, noteId, { status: nextStatus })
       setNote((prev) => prev ? { ...prev, status: nextStatus } : prev)
     } catch {
-      // silently fail — user can retry
+      // silently fail
     } finally {
       setArchiving(false)
     }
@@ -356,20 +300,13 @@ export function NoteScreen() {
     }
   }
 
-  // >>> CHANGED: instead of resetting mutable refs that used to live on this
-  // component (hasSetInitialContentRef, autosaveArmedRef), bump refreshKey.
-  // That key is passed to NoteEditorPane below, so React fully unmounts and
-  // remounts it — a fresh useEditorBridge call with the restored content as
-  // initialContent. This is simpler and can't fall into the same race the
-  // old ready-subscription approach could.
   const handleRestored = useCallback(async () => {
     setShowVersionHistory(false)
     await fetchNote()
     setRefreshKey((k) => k + 1)
   }, [fetchNote])
-  // <<< CHANGED
 
-  // ─── Loading / error states ───────────────────────────────────────────────────
+  // ─── Loading / error states ────────────────────────────────────────────────
 
   if (loadingNote) {
     return (
@@ -397,12 +334,10 @@ export function NoteScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
 
-      {/* Safe-area + header + banner — not flex-1 so they don’t steal editor space */}
       <View style={{ paddingTop: insets.top }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
-        {/* Back */}
         <TouchableOpacity
           className="p-1"
           onPress={async () => {
@@ -415,7 +350,6 @@ export function NoteScreen() {
           <ArrowLeft size={20} color="#101d36" />
         </TouchableOpacity>
 
-        {/* Title + role badge */}
         <View className="flex-1 overflow-hidden">
           {editingTitle ? (
             <TextInput
@@ -438,7 +372,6 @@ export function NoteScreen() {
               </Text>
             </Pressable>
           )}
-          {/* Role badge — mirrors web "Owner" / "Editor" / "Viewer" label */}
           <View className={`self-start mt-0.5 px-[6px] py-px rounded ${noteRoleBg}`}>
             <Text className={`text-[10px] font-semibold ${noteRoleColor}`}>
               {noteRoleLabel}
@@ -446,9 +379,7 @@ export function NoteScreen() {
           </View>
         </View>
 
-        {/* Right actions */}
         <View className="flex-row items-center gap-1">
-          {/* Presence indicator — mirrors web "● N online" */}
           <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} />
           <SaveIndicator status={saveStatus} />
 
@@ -531,12 +462,10 @@ export function NoteScreen() {
         </View>
       )}
 
-      </View>{/* end: header + banner wrapper */}
+      </View>
 
-      {/* >>> CHANGED: editor + toolbar now rendered by NoteEditorPane, keyed
-          on noteId + refreshKey so a version restore (or switching notes)
-          fully remounts it with fresh initialContent — no leftover mutable
-          ref state from a previous note to worry about. */}
+      {/* NoteEditorPane mounts only after note is loaded, with real content
+          already in hand. key forces full remount on version restore. */}
       <NoteEditorPane
         key={`${noteId}-${refreshKey}`}
         ref={editorPaneRef}
@@ -550,9 +479,8 @@ export function NoteScreen() {
         onSaveStatusChange={setSaveStatus}
         onContentChange={setLiveHtmlContent}
       />
-      {/* <<< CHANGED */}
 
-      {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
+      {/* ── Bottom sheet panels ──────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -591,29 +519,15 @@ export function NoteScreen() {
 
 // ─── Presence indicator ──────────────────────────────────────────────────────
 
-interface PresenceIndicatorProps {
-  onlineCount: number
-  othersOnline: number
-}
-
-function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps) {
-  // Don't show anything until at least one person is online (self)
+function PresenceIndicator({ onlineCount, othersOnline }: { onlineCount: number; othersOnline: number }) {
   if (onlineCount === 0) return null
-
   const isAlone = othersOnline === 0
-  const dotColor = isAlone ? '#94a3b8' : '#22c55e'
-  const label = isAlone
-    ? 'Only you'
-    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`
-
   return (
     <View className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-[#f0f4fa] border border-[#dce6f3]">
-      {/* Pulsing dot */}
-      <View
-        className="w-[7px] h-[7px] rounded-full"
-        style={{ backgroundColor: dotColor }}
-      />
-      <Text className="text-[10px] font-medium text-[#5f7291]">{label}</Text>
+      <View className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: isAlone ? '#94a3b8' : '#22c55e' }} />
+      <Text className="text-[10px] font-medium text-[#5f7291]">
+        {isAlone ? 'Only you' : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`}
+      </Text>
     </View>
   )
 }
@@ -622,14 +536,12 @@ function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps
 
 function SaveIndicator({ status }: { status: SaveStatus }) {
   if (status === 'idle') return null
-
-  const colorMap = {
+  const colorMap: Record<Exclude<SaveStatus, 'idle'>, { text: string; border: string; bg: string; icon: string }> = {
     saving: { text: 'text-[#f4a300]', border: 'border-[#f4a30033]', bg: 'bg-[#f4a30018]', icon: '#f4a300' },
     saved:  { text: 'text-[#1f8a4c]', border: 'border-[#1f8a4c33]', bg: 'bg-[#1f8a4c18]', icon: '#1f8a4c' },
     error:  { text: 'text-[#c53b4f]', border: 'border-[#c53b4f33]', bg: 'bg-[#c53b4f18]', icon: '#c53b4f' },
   }
   const c = colorMap[status]
-
   return (
     <View className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${c.border} ${c.bg}`}>
       {status === 'saving' && <ActivityIndicator size={10} color={c.icon} />}
