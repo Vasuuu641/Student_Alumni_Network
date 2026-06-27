@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   AppState,
   AppStateStatus,
-  Platform,
   Pressable,
   Text,
   TextInput,
