@@ -9,6 +9,7 @@ import { DashboardPage, DiscussionsPage, GeoHelpBoardPage, HomePage, LoginPage, 
 import type { RootStackParamList } from './src/navigation/root-stack';
 import { ThemeProvider } from './src/theme/theme';
 
+
 enableScreens();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
