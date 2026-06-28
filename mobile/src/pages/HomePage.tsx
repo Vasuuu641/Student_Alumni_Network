@@ -8,227 +8,203 @@ import { InfoCard } from '../components/InfoCard';
 import { getValidAccessToken } from '../lib/auth-session';
 import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const purposeCards = [
-  {
-    icon: '🎓',
-    title: 'Students',
-    description: 'Full access to notes, groups, campus resources, and mentorship.',
-  },
-  {
-    icon: '📚',
-    title: 'Professors',
-    description: 'Lead discussions, collaborate on notes, and advise study groups.',
-  },
-  {
-    icon: '🧑‍💼',
-    title: 'Alumni',
-    description: 'Mentor students, share career advice, and stay connected.',
-  },
+  { icon: '🎓', title: 'Students',   description: 'Full access to notes, groups, campus resources, and mentorship.' },
+  { icon: '📚', title: 'Professors', description: 'Lead discussions, collaborate on notes, and advise study groups.' },
+  { icon: '🧑‍💼', title: 'Alumni',    description: 'Mentor students, share career advice, and stay connected.' },
 ];
 
 const featureCards = [
-  {
-    icon: '📝',
-    title: 'Collaborative Notes',
-    description:
-      'Write and edit notes together in real time with your classmates and professors.',
-  },
-  {
-    icon: '💬',
-    title: 'Discussion Threads',
-    description:
-      'Join course and campus conversations in organized, topic-based discussion spaces.',
-  },
-  {
-    icon: '👥',
-    title: 'Study Groups',
-    description: 'Find peers with shared courses and build effective study groups quickly.',
-  },
-  {
-    icon: '✨',
-    title: 'AI-Powered Insights',
-    description: 'Get smart suggestions for notes, mentors, and relevant campus resources.',
-  },
-  {
-    icon: '📍',
-    title: 'Campus Resources',
-    description: 'Discover study spaces, labs, and key facilities with location-aware guidance.',
-  },
-  {
-    icon: '🤝',
-    title: 'Alumni Mentorship',
-    description: 'Connect with alumni for guidance, career advice, and practical insights.',
-  },
+  { icon: '📝', title: 'Collaborative Notes',    description: 'Write and edit notes together in real time with your classmates and professors.' },
+  { icon: '💬', title: 'Discussion Threads',     description: 'Join course and campus conversations in organized, topic-based discussion spaces.' },
+  { icon: '👥', title: 'Study Groups',           description: 'Find peers with shared courses and build effective study groups quickly.' },
+  { icon: '✨', title: 'AI-Powered Insights',    description: 'Get smart suggestions for notes, mentors, and relevant campus resources.' },
+  { icon: '📍', title: 'Campus Resources',       description: 'Discover study spaces, labs, and key facilities with location-aware guidance.' },
+  { icon: '🤝', title: 'Alumni Mentorship',      description: 'Connect with alumni for guidance, career advice, and practical insights.' },
 ];
 
 const privacyCards = [
-  {
-    icon: '🔒',
-    title: 'End-to-End Security',
-    description:
-      'Data is encrypted in transit and at rest to keep your notes and profile secure.',
-  },
-  {
-    icon: '📖',
-    title: 'Transparent Data Use',
-    description:
-      'We do not sell your data. AI features are used only with your explicit consent.',
-  },
-  {
-    icon: '🛡️',
-    title: 'Institutional Control',
-    description:
-      'Access is limited to approved university members under admin and policy controls.',
-  },
+  { icon: '🔒', title: 'End-to-End Security',      description: 'Data is encrypted in transit and at rest to keep your notes and profile secure.' },
+  { icon: '📖', title: 'Transparent Data Use',     description: 'We do not sell your data. AI features are used only with your explicit consent.' },
+  { icon: '🛡️', title: 'Institutional Control',    description: 'Access is limited to approved university members under admin and policy controls.' },
 ];
 
 export function HomePage({ navigation }: Props) {
+  const { tokens } = useTheme();
+
   useEffect(() => {
     let cancelled = false;
-
     async function checkSession() {
       const token = await getValidAccessToken();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (!token) {
-        return;
-      }
-
+      if (cancelled) return;
+      if (!token) return;
       navigation.replace(getRoleFromAccessToken(token) === 'ADMIN' ? 'AdminLayout' : 'Dashboard');
     }
-
     void checkSession();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [navigation]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.surface }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+
       <LandingHeader
         onPressSignIn={() => navigation.navigate('Login')}
         onPressGetStarted={() => navigation.navigate('Register')}
       />
 
-      <ScrollView contentContainerClassName="pb-7" showsVerticalScrollIndicator={false}>
-        <View className="bg-[#f5f8ff] px-4 py-[30px]">
-          <View className="mb-3.5 self-start rounded-full border border-[#dce8ff] bg-white px-3 py-1.5">
-            <Text className="text-xs font-bold text-[#2d4f8f]">✨ Built for universities</Text>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 28 }}
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: tokens.background }}
+      >
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <View style={{ backgroundColor: tokens.primarySoft, paddingHorizontal: 16, paddingVertical: 30 }}>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              backgroundColor: tokens.surface,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primaryStrong }}>
+              ✨ Built for universities
+            </Text>
           </View>
 
-          <Text className="text-[34px] font-extrabold leading-10 text-ink">
-            Where academics <Text className="text-primary">connect</Text>, collaborate, and grow
+          <Text style={{ fontSize: 34, fontWeight: '900', lineHeight: 42, color: tokens.text }}>
+            Where academics{' '}
+            <Text style={{ color: tokens.primary }}>connect</Text>
+            {', '}collaborate, and grow
           </Text>
 
-          <Text className="mt-3.5 text-base leading-6 text-muted">
+          <Text style={{ marginTop: 14, fontSize: 15, lineHeight: 23, color: tokens.muted }}>
             UniBridge is the all-in-one platform for students, professors, and alumni. Share notes,
             discuss ideas, find mentors, and access campus resources — all in one place.
           </Text>
 
-          <View className="mt-[22px] gap-2.5">
+          <View style={{ marginTop: 22, gap: 10 }}>
             <Pressable
-              className="min-h-12 items-center justify-center rounded-xl bg-primary px-4"
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.primary, paddingHorizontal: 16 }}
               onPress={() => navigation.navigate('Register')}
             >
-              <Text className="text-[15px] font-bold text-white">Create Your Account →</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Create Your Account →</Text>
             </Pressable>
             <Pressable
-              className="min-h-12 items-center justify-center rounded-xl border border-[#d5dff0] bg-white px-4"
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16 }}
               onPress={() => navigation.navigate('Login')}
             >
-              <Text className="text-[15px] font-bold text-[#1f2f4a]">Sign In</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: tokens.text }}>Sign In</Text>
             </Pressable>
           </View>
 
-          <View className="mt-[18px] flex-row gap-2">
-            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">🎓 Students</Text>
-            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">📚 Professors</Text>
-            <Text className="flex-1 rounded-full border border-[#dce5f5] bg-white px-2 py-2 text-center text-[12px] font-semibold text-[#30425f]">🧑‍💼 Alumni</Text>
+          <View style={{ marginTop: 18, flexDirection: 'row', gap: 8 }}>
+            {['🎓 Students', '📚 Professors', '🧑‍💼 Alumni'].map((label) => (
+              <View
+                key={label}
+                style={{ flex: 1, borderRadius: 999, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingVertical: 8, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.text }}>{label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View className="px-4 py-[30px]">
-          <Text className="mb-2.5 text-xs font-bold uppercase text-[#3f67b7]">Our Purpose</Text>
-          <Text className="mb-3 text-[28px] font-extrabold leading-[34px] text-ink">
+        {/* ── Our Purpose ──────────────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 30, backgroundColor: tokens.background }}>
+          <Text style={{ marginBottom: 10, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: tokens.primary }}>
+            Our Purpose
+          </Text>
+          <Text style={{ marginBottom: 12, fontSize: 28, fontWeight: '900', lineHeight: 34, color: tokens.text }}>
             Bridging the gap between academic life and community
           </Text>
-          <Text className="mb-[18px] text-[15px] leading-[23px] text-muted">
+          <Text style={{ marginBottom: 18, fontSize: 15, lineHeight: 23, color: tokens.muted }}>
             Universities are full of brilliant minds — but too often, knowledge stays siloed.
             UniBridge creates one shared space where students collaborate, professors guide, and
             alumni give back.
           </Text>
-
           {purposeCards.map((card) => (
             <InfoCard key={card.title} icon={card.icon} title={card.title} description={card.description} />
           ))}
         </View>
 
-        <View className="bg-[#f8faff] px-4 py-[30px]">
-          <Text className="mb-2.5 text-xs font-bold uppercase text-[#3f67b7]">Features</Text>
-          <Text className="mb-3 text-[28px] font-extrabold leading-[34px] text-ink">
+        {/* ── Features ─────────────────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 30, backgroundColor: tokens.primarySoft }}>
+          <Text style={{ marginBottom: 10, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: tokens.primary }}>
+            Features
+          </Text>
+          <Text style={{ marginBottom: 12, fontSize: 28, fontWeight: '900', lineHeight: 34, color: tokens.text }}>
             Everything your campus needs
           </Text>
-
           {featureCards.map((card) => (
-            <InfoCard
-              key={card.title}
-              icon={card.icon}
-              title={card.title}
-              description={card.description}
-              row
-            />
+            <InfoCard key={card.title} icon={card.icon} title={card.title} description={card.description} row />
           ))}
         </View>
 
-        <View className="px-4 py-[30px]">
-          <View className="rounded-[20px] border border-[#dfebff] bg-[#f7fafe] p-[18px]">
-            <Text className="mb-2 self-center text-[28px]">🔒</Text>
-            <Text className="text-center text-[25px] font-extrabold leading-[30px] text-ink">Your Privacy Matters</Text>
-            <Text className="mb-3.5 mt-2 text-center text-sm text-[#5d7090]">How we protect your data and respect your rights</Text>
-
+        {/* ── Privacy ──────────────────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 30, backgroundColor: tokens.background }}>
+          <View
+            style={{
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              backgroundColor: tokens.surface,
+              padding: 18,
+            }}
+          >
+            <Text style={{ textAlign: 'center', fontSize: 28, marginBottom: 8 }}>🔒</Text>
+            <Text style={{ textAlign: 'center', fontSize: 25, fontWeight: '900', lineHeight: 30, color: tokens.text }}>
+              Your Privacy Matters
+            </Text>
+            <Text style={{ textAlign: 'center', fontSize: 14, color: tokens.muted, marginTop: 8, marginBottom: 14 }}>
+              How we protect your data and respect your rights
+            </Text>
             {privacyCards.map((card) => (
               <InfoCard key={card.title} icon={card.icon} title={card.title} description={card.description} />
             ))}
-
-            <Text className="mt-2 text-[13px] leading-5 text-[#607491]">
+            <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 20, color: tokens.muted }}>
               UniBridge follows institutional privacy practices and collects only what is needed to
               deliver services securely.
             </Text>
           </View>
         </View>
 
-        <View className="items-center bg-[#f5f8ff] px-4 py-[30px]">
-          <Text className="mb-2.5 text-[32px]">📍</Text>
-          <Text className="mb-2.5 text-center text-[30px] font-extrabold leading-9 text-ink">Ready to bridge the gap?</Text>
-          <Text className="mb-3.5 text-center text-[15px] leading-[23px] text-[#566985]">
-            Join your university's community on UniBridge. It takes less than a minute to get
-            started.
+        {/* ── CTA ──────────────────────────────────────────────────────── */}
+        <View style={{ alignItems: 'center', backgroundColor: tokens.primarySoft, paddingHorizontal: 16, paddingVertical: 30 }}>
+          <Text style={{ fontSize: 32, marginBottom: 10 }}>📍</Text>
+          <Text style={{ textAlign: 'center', fontSize: 30, fontWeight: '900', lineHeight: 36, color: tokens.text, marginBottom: 10 }}>
+            Ready to bridge the gap?
           </Text>
-
+          <Text style={{ textAlign: 'center', fontSize: 15, lineHeight: 23, color: tokens.muted, marginBottom: 14 }}>
+            Join your university's community on UniBridge. It takes less than a minute to get started.
+          </Text>
           <Pressable
-            className="mb-3 min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4"
+            style={{ minHeight: 48, width: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.primary, paddingHorizontal: 16, marginBottom: 12 }}
             onPress={() => navigation.navigate('Register')}
           >
-            <Text className="text-[15px] font-bold text-white">Get Started Free →</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Get Started Free →</Text>
           </Pressable>
-
           <Pressable onPress={() => navigation.navigate('Login')}>
-            <Text className="text-sm font-semibold text-[#2d63e5]">Already have an account? Sign in</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>
+              Already have an account? Sign in
+            </Text>
           </Pressable>
         </View>
 
-        <View className="items-center border-t border-[#e8eef8] px-4 py-7">
-          <Text className="mb-1 text-xl font-extrabold text-ink">UniBridge</Text>
-          <Text className="mb-2 text-sm text-[#5f7291]">Privacy • Terms • Contact</Text>
-          <Text className="text-xs text-[#7c8da9]">© 2026 UniBridge. All rights reserved.</Text>
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <View style={{ alignItems: 'center', borderTopWidth: 1, borderTopColor: tokens.border, paddingHorizontal: 16, paddingVertical: 28, backgroundColor: tokens.surface }}>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: tokens.text, marginBottom: 4 }}>UniBridge</Text>
+          <Text style={{ fontSize: 14, color: tokens.muted, marginBottom: 8 }}>Privacy • Terms • Contact</Text>
+          <Text style={{ fontSize: 12, color: tokens.muted }}>© 2026 UniBridge. All rights reserved.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
