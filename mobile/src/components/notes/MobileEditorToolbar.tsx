@@ -178,31 +178,18 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
         />
       </View>
 
-      {/* ── Row 2: Formatting (horizontally scrollable) ────────────────────
-          height: 44 here is a LOCAL bound for the ScrollView only — this is
-          the documented RN requirement that ScrollViews need a non-zero
-          bounded height to render their content at all, independent of the
-          ancestor. This is NOT the same kind of fixed-height guess as the
-          outer toolbar wrapper used to have in NoteEditorPane (which was
-          removed after debug testing showed it was the actual cause of Row
-          2 disappearing under keyboard animation — see NoteEditorPane.tsx
-          for that history). This local height is sized to the row's own
-          known content (FmtBtn's fixed padding/icon size), not a guess at
-          the whole toolbar's footprint, so it isn't subject to the same
-          squeeze. */}
-      <View style={{ height: 44 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-          contentContainerStyle={{
-            paddingHorizontal: 6,
-            paddingVertical: 5,
-            alignItems: 'center',
-            gap: 2,
-          }}
-        >
-        {/* <<< CHANGED */}
+      {/* ── Row 2: Formatting (horizontally scrollable) ──────────────────── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        contentContainerStyle={{
+          paddingHorizontal: 6,
+          paddingVertical: 5,
+          alignItems: 'center',
+          gap: 2,
+        }}
+      >
         {/* ── Block type ──────────────────────────────────────────────────── */}
         <FmtBtn
           onPress={() => run(() => {
@@ -312,10 +299,7 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
           icon={<Quote size={16} color={isBlockquote ? ACTIVE_FG : DEFAULT_FG} />}
         />
 
-        {/* >>> CHANGED: closing tags for the new height-bounded wrapper */}
-        </ScrollView>
-      </View>
-      {/* <<< CHANGED */}
+      </ScrollView>
     </View>
   )
 })

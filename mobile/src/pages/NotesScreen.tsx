@@ -1,17 +1,25 @@
 // screens/NoteScreen.tsx
 // Mobile equivalent of src/pages/NotePage.tsx
 //
-// The TenTap editor bridge lives in NoteEditorPane (child component) which
-// only mounts once `note` has finished loading, eliminating the readiness
-// race that previously caused blank content on first entry.
-// Keyboard tracking is JS-only (useAnimatedKeyboardHeight) — no Reanimated
-// or react-native-keyboard-controller required.
+// Dependencies:
+//   npx expo install @10play/tentap-editor react-native-webview
+//   npx expo install react-native-safe-area-context
+//   yarn add lucide-react-native
+//   @react-navigation/native + @react-navigation/native-stack
+//
+// Note: @10play/tentap-editor requires an Expo Dev Client build for full
+// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
+//
+// Collaborative cursors are intentionally omitted — TenTap's real-time
+// collab is a paid Pro feature. Autosave + version history covers mobile.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   AppState,
   AppStateStatus,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -21,6 +29,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import {
+  RichText,
+  useEditorBridge,
+  useEditorContent,
+  TenTapStartKit,
+} from '@10play/tentap-editor'
 import {
   ArrowLeft,
   Archive,
@@ -40,20 +54,18 @@ import { getValidAccessToken } from '../lib/auth-session'
 import { getRoleFromAccessToken } from '../lib/jwt'
 import type { RootStackParamList } from '../navigation/root-stack'
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel'
+import { MobileEditorToolbar } from '../components/notes/MobileEditorToolbar'
 import { useNotePresence } from '../hooks/UseNotesPresence'
 import { useRelatedThreads } from '../hooks/UseRelatedThreads'
 import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel'
 import { MobileSharePanel } from '../components/notes/MobileSharePanel'
-import {
-  NoteEditorPane,
-  type NoteEditorPaneHandle,
-  type SaveStatus,
-} from '../components/notes/NoteEditorPane'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface NoteData {
   id: string
@@ -61,7 +73,7 @@ interface NoteData {
   content: any
   ownerId: string
   status: 'ACTIVE' | 'ARCHIVED'
-  role?: string
+  role?: string    // "OWNER" | "EDITOR" | "VIEWER" — returned by the API
   updatedAt?: string
   createdAt?: string
 }
@@ -116,20 +128,14 @@ function jsonNodeToHtml(node: any): string {
   return (node.content ?? []).map(jsonNodeToHtml).join('')
 }
 
-function isNoteContentEmpty(content: any): boolean {
-  return !content ||
-    (typeof content === 'object' &&
-      Array.isArray(content?.content) &&
-      content.content.length === 0) ||
-    (typeof content === 'string' && content.trim() === '')
-}
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function NoteScreen() {
   const navigation = useNavigation<Nav>()
   const route = useRoute<NoteRoute>()
   const insets = useSafeAreaInsets()
+  // (route.params as any) guards against RootStackParamList not yet having
+  // NoteScreen: { noteId: string } — add it to root-stack.ts to remove the cast
   const noteId: string = (route.params as any)?.noteId ?? ''
 
   const [token, setToken] = useState<string | null>(null)
@@ -151,6 +157,8 @@ export function NoteScreen() {
 
   const [note, setNote] = useState<NoteData | null>(null)
   const [loadingNote, setLoadingNote] = useState(true)
+  // Bumped after a version restore to force NoteEditor to remount —
+  // note.id stays the same on restore, so it alone can't be used as a key
   const [refreshKey, setRefreshKey] = useState(0)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
@@ -158,6 +166,7 @@ export function NoteScreen() {
   const [showShare, setShowShare] = useState(false)
   const [showAIInsights, setShowAIInsights] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [isEmpty, setIsEmpty] = useState(false)
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savingCheckpoint, setSavingCheckpoint] = useState(false)
@@ -166,8 +175,28 @@ export function NoteScreen() {
   const [editingTitle, setEditingTitle] = useState(false)
   const titleInputRef = useRef<TextInput>(null)
 
-  const [liveHtmlContent, setLiveHtmlContent] = useState('')
-  const editorPaneRef = useRef<NoteEditorPaneHandle>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSavedRef = useRef<string>('')
+  const inFlightRef = useRef(false)
+  const hasPendingRef = useRef(false)
+  const pendingContentRef = useRef<string>('')
+  const autosaveArmedRef = useRef(false)
+  const hasSetInitialContentRef = useRef(false)
+  const [editorReady, setEditorReady] = useState(false)
+
+  const editor = useEditorBridge({
+    autofocus: false,
+    avoidIosKeyboard: true,
+    editable: false,
+    bridgeExtensions: TenTapStartKit,
+  })
+
+  const htmlContent = useEditorContent(editor, {
+    type: 'html',
+    debounceInterval: 500,
+  })
+
+
 
   const canEdit = authReady && canAccessNotes && role !== 'ALUMNI'
   const isOwner = note ? note.ownerId === currentUserId : false
@@ -181,8 +210,13 @@ export function NoteScreen() {
   })
 
   // ─── AI Insights ───────────────────────────────────────────────────────────
+  // useEditorContent only emits a value AFTER the user edits — it stays empty
+  // on mount even though the note has content. Fall back to initialHtml
+  // (derived from note.content) so canRequestSuggestions is correct for
+  // existing notes the user hasn't touched yet.
+  // initialHtml derived here (note may be null until fetch completes)
   const initialHtml = note ? tiptapJsonToHtml(note.content) : ''
-  const plainTextContent = (liveHtmlContent || initialHtml)
+  const plainTextContent = (htmlContent || initialHtml)
     .replace(/<[^>]*>/g, '')
     .trim()
 
@@ -202,6 +236,7 @@ export function NoteScreen() {
     enabled: showAIInsights,
   })
 
+  // Derive display role label — prefer API-returned role, fall back to ownership check
   const noteRoleLabel: string = (() => {
     const r = note?.role?.toUpperCase()
     if (r === 'OWNER' || isOwner) return 'Owner'
@@ -214,6 +249,7 @@ export function NoteScreen() {
   const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
     ? 'text-[#2f64f6]' : canEdit ? 'text-[#5f7291]' : 'text-[#94a3b8]'
 
+
   useEffect(() => {
     if (!authReady) return
     if (!token) navigation.replace('Login', undefined)
@@ -222,6 +258,7 @@ export function NoteScreen() {
 
   const fetchNote = useCallback(async () => {
     if (!authReady || !noteId || !token) {
+      // Only release the spinner once auth has resolved — before that we're still waiting
       if (authReady) setLoadingNote(false)
       return
     }
@@ -230,6 +267,7 @@ export function NoteScreen() {
       const fetchedNote = await getNote(token, noteId)
       setNote(fetchedNote)
       setTitleDraft(fetchedNote.title)
+      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null)
     } catch {
       setFetchError('Failed to load note')
     } finally {
@@ -239,9 +277,93 @@ export function NoteScreen() {
 
   useEffect(() => { fetchNote() }, [fetchNote])
 
+  useEffect(() => {
+    // Check if the editor is already ready
+    const state = editor.getEditorState() as any
+    if (state && state.isReady) {
+      setEditorReady(true)
+      return
+    }
+
+    // Subscribe to state updates to detect when the editor becomes ready
+    return editor._subscribeToEditorStateUpdate((updatedState: any) => {
+      if (updatedState && updatedState.isReady) {
+        setEditorReady(true)
+      }
+    })
+  }, [editor])
+
+  useEffect(() => {
+    if (!note || !editorReady || hasSetInitialContentRef.current) return
+
+    const htmlSeed = tiptapJsonToHtml(note.content)
+
+    const isContentEmpty = !note.content ||
+      (typeof note.content === 'object' &&
+        Array.isArray(note.content?.content) &&
+        note.content.content.length === 0) ||
+      (typeof note.content === 'string' && note.content.trim() === '')
+
+    editor.setContent(htmlSeed)
+    hasSetInitialContentRef.current = true
+    setIsEmpty(isContentEmpty)
+    editor.setEditable(canEdit)
+    if (canEdit) autosaveArmedRef.current = true
+  }, [note, editor, canEdit, editorReady])
+
+  useEffect(() => {
+    if (!autosaveArmedRef.current) return
+    if (!htmlContent) return
+    // Clear empty placeholder as soon as content appears
+    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+      setIsEmpty(false)
+    }
+    void persistContent(htmlContent)
+  }, [htmlContent, isEmpty]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const persistContent = useCallback(async (content: string) => {
+    if (!canEdit || !token || !noteId) return
+    if (!autosaveArmedRef.current) return
+    if (content === lastSavedRef.current) return
+    if (inFlightRef.current) {
+      hasPendingRef.current = true
+      pendingContentRef.current = content
+      return
+    }
+    inFlightRef.current = true
+    setSaveStatus('saving')
+    try {
+      await updateNote(token, noteId, { content })
+      lastSavedRef.current = content
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 1200)
+    } catch {
+      setSaveStatus('error')
+    } finally {
+      inFlightRef.current = false
+      if (hasPendingRef.current) {
+        hasPendingRef.current = false
+        const pending = pendingContentRef.current
+        pendingContentRef.current = ''
+        await persistContent(pending)
+      }
+    }
+  }, [canEdit, token, noteId])
+
   const flushPendingSave = useCallback(async () => {
-    await editorPaneRef.current?.flushPendingSave()
-  }, [])
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    if (autosaveArmedRef.current && token && noteId && canEdit) {
+      try {
+        const latestHtml = await editor.getHTML()
+        await persistContent(latestHtml)
+      } catch {
+        // ignore — best-effort flush
+      }
+    }
+  }, [editor, token, noteId, canEdit, persistContent])
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
@@ -282,7 +404,7 @@ export function NoteScreen() {
       await updateNote(token, noteId, { status: nextStatus })
       setNote((prev) => prev ? { ...prev, status: nextStatus } : prev)
     } catch {
-      // silently fail
+      // silently fail — user can retry
     } finally {
       setArchiving(false)
     }
@@ -300,12 +422,13 @@ export function NoteScreen() {
   }
 
   const handleRestored = useCallback(async () => {
+    hasSetInitialContentRef.current = false
+    autosaveArmedRef.current = false
     setShowVersionHistory(false)
     await fetchNote()
-    setRefreshKey((k) => k + 1)
   }, [fetchNote])
 
-  // ─── Loading / error states ────────────────────────────────────────────────
+  // ─── Loading / error states ───────────────────────────────────────────────────
 
   if (loadingNote) {
     return (
@@ -331,12 +454,21 @@ export function NoteScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-
+    // KAV wraps everything: behavior="padding" pushes toolbar above keyboard on
+    // iOS. Android uses softwareKeyboardLayoutMode="resize" (app.json), so KAV
+    // is disabled there to avoid a double-adjustment.
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#fff' }}
+      behavior="padding"
+      enabled={Platform.OS === 'ios'}
+      keyboardVerticalOffset={0}
+    >
+      {/* Safe-area + header + banner — not flex-1 so they don’t steal editor space */}
       <View style={{ paddingTop: insets.top }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <View className="flex-row items-center px-[14px] py-[10px] border-b border-[#f0f4fa] gap-2 bg-white">
+        {/* Back */}
         <TouchableOpacity
           className="p-1"
           onPress={async () => {
@@ -349,6 +481,7 @@ export function NoteScreen() {
           <ArrowLeft size={20} color="#101d36" />
         </TouchableOpacity>
 
+        {/* Title + role badge */}
         <View className="flex-1 overflow-hidden">
           {editingTitle ? (
             <TextInput
@@ -371,6 +504,7 @@ export function NoteScreen() {
               </Text>
             </Pressable>
           )}
+          {/* Role badge — mirrors web "Owner" / "Editor" / "Viewer" label */}
           <View className={`self-start mt-0.5 px-[6px] py-px rounded ${noteRoleBg}`}>
             <Text className={`text-[10px] font-semibold ${noteRoleColor}`}>
               {noteRoleLabel}
@@ -378,7 +512,9 @@ export function NoteScreen() {
           </View>
         </View>
 
+        {/* Right actions */}
         <View className="flex-row items-center gap-1">
+          {/* Presence indicator — mirrors web "● N online" */}
           <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} />
           <SaveIndicator status={saveStatus} />
 
@@ -461,25 +597,35 @@ export function NoteScreen() {
         </View>
       )}
 
-      </View>
+      </View>{/* end: header + banner wrapper */}
 
-      {/* NoteEditorPane mounts only after note is loaded, with real content
-          already in hand. key forces full remount on version restore. */}
-      <NoteEditorPane
-        key={`${noteId}-${refreshKey}`}
-        ref={editorPaneRef}
-        noteId={noteId}
-        token={token!}
-        initialHtml={initialHtml}
-        isContentEmpty={isNoteContentEmpty(note.content)}
-        canEdit={canEdit}
-        isArchived={isArchived}
-        bottomInset={insets.bottom}
-        onSaveStatusChange={setSaveStatus}
-        onContentChange={setLiveHtmlContent}
-      />
+      {/* ── Editor ──────────────────────────────────────────────────────────── */}
+      <View style={{ flex: 1 }}>
+        <RichText editor={editor} style={{ flex: 1 }} />
+        {/* Empty state — shown for new/blank notes until the user starts typing */}
+        {isEmpty && canEdit && !isArchived && (
+          <View
+            className="absolute left-0 right-0 top-0"
+            style={{ paddingTop: 16, paddingHorizontal: 24 }}
+            pointerEvents="none"
+          >
+            <Text className="text-[15px] text-[#c8d5e8]">
+              Start writing your note…
+            </Text>
+          </View>
+        )}
+      </View>{/* end: editor */}
 
-      {/* ── Bottom sheet panels ──────────────────────────────────────────── */}
+      {/* Toolbar sits here, at the bottom of the KAV. On iOS, the KAV’s
+          "padding" behaviour pushes it above the keyboard automatically. */}
+      {canEdit && (
+        <MobileEditorToolbar
+          editor={editor}
+          bottomInset={insets.bottom}
+        />
+      )}
+
+      {/* ── Bottom sheet panels ─────────────────────────────────────────────── */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -512,21 +658,35 @@ export function NoteScreen() {
           onClose={() => setShowAIInsights(false)}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
 // ─── Presence indicator ──────────────────────────────────────────────────────
 
-function PresenceIndicator({ onlineCount, othersOnline }: { onlineCount: number; othersOnline: number }) {
+interface PresenceIndicatorProps {
+  onlineCount: number
+  othersOnline: number
+}
+
+function PresenceIndicator({ onlineCount, othersOnline }: PresenceIndicatorProps) {
+  // Don't show anything until at least one person is online (self)
   if (onlineCount === 0) return null
+
   const isAlone = othersOnline === 0
+  const dotColor = isAlone ? '#94a3b8' : '#22c55e'
+  const label = isAlone
+    ? 'Only you'
+    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`
+
   return (
     <View className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-[#f0f4fa] border border-[#dce6f3]">
-      <View className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: isAlone ? '#94a3b8' : '#22c55e' }} />
-      <Text className="text-[10px] font-medium text-[#5f7291]">
-        {isAlone ? 'Only you' : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`}
-      </Text>
+      {/* Pulsing dot */}
+      <View
+        className="w-[7px] h-[7px] rounded-full"
+        style={{ backgroundColor: dotColor }}
+      />
+      <Text className="text-[10px] font-medium text-[#5f7291]">{label}</Text>
     </View>
   )
 }
@@ -535,12 +695,14 @@ function PresenceIndicator({ onlineCount, othersOnline }: { onlineCount: number;
 
 function SaveIndicator({ status }: { status: SaveStatus }) {
   if (status === 'idle') return null
-  const colorMap: Record<Exclude<SaveStatus, 'idle'>, { text: string; border: string; bg: string; icon: string }> = {
+
+  const colorMap = {
     saving: { text: 'text-[#f4a300]', border: 'border-[#f4a30033]', bg: 'bg-[#f4a30018]', icon: '#f4a300' },
     saved:  { text: 'text-[#1f8a4c]', border: 'border-[#1f8a4c33]', bg: 'bg-[#1f8a4c18]', icon: '#1f8a4c' },
     error:  { text: 'text-[#c53b4f]', border: 'border-[#c53b4f33]', bg: 'bg-[#c53b4f18]', icon: '#c53b4f' },
   }
   const c = colorMap[status]
+
   return (
     <View className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${c.border} ${c.bg}`}>
       {status === 'saving' && <ActivityIndicator size={10} color={c.icon} />}
