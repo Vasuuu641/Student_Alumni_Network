@@ -1,5 +1,6 @@
 import 'dotenv/config';
 
+
 export default {
   "expo": {
     "name": "mobile",
@@ -46,7 +47,9 @@ export default {
     "extra": {
       "eas": {
         "projectId": "4e456ca5-b55c-4bf7-b537-46440f48a26c"
-      }
+      },
+      "googleMapsApiKey": process.env.GOOGLE_MAPS_API_KEY
     }
   }
 }
+
