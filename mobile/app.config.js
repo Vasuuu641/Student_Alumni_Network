@@ -26,7 +26,7 @@ export default {
       },
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyCASDgVJfnBOZ1HOY6I9Vu3LTBCyyhHNk4"
+          "apiKey": process.env.GOOGLE_MAPS_API_KEY,
         }
       },
       "permissions": [
