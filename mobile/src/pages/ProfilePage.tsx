@@ -25,7 +25,7 @@ import { clearTokens, getUserEmail } from '../lib/auth-storage';
 import { getValidAccessToken } from '../lib/auth-session';
 import { loadCurrentUserProfile, updateAdminProfile, type CurrentUserProfile } from '../api/profile.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
-import { listUserNotes, type NoteSummary } from '../api/notes.api';
+import { listUserNotes, type Note } from '../api/notes.api';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { useTheme, useThemePicker } from '../theme/theme';
 
@@ -40,7 +40,7 @@ export function ProfilePage({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<'profile' | 'activity'>('profile');
   const [activityLoading, setActivityLoading] = useState(false);
   const [recentThreads, setRecentThreads] = useState<ThreadSummary[]>([]);
-  const [recentNotes, setRecentNotes] = useState<NoteSummary[]>([]);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [emailAddress, setEmailAddress] = useState<string | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -150,7 +150,7 @@ export function ProfilePage({ navigation }: Props) {
         );
 
         setRecentNotes(
-          noteResponse
+          noteResponse.notes
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 6),
         );
@@ -337,18 +337,18 @@ export function ProfilePage({ navigation }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
-        <StatusBar style="dark" />
-        <View className="flex-1 items-center justify-center px-4">
-          <Text className="text-base font-semibold text-[#5f7291]">Loading profile...</Text>
-        </View>
-      </SafeAreaView>
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: tokens.muted }}>Loading profile...</Text>
+      </View>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
-      <StatusBar style="dark" />
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
 
       <View className="flex-1">
         <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4" style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}>
@@ -381,27 +381,27 @@ export function ProfilePage({ navigation }: Props) {
           animationType="fade"
           onRequestClose={() => setIsAccountMenuOpen(false)}
         >
-          <Pressable className="flex-1 bg-black/20 px-4" onPress={() => setIsAccountMenuOpen(false)}>
-            <View className="mt-20 self-end w-48 overflow-hidden rounded-3xl border border-[#dfe8f4] bg-white shadow-lg">
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 16 }} onPress={() => setIsAccountMenuOpen(false)}>
+            <View style={{ marginTop: 80, alignSelf: 'flex-end', width: 192, overflow: 'hidden', borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}>
               <Pressable
                 onPress={() => {
                   setIsAccountMenuOpen(false);
                   navigation.navigate('Profile');
                 }}
-                className="flex-row items-center gap-3 px-4 py-4"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faUser as IconProp} size={14} color="#2f64f6" />
-                <Text className="text-sm font-semibold text-[#13233e]">Visit Profile</Text>
+                <FontAwesomeIcon icon={faUser as IconProp} size={14} color={tokens.primary} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.text }}>Visit Profile</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
                   setIsAccountMenuOpen(false);
                   void handleLogout();
                 }}
-                className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: tokens.border, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faX as IconProp} size={14} color="#d24f4f" />
-                <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
+                <FontAwesomeIcon icon={faX as IconProp} size={14} color={tokens.danger} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.danger }}>Log out</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -585,18 +585,19 @@ function ProfileCard({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { tokens } = useTheme();
   return (
-    <View className="rounded-[26px] border border-[#e3ebf7] bg-white p-4">
-      <View className="mb-3 flex-row items-center justify-between gap-3">
-        <View className="flex-row items-center gap-2">
-          <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#f3f7ff]">
-            <FontAwesomeIcon icon={icon} size={15} color="#2f64f6" />
+    <View style={{ borderRadius: 26, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
+      <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.primarySoft }}>
+            <FontAwesomeIcon icon={icon} size={15} color={tokens.primary} />
           </View>
-          <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]">{title}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: tokens.text }}>{title}</Text>
         </View>
         {actionLabel && onAction ? (
-          <Pressable onPress={onAction} className="rounded-full bg-[#eef4ff] px-3 py-2">
-            <Text className="text-xs font-bold text-[#2f64f6]">{actionLabel}</Text>
+          <Pressable onPress={onAction} style={{ borderRadius: 999, backgroundColor: tokens.primarySoft, paddingHorizontal: 12, paddingVertical: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>{actionLabel}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -606,14 +607,15 @@ function ProfileCard({
 }
 
 function ProfileInfoRow({ label, value }: { label: string; value?: string | number | null }) {
+  const { tokens } = useTheme();
   if (value === null || value === undefined || value === '') {
     return null;
   }
 
   return (
-    <View className="mb-3 flex-row items-start justify-between gap-4 last:mb-0">
-      <Text className="text-[13px] font-semibold text-[#6f829f]">{label}</Text>
-      <Text className="flex-1 text-right text-[14px] font-semibold text-[#13233e]">{String(value)}</Text>
+    <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+      <Text style={{ fontSize: 13, fontWeight: '600', color: tokens.muted }}>{label}</Text>
+      <Text style={{ flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '600', color: tokens.text }}>{String(value)}</Text>
     </View>
   );
 }
@@ -633,24 +635,25 @@ function ActivitySection({
   items: Array<{ id: string; label: string; meta: string }>;
   onPressItem: () => void;
 }) {
+  const { tokens } = useTheme();
   return (
-    <View className="rounded-[26px] border border-[#e3ebf7] bg-white p-4">
-      <View className="mb-3 flex-row items-center gap-2">
-        <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#f3f7ff]">
-          <FontAwesomeIcon icon={icon} size={15} color="#2f64f6" />
+    <View style={{ borderRadius: 26, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
+      <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.primarySoft }}>
+          <FontAwesomeIcon icon={icon} size={15} color={tokens.primary} />
         </View>
-        <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101d36]">{title}</Text>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: tokens.text }}>{title}</Text>
       </View>
 
-      {loading ? <Text className="text-sm font-semibold text-[#6a7b98]">Loading recent activity...</Text> : null}
-      {!loading && items.length === 0 ? <Text className="text-sm font-semibold text-[#7182a0]">{emptyText}</Text> : null}
+      {loading ? <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>Loading recent activity...</Text> : null}
+      {!loading && items.length === 0 ? <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>{emptyText}</Text> : null}
 
       {!loading && items.length > 0 ? (
-        <View className="gap-2">
+        <View style={{ gap: 8 }}>
           {items.map((item) => (
-            <Pressable key={item.id} onPress={onPressItem} className="rounded-2xl border border-[#e7edf8] bg-[#f9fbff] px-3 py-3">
-              <Text className="text-[14px] font-semibold text-[#182842]">{item.label}</Text>
-              <Text className="mt-1 text-[12px] font-medium text-[#8796af]">{item.meta}</Text>
+            <Pressable key={item.id} onPress={onPressItem} style={{ borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.text }}>{item.label}</Text>
+              <Text style={{ marginTop: 4, fontSize: 12, fontWeight: '500', color: tokens.muted }}>{item.meta}</Text>
             </Pressable>
           ))}
         </View>
@@ -660,34 +663,37 @@ function ActivitySection({
 }
 
 function ProfileStat({ icon, label, value }: { icon: IconProp; label: string; value: string }) {
+  const { tokens } = useTheme();
   return (
-    <View className="flex-1 flex-row items-center gap-3 rounded-2xl border border-[#e6edf8] bg-[#f9fbff] px-3 py-3">
-      <View className="h-9 w-9 items-center justify-center rounded-xl bg-[#eaf1ff]">
-        <FontAwesomeIcon icon={icon} size={14} color="#2f64f6" />
+    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 12 }}>
+      <View style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.primarySoft }}>
+        <FontAwesomeIcon icon={icon} size={14} color={tokens.primary} />
       </View>
       <View>
-        <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6f829f]">{label}</Text>
-        <Text className="text-[16px] font-extrabold tracking-[-0.03em] text-[#101d36]">{value}</Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, color: tokens.muted }}>{label}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: tokens.text }}>{value}</Text>
       </View>
     </View>
   );
 }
 
 function TabButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} className={`flex-1 rounded-[18px] px-4 py-3 ${active ? 'bg-[#2f64f6]' : 'bg-transparent'}`}>
-      <Text className={`text-center text-[14px] font-bold ${active ? 'text-white' : 'text-[#5f7090]'}`}>{label}</Text>
+    <Pressable onPress={onPress} style={{ flex: 1, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: active ? tokens.primary : 'transparent' }}>
+      <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '700', color: active ? '#fff' : tokens.muted }}>{label}</Text>
     </Pressable>
   );
 }
 
 function IconButton({ icon, onPress }: { icon: IconProp; onPress: () => void }) {
+  const { tokens } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      className="h-9 w-9 items-center justify-center rounded-full border border-[#dde6f5] bg-white"
+      style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}
     >
-      <FontAwesomeIcon icon={icon} size={14} color="#607293" />
+      <FontAwesomeIcon icon={icon} size={14} color={tokens.muted} />
     </Pressable>
   );
 }

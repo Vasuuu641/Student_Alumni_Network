@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
+  faArchive,
   faArrowLeft,
   faChevronRight,
   faGlobe,
   faLock,
   faPlus,
+  faRightFromBracket,
+  faTrash,
   faWandSparkles,
   faX,
 } from '@fortawesome/free-solid-svg-icons';
@@ -33,6 +47,7 @@ import {
 import { getValidAccessToken } from '../lib/auth-session';
 import { clearTokens } from '../lib/auth-storage';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StudyGroups'>;
 type GroupTab = 'MY' | 'DISCOVER' | 'ARCHIVED';
@@ -47,6 +62,7 @@ interface GroupWithMemberCount extends StudyGroup {
 }
 
 export function StudyGroupsPage({ navigation }: Props) {
+  const { tokens } = useTheme();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [tab, setTab] = useState<GroupTab>('MY');
   const [groups, setGroups] = useState<GroupWithMemberCount[]>([]);
@@ -98,18 +114,20 @@ export function StudyGroupsPage({ navigation }: Props) {
 
       let cancelled = false;
 
-      async function fetchGroups() {
+      async function fetchData() {
         try {
           setLoading(true);
           setErrorMessage('');
 
           let data: StudyGroup[] = [];
-          if (tab === 'DISCOVER') {
+          if (tab === 'MY') {
+            // No filter — API returns groups the authenticated user belongs to
+            data = await listStudyGroups(activeToken);
+          } else if (tab === 'DISCOVER') {
+            // Show all public groups for discovery
             data = await listStudyGroups(activeToken, { visibility: 'PUBLIC' });
           } else if (tab === 'ARCHIVED') {
             data = await listArchivedStudyGroups(activeToken);
-          } else {
-            data = await listStudyGroups(activeToken);
           }
 
           if (cancelled) return;
@@ -127,12 +145,11 @@ export function StudyGroupsPage({ navigation }: Props) {
             }),
           );
 
-          if (!cancelled) {
-            setGroups(groupsWithCounts);
-          }
+          if (cancelled) return;
+          setGroups(groupsWithCounts);
         } catch (error) {
           if (!cancelled) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to load study groups.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to fetch groups.');
           }
         } finally {
           if (!cancelled) {
@@ -141,50 +158,35 @@ export function StudyGroupsPage({ navigation }: Props) {
         }
       }
 
-      void fetchGroups();
+      void fetchData();
 
       return () => {
         cancelled = true;
       };
-    }, [tab, accessToken]),
+    }, [accessToken, tab]),
   );
 
-  // Fetch recommendations
-  const handleGetRecommendations = useCallback(async () => {
+  const handleGetRecommendations = async () => {
     if (!accessToken) return;
-
     try {
       setIsLoadingRecommendations(true);
-      const recommended = await listRecommendedStudyGroups(accessToken, 5);
-      setRecommendedGroups(recommended);
+      setErrorMessage('');
+      const recs = await listRecommendedStudyGroups(accessToken);
+      setRecommendedGroups(recs);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load recommendations.');
     } finally {
       setIsLoadingRecommendations(false);
     }
-  }, [accessToken]);
+  };
 
-  // Filter groups based on search
-  const filteredGroups = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) return groups;
-
-    return groups.filter(
-      (group) =>
-        group.name.toLowerCase().includes(query) ||
-        group.description.toLowerCase().includes(query),
-    );
-  }, [groups, searchText]);
-
-  // Handle create group
-  const handleCreateGroup = useCallback(async () => {
+  const handleCreateGroup = async () => {
     if (!accessToken || !name.trim()) return;
 
     try {
       setIsCreating(true);
       setCreateError('');
-
-      await createStudyGroup(accessToken, {
+      const newGroup = await createStudyGroup(accessToken, {
         name: name.trim(),
         description: description.trim(),
         visibility,
@@ -195,191 +197,212 @@ export function StudyGroupsPage({ navigation }: Props) {
       setDescription('');
       setVisibility('PUBLIC');
       setShowCreateModal(false);
-
-      // Reload groups
-      const data = await listStudyGroups(accessToken);
-      const groupsWithCounts = await Promise.all(
-        data.map(async (group) => {
-          try {
-            const members = await listStudyGroupMembers(accessToken, group.id);
-            const activeCount = members.filter((m) => m.joinStatus === 'ACTIVE').length;
-            return { ...group, memberCount: activeCount };
-          } catch {
-            return { ...group, memberCount: 0 };
-          }
-        }),
-      );
-      setGroups(groupsWithCounts);
+      setTab('MY');
+      setGroups((prev) => [...prev, { ...newGroup, memberCount: 1 }]);
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : 'Failed to create group.');
     } finally {
       setIsCreating(false);
     }
-  }, [accessToken, name, description, visibility]);
+  };
 
-  // Handle join/leave group
-  const handleGroupAction = useCallback(
-    async (groupId: string, action: 'join' | 'leave' | 'archive' | 'unarchive' | 'delete') => {
-      if (!accessToken) return;
+  const handleJoin = async (groupId: string) => {
+    if (!accessToken) return;
+    try {
+      setWorkingGroupId(groupId);
+      await joinStudyGroup(accessToken, groupId);
+      // Move group to MY tab view by refreshing
+      setTab('MY');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to join group.');
+    } finally {
+      setWorkingGroupId(null);
+    }
+  };
 
-      try {
-        setWorkingGroupId(groupId);
+  const handleLeave = (group: GroupWithMemberCount) => {
+    Alert.alert('Leave Group', `Are you sure you want to leave "${group.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: async () => {
+          if (!accessToken) return;
+          try {
+            setWorkingGroupId(group.id);
+            await leaveStudyGroup(accessToken, group.id);
+            setGroups((prev) => prev.filter((g) => g.id !== group.id));
+          } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to leave group.');
+          } finally {
+            setWorkingGroupId(null);
+          }
+        },
+      },
+    ]);
+  };
 
-        if (action === 'join') {
-          await joinStudyGroup(accessToken, groupId);
-        } else if (action === 'leave') {
-          await leaveStudyGroup(accessToken, groupId);
-        } else if (action === 'archive') {
-          await archiveStudyGroup(accessToken, groupId);
-        } else if (action === 'unarchive') {
-          await unarchiveStudyGroup(accessToken, groupId);
-        } else if (action === 'delete') {
-          await deleteStudyGroup(accessToken, groupId);
-        }
+  const handleArchive = async (group: GroupWithMemberCount) => {
+    if (!accessToken) return;
+    try {
+      setWorkingGroupId(group.id);
+      await archiveStudyGroup(accessToken, group.id);
+      setGroups((prev) => prev.filter((g) => g.id !== group.id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to archive group.');
+    } finally {
+      setWorkingGroupId(null);
+    }
+  };
 
-        // Reload groups
-        const data =
-          tab === 'DISCOVER'
-            ? await listStudyGroups(accessToken, { visibility: 'PUBLIC' })
-            : tab === 'ARCHIVED'
-              ? await listArchivedStudyGroups(accessToken)
-              : await listStudyGroups(accessToken);
+  const handleUnarchive = async (group: GroupWithMemberCount) => {
+    if (!accessToken) return;
+    try {
+      setWorkingGroupId(group.id);
+      await unarchiveStudyGroup(accessToken, group.id);
+      setGroups((prev) => prev.filter((g) => g.id !== group.id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to unarchive group.');
+    } finally {
+      setWorkingGroupId(null);
+    }
+  };
 
-        const groupsWithCounts = await Promise.all(
-          data.map(async (group) => {
-            try {
-              const members = await listStudyGroupMembers(accessToken, group.id);
-              const activeCount = members.filter((m) => m.joinStatus === 'ACTIVE').length;
-              return { ...group, memberCount: activeCount };
-            } catch {
-              return { ...group, memberCount: 0 };
-            }
-          }),
-        );
+  const handleDelete = (group: GroupWithMemberCount) => {
+    Alert.alert('Delete Group', `Are you sure you want to permanently delete "${group.name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (!accessToken) return;
+          try {
+            setWorkingGroupId(group.id);
+            await deleteStudyGroup(accessToken, group.id);
+            setGroups((prev) => prev.filter((g) => g.id !== group.id));
+          } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to delete group.');
+          } finally {
+            setWorkingGroupId(null);
+          }
+        },
+      },
+    ]);
+  };
 
-        setGroups(groupsWithCounts);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : `Failed to ${action} group.`);
-      } finally {
-        setWorkingGroupId(null);
-      }
-    },
-    [accessToken, tab],
-  );
+  const filteredGroups = useMemo(() => {
+    if (!searchText.trim()) return groups;
+    const query = searchText.toLowerCase();
+    return groups.filter(
+      (g) =>
+        g.name.toLowerCase().includes(query) ||
+        (g.description?.toLowerCase().includes(query) ?? false),
+    );
+  }, [groups, searchText]);
 
   const handleNavigate = (navTab: MobileNavTab) => {
-    if (navTab === 'study-groups') {
-      // Already on this page
-      return;
-    }
-
-    if (navTab === 'home') {
-      navigation.navigate('Dashboard');
-      return;
-    }
-
-    if (navTab === 'discussions') {
-      navigation.navigate('Discussions');
-      return;
-    }
-
-    if (navTab === 'geo-board') {
-      navigation.navigate('GeoHelpBoard');
-      return;
-    }
-
-    if (navTab === 'notes') {
-      // TODO: Navigate to Notes
-      return;
-    }
+    if (navTab === 'study-groups') return;
+    if (navTab === 'home') { navigation.navigate('Dashboard'); return; }
+    if (navTab === 'discussions') { navigation.navigate('Discussions'); return; }
+    if (navTab === 'geo-board') { navigation.navigate('GeoHelpBoard'); return; }
+    if (navTab === 'notes') { navigation.navigate('Notes'); return; }
   };
 
   if (!accessToken) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2f64f6" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+        <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={tokens.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 bg-white">
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+      <View style={{ flex: 1 }}>
+
         {/* Header */}
-        <View className="border-b border-gray-200 px-4 py-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-2xl font-bold text-gray-900">Study Groups</Text>
-            <Pressable
-              onPress={() => setShowCreateModal(true)}
-              className="flex-row items-center gap-2 rounded-lg bg-blue-500 px-4 py-2"
-            >
-              <FontAwesomeIcon icon={faPlus as IconProp} size={16} color="white" />
-              <Text className="font-semibold text-white">Create</Text>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable onPress={() => navigation.navigate('Dashboard')} style={{ padding: 4 }}>
+              <FontAwesomeIcon icon={faArrowLeft as IconProp} size={18} color={tokens.muted} />
             </Pressable>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: tokens.text }}>Study Groups</Text>
           </View>
+          <Pressable
+            onPress={() => setShowCreateModal(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, backgroundColor: tokens.primary, paddingHorizontal: 14, paddingVertical: 8 }}
+          >
+            <FontAwesomeIcon icon={faPlus as IconProp} size={14} color="white" />
+            <Text style={{ fontWeight: '700', color: 'white', fontSize: 14 }}>Create</Text>
+          </Pressable>
         </View>
 
         {/* Tabs */}
-        <View className="border-b border-gray-200 px-4">
-          <View className="flex-row gap-4">
-            {(['MY', 'DISCOVER', 'ARCHIVED'] as const).map((t) => (
-              <Pressable key={t} onPress={() => setTab(t)} className="border-b-2 py-4">
-                <Text
-                  className={`font-medium ${
-                    tab === t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-600'
-                  }`}
+        <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 16 }}>
+            {(['MY', 'DISCOVER', 'ARCHIVED'] as const).map((t) => {
+              const isActive = tab === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setTab(t)}
+                  style={{ borderBottomWidth: 2, borderBottomColor: isActive ? tokens.primary : 'transparent', paddingVertical: 14 }}
                 >
-                  {t === 'MY' ? 'My Groups' : t === 'DISCOVER' ? 'Discover' : 'Archived'}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: isActive ? tokens.primary : tokens.muted }}>
+                    {t === 'MY' ? 'My Groups' : t === 'DISCOVER' ? 'Discover' : 'Archived'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
-        {/* AI Recommendations (only on MY tab) */}
-        {tab === 'MY' && !loading && (
-          <View className="border-b border-gray-200 px-4 py-4">
-            <View className="gap-2">
-              <View className="flex-row items-center gap-2">
-                <FontAwesomeIcon icon={faWandSparkles as IconProp} size={18} color="#2f64f6" />
-                <Text className="text-lg font-semibold text-gray-900">AI-Suggested Groups For You</Text>
+        {/* AI Recommendations (only on DISCOVER tab) */}
+        {tab === 'DISCOVER' && !loading && (
+          <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, paddingHorizontal: 16, paddingVertical: 16 }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <FontAwesomeIcon icon={faWandSparkles as IconProp} size={18} color={tokens.primary} />
+                <Text style={{ fontSize: 16, fontWeight: '800', color: tokens.text }}>AI-Suggested For You</Text>
               </View>
               {recommendedGroups.length === 0 && !isLoadingRecommendations ? (
                 <Pressable
                   onPress={handleGetRecommendations}
-                  className="mt-2 flex-row items-center gap-2 self-start rounded-lg bg-blue-100 px-3 py-2"
+                  style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 12, backgroundColor: tokens.primarySoft, paddingHorizontal: 12, paddingVertical: 8 }}
                 >
-                  <Text className="text-sm font-medium text-blue-600">Get recommendations</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>Get recommendations</Text>
                 </Pressable>
               ) : isLoadingRecommendations ? (
-                <ActivityIndicator size="small" color="#2f64f6" />
+                <ActivityIndicator size="small" color={tokens.primary} style={{ marginTop: 8 }} />
               ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mt-2 gap-3"
-                  contentContainerStyle={{ gap: 12 }}
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 12 }}>
                   {recommendedGroups.map((group) => (
                     <Pressable
                       key={group.id}
                       onPress={() => navigation.navigate('StudyGroupDetail', { groupId: group.id })}
-                      className="w-80 rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      style={{ width: 280, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 14 }}
                     >
-                      <View className="flex-row items-start justify-between">
-                        <View className="flex-1">
-                          <Text className="text-lg font-semibold text-gray-900">{group.name}</Text>
-                          <Text className="mt-1 text-sm text-gray-600">{group.description}</Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }}>{group.name}</Text>
+                          <Text style={{ marginTop: 4, fontSize: 13, color: tokens.muted }}>{group.description}</Text>
                         </View>
-                        <View className="items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 ml-2">
-                          <Text className="text-xs font-bold text-blue-600">
+                        <View style={{ alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.primarySoft, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: tokens.primary }}>
                             {Math.round(group.score * 100)}%
                           </Text>
-                          <Text className="text-xs text-blue-600">match</Text>
                         </View>
                       </View>
+                      <Pressable
+                        onPress={() => void handleJoin(group.id)}
+                        style={{ marginTop: 10, borderRadius: 8, backgroundColor: tokens.primary, paddingVertical: 7, alignItems: 'center' }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>Join</Text>
+                      </Pressable>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -389,33 +412,34 @@ export function StudyGroupsPage({ navigation }: Props) {
         )}
 
         {/* Search */}
-        <View className="border-b border-gray-200 px-4 py-4">
+        <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, paddingHorizontal: 16, paddingVertical: 12 }}>
           <TextInput
             placeholder="Search groups..."
             value={searchText}
             onChangeText={setSearchText}
-            className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900"
-            placeholderTextColor="#9ca3af"
+            style={{ borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+            placeholderTextColor={tokens.muted}
           />
         </View>
 
-        {/* Content */}
-        {errorMessage && (
-          <View className="mx-4 my-4 rounded-lg bg-red-50 p-3">
-            <Text className="text-sm text-red-700">{errorMessage}</Text>
+        {/* Error banner */}
+        {errorMessage ? (
+          <View style={{ marginHorizontal: 16, marginTop: 8, borderRadius: 12, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#ffe8e8', paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 14, color: tokens.danger }}>{errorMessage}</Text>
           </View>
-        )}
+        ) : null}
 
+        {/* Content */}
         {loading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#2f64f6" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={tokens.primary} />
           </View>
         ) : filteredGroups.length === 0 ? (
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}
-            className="flex-1"
+            style={{ flex: 1 }}
           >
-            <Text className="text-center text-gray-500">
+            <Text style={{ textAlign: 'center', fontSize: 14, color: tokens.muted }}>
               {searchText ? 'No groups match your search.' : `No ${tab === 'ARCHIVED' ? 'archived ' : ''}groups yet.`}
             </Text>
           </ScrollView>
@@ -424,86 +448,143 @@ export function StudyGroupsPage({ navigation }: Props) {
             data={filteredGroups}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ padding: 16, gap: 12 }}
-            renderItem={({ item: group }) => (
-              <Pressable
-                onPress={() => navigation.navigate('StudyGroupDetail', { groupId: group.id })}
-                className="rounded-lg border border-gray-200 bg-white p-4"
-              >
-                <View className="flex-row items-start justify-between">
-                  <View className="flex-1">
-                    <View className="flex-row items-start justify-between gap-2">
-                      <Text className="flex-1 text-lg font-semibold text-gray-900">{group.name}</Text>
-                      <View
-                        style={{ backgroundColor: VISIBILITY_COLORS[group.visibility] + '20' }}
-                        className="shrink-0 rounded px-2 py-1"
-                      >
-                        <View className="flex-row items-center gap-1">
-                          <FontAwesomeIcon
-                            icon={(group.visibility === 'PUBLIC' ? faGlobe : faLock) as IconProp}
-                            size={12}
-                            color={VISIBILITY_COLORS[group.visibility]}
-                          />
-                          <Text
-                            style={{ color: VISIBILITY_COLORS[group.visibility] }}
-                            className="text-xs font-medium"
-                          >
-                            {group.visibility}
-                          </Text>
+            renderItem={({ item: group }) => {
+              const isBusy = workingGroupId === group.id;
+              const isOwner = group.status !== 'DELETED'; // refine with userId if available
+              return (
+                <Pressable
+                  onPress={() => navigation.navigate('StudyGroupDetail', { groupId: group.id })}
+                  style={{ borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 14 }}
+                >
+                  {/* Group title row */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }} numberOfLines={1}>{group.name}</Text>
+                        <View style={{ backgroundColor: VISIBILITY_COLORS[group.visibility] + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <FontAwesomeIcon
+                              icon={(group.visibility === 'PUBLIC' ? faGlobe : faLock) as IconProp}
+                              size={10}
+                              color={VISIBILITY_COLORS[group.visibility]}
+                            />
+                            <Text style={{ color: VISIBILITY_COLORS[group.visibility], fontSize: 10, fontWeight: '600' }}>
+                              {group.visibility}
+                            </Text>
+                          </View>
                         </View>
                       </View>
+                      {group.description ? (
+                        <Text style={{ marginTop: 6, fontSize: 13, color: tokens.muted }} numberOfLines={2}>{group.description}</Text>
+                      ) : null}
+                      <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: tokens.muted }}>{group.memberCount ?? 0} members</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: tokens.muted }}>
+                          Created {new Date(group.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="mt-2 text-sm text-gray-600">{group.description}</Text>
-                    <View className="mt-3 flex-row items-center gap-4">
-                      <Text className="text-xs text-gray-500">{group.memberCount || 0} members</Text>
-                      <Text className="text-xs text-gray-500">
-                        Created {new Date(group.createdAt).toLocaleDateString()}
-                      </Text>
-                    </View>
+                    <FontAwesomeIcon icon={faChevronRight as IconProp} size={16} color={tokens.muted} />
                   </View>
-                  <FontAwesomeIcon icon={faChevronRight as IconProp} size={20} color="#d1d5db" />
-                </View>
-              </Pressable>
-            )}
+
+                  {/* Action buttons row */}
+                  <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {tab === 'DISCOVER' && (
+                      <Pressable
+                        onPress={() => void handleJoin(group.id)}
+                        disabled={isBusy}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.primarySoft, paddingHorizontal: 12, paddingVertical: 6 }}
+                      >
+                        <FontAwesomeIcon icon={faPlus as IconProp} size={11} color={tokens.primary} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>{isBusy ? 'Joining...' : 'Join'}</Text>
+                      </Pressable>
+                    )}
+
+                    {tab === 'MY' && (
+                      <>
+                        <Pressable
+                          onPress={() => handleLeave(group)}
+                          disabled={isBusy}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.name === 'midnight' ? '#1a2a3a' : '#eff6ff', paddingHorizontal: 12, paddingVertical: 6 }}
+                        >
+                          <FontAwesomeIcon icon={faRightFromBracket as IconProp} size={11} color={tokens.primary} />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>{isBusy ? 'Leaving...' : 'Leave'}</Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => void handleArchive(group)}
+                          disabled={isBusy}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.name === 'midnight' ? '#2a2010' : '#fef9c3', paddingHorizontal: 12, paddingVertical: 6 }}
+                        >
+                          <FontAwesomeIcon icon={faArchive as IconProp} size={11} color="#a16207" />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#a16207' }}>{isBusy ? 'Archiving...' : 'Archive'}</Text>
+                        </Pressable>
+                      </>
+                    )}
+
+                    {tab === 'ARCHIVED' && (
+                      <>
+                        <Pressable
+                          onPress={() => void handleUnarchive(group)}
+                          disabled={isBusy}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.name === 'midnight' ? '#0d2d1a' : '#ecfdf5', paddingHorizontal: 12, paddingVertical: 6 }}
+                        >
+                          <FontAwesomeIcon icon={faArchive as IconProp} size={11} color="#15803d" />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803d' }}>{isBusy ? 'Restoring...' : 'Restore'}</Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => handleDelete(group)}
+                          disabled={isBusy}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#fee2e2', paddingHorizontal: 12, paddingVertical: 6 }}
+                        >
+                          <FontAwesomeIcon icon={faTrash as IconProp} size={11} color={tokens.danger} />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.danger }}>{isBusy ? 'Deleting...' : 'Delete'}</Text>
+                        </Pressable>
+                      </>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            }}
           />
         )}
       </View>
 
       {/* Create Group Modal */}
-      <Modal visible={showCreateModal} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-1">
-            {/* Modal Header */}
-            <View className="border-b border-gray-200 px-4 py-4">
-              <View className="flex-row items-center justify-between">
-                <Text className="text-xl font-bold text-gray-900">Create Group</Text>
-                <Pressable onPress={() => setShowCreateModal(false)} className="p-2">
-                  <FontAwesomeIcon icon={faX as IconProp} size={24} color="#6b7280" />
+      <Modal visible={showCreateModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreateModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: tokens.surface }}>
+          <View style={{ flex: 1 }}>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, paddingHorizontal: 16, paddingVertical: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: tokens.text }}>Create Group</Text>
+                <Pressable onPress={() => setShowCreateModal(false)} style={{ padding: 4 }}>
+                  <FontAwesomeIcon icon={faX as IconProp} size={20} color={tokens.muted} />
                 </Pressable>
               </View>
             </View>
 
-            {/* Modal Content */}
-            <ScrollView className="flex-1 px-4 py-6" contentContainerStyle={{ gap: 16 }}>
-              {createError && (
-                <View className="rounded-lg bg-red-50 p-3">
-                  <Text className="text-sm text-red-700">{createError}</Text>
+            <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 16 }} contentContainerStyle={{ gap: 16 }}>
+              {createError ? (
+                <View style={{ borderRadius: 12, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#ffe8e8', paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <Text style={{ fontSize: 14, color: tokens.danger }}>{createError}</Text>
                 </View>
-              )}
+              ) : null}
 
               <View>
-                <Text className="mb-2 font-medium text-gray-900">Group Name</Text>
+                <Text style={{ marginBottom: 6, fontWeight: '600', fontSize: 14, color: tokens.muted }}>Group Name</Text>
                 <TextInput
                   placeholder="Enter group name"
                   value={name}
                   onChangeText={setName}
                   editable={!isCreating}
-                  className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900"
-                  placeholderTextColor="#9ca3af"
+                  style={{ borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                  placeholderTextColor={tokens.muted}
                 />
               </View>
 
               <View>
-                <Text className="mb-2 font-medium text-gray-900">Description</Text>
+                <Text style={{ marginBottom: 6, fontWeight: '600', fontSize: 14, color: tokens.muted }}>Description</Text>
                 <TextInput
                   placeholder="Enter group description"
                   value={description}
@@ -511,47 +592,58 @@ export function StudyGroupsPage({ navigation }: Props) {
                   editable={!isCreating}
                   multiline
                   numberOfLines={4}
-                  className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900"
-                  placeholderTextColor="#9ca3af"
+                  style={{ borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text, minHeight: 100, textAlignVertical: 'top' }}
+                  placeholderTextColor={tokens.muted}
                 />
               </View>
 
               <View>
-                <Text className="mb-2 font-medium text-gray-900">Visibility</Text>
-                <View className="flex-row gap-3">
-                  {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
-                    <Pressable
-                      key={v}
-                      onPress={() => setVisibility(v)}
-                      className={`flex-1 rounded-lg border px-4 py-3 ${
-                        visibility === v
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 bg-white'
-                      }`}
-                    >
-                      <Text
-                        className={`text-center font-medium ${
-                          visibility === v ? 'text-blue-600' : 'text-gray-700'
-                        }`}
+                <Text style={{ marginBottom: 6, fontWeight: '600', fontSize: 14, color: tokens.muted }}>Visibility</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  {(['PUBLIC', 'PRIVATE'] as const).map((v) => {
+                    const isSelected = visibility === v;
+                    return (
+                      <Pressable
+                        key={v}
+                        onPress={() => setVisibility(v)}
+                        style={{
+                          flex: 1, borderRadius: 12, borderWidth: 1,
+                          borderColor: isSelected ? tokens.primary : tokens.border,
+                          backgroundColor: isSelected ? tokens.primarySoft : tokens.surfaceElevated,
+                          paddingVertical: 12,
+                        }}
                       >
-                        {v}
-                      </Text>
-                    </Pressable>
-                  ))}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <FontAwesomeIcon
+                            icon={(v === 'PUBLIC' ? faGlobe : faLock) as IconProp}
+                            size={13}
+                            color={isSelected ? tokens.primary : tokens.muted}
+                          />
+                          <Text style={{ textAlign: 'center', fontWeight: '700', fontSize: 14, color: isSelected ? tokens.primary : tokens.muted }}>
+                            {v}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
 
               <Pressable
-                onPress={handleCreateGroup}
+                onPress={() => void handleCreateGroup()}
                 disabled={!name.trim() || isCreating}
-                className={`items-center justify-center rounded-lg py-3 ${
-                  name.trim() && !isCreating ? 'bg-blue-500' : 'bg-gray-300'
-                }`}
+                style={{
+                  alignItems: 'center', justifyContent: 'center', borderRadius: 12, minHeight: 48,
+                  backgroundColor: name.trim() && !isCreating ? tokens.primary : tokens.primarySoft,
+                  marginTop: 16,
+                }}
               >
                 {isCreating ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text className="font-semibold text-white">Create Group</Text>
+                  <Text style={{ fontWeight: '700', color: name.trim() && !isCreating ? 'white' : tokens.primary, fontSize: 14 }}>
+                    Create Group
+                  </Text>
                 )}
               </Pressable>
             </ScrollView>
