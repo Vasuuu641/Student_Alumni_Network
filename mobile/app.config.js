@@ -1,4 +1,4 @@
-{
+export default {
   "expo": {
     "name": "mobile",
     "slug": "mobile",
