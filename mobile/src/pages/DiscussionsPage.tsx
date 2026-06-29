@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -24,10 +24,13 @@ import { clearTokens } from '../lib/auth-storage';
 import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 import CreateDiscussionModal from '../components/threads/CreateDiscussionModal';
+import { useTheme, useThemePicker } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Discussions'>;
 
 export function DiscussionsPage({ navigation }: Props) {
+  const { tokens } = useTheme();
+  const { openThemePicker } = useThemePicker();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
   const [activePanel, setActivePanel] = useState<ThreadPanel>('ACADEMIC');
@@ -37,105 +40,58 @@ export function DiscussionsPage({ navigation }: Props) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Determine available panels based on role
   const availablePanels = useMemo(() => {
     return profile?.role === 'ALUMNI' ? (['ALUMNI'] as const) : (['ACADEMIC', 'ALUMNI'] as const);
   }, [profile?.role]);
 
   useEffect(() => {
     let cancelled = false;
-
     async function initialize() {
       const token = await getValidAccessToken();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (!token) {
-        navigation.replace('Login');
-        return;
-      }
-
-      if (!cancelled) {
-        setAccessToken(token);
-      }
+      if (cancelled) return;
+      if (!token) { navigation.replace('Login'); return; }
+      if (!cancelled) setAccessToken(token);
     }
-
     void initialize();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [navigation]);
 
   useEffect(() => {
-    if (!accessToken) {
-      return;
-    }
-
+    if (!accessToken) return;
     const token = accessToken;
     let cancelled = false;
-
     async function loadProfile() {
       try {
         const userProfile = await loadCurrentUserProfile(token);
         if (!cancelled) {
           setProfile(userProfile);
-          // Set initial panel based on user role
-          const initialPanel = userProfile.role === 'ALUMNI' ? 'ALUMNI' : 'ACADEMIC';
-          setActivePanel(initialPanel);
+          setActivePanel(userProfile.role === 'ALUMNI' ? 'ALUMNI' : 'ACADEMIC');
         }
       } catch {
-        if (!cancelled) {
-          setProfile(null);
-        }
+        if (!cancelled) setProfile(null);
       }
     }
-
     void loadProfile();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [accessToken]);
 
   useEffect(() => {
-    if (!accessToken) {
-      return;
-    }
-
+    if (!accessToken) return;
     const token = accessToken;
     let cancelled = false;
-
     async function loadThreads() {
       try {
         setLoading(true);
-        const response = await listThreads(token, {
-          panel: activePanel,
-          take: 50,
-          sortBy: 'newest',
-        });
-
-        if (!cancelled) {
-          setThreads(response.threads);
-        }
+        const response = await listThreads(token, { panel: activePanel, take: 50, sortBy: 'newest' });
+        if (!cancelled) setThreads(response.threads);
       } catch {
-        if (!cancelled) {
-          setThreads([]);
-        }
+        if (!cancelled) setThreads([]);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
-
     void loadThreads();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [accessToken, activePanel]);
 
   async function handleLogout() {
@@ -144,38 +100,15 @@ export function DiscussionsPage({ navigation }: Props) {
   }
 
   function navigateBottom(tab: MobileNavTab) {
-    if (tab === 'home') {
-      navigation.navigate('Dashboard');
-      return;
-    }
-
-    if (tab === 'discussions') {
-      // Already on discussions page
-      return;
-    }
-
-    if (tab === 'geo-board') {
-      navigation.navigate('GeoHelpBoard');
-      return;
-    }
-
-    if (tab === 'study-groups') {
-      navigation.navigate('StudyGroups');
-      return;
-    }
-
-    if (tab === 'notes') {
-      // TODO: Navigate to Notes
-      return;
-    }
+    if (tab === 'home') { navigation.navigate('Dashboard'); return; }
+    if (tab === 'discussions') return;
+    if (tab === 'geo-board') { navigation.navigate('GeoHelpBoard'); return; }
+    if (tab === 'study-groups') { navigation.navigate('StudyGroups'); return; }
+    if (tab === 'notes') { navigation.navigate('Notes'); return; }
   }
 
-  // Filter threads by search query
   const filteredThreads = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return threads;
-    }
-
+    if (!searchQuery.trim()) return threads;
     const query = searchQuery.toLowerCase();
     return threads.filter(
       (thread) =>
@@ -188,21 +121,11 @@ export function DiscussionsPage({ navigation }: Props) {
   const profileInitials = useMemo(() => {
     if (!profile?.profile) return 'JD';
     const name = `${profile.profile.firstName} ${profile.profile.lastName}`.trim();
-    return name
-      .split(' ')
-      .filter(Boolean)
-      .map((part) => part[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
+    return name.split(' ').filter(Boolean).map((part) => part[0]).slice(0, 2).join('').toUpperCase();
   }, [profile]);
 
   const panelLabel =
-    activePanel === 'ACADEMIC'
-      ? 'Academic Discussions'
-      : activePanel === 'ALUMNI'
-        ? 'Alumni Network'
-        : 'Career Advice';
+    activePanel === 'ACADEMIC' ? 'Academic Discussions' : activePanel === 'ALUMNI' ? 'Alumni Network' : 'Career Advice';
 
   const panelDescription =
     activePanel === 'ACADEMIC'
@@ -212,117 +135,95 @@ export function DiscussionsPage({ navigation }: Props) {
         : 'Discuss career paths, job opportunities, and professional growth.';
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" />
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
 
-      <View className="flex-1">
+      <View style={{ flex: 1 }}>
         {/* Header */}
-        <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4">
-          <View className="flex-row items-center gap-2">
-            <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-[#2f64f6]">
+        <View style={{ minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={18} color="white" />
             </View>
-            <Text className="text-[18px] font-extrabold tracking-[-0.03em] text-[#101c33]">UniBridge</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: tokens.text }}>UniBridge</Text>
           </View>
 
-          <View className="flex-row items-center gap-2">
-            <IconButton icon={faPalette as IconProp} onPress={() => {}} />
-            <IconButton icon={faBell as IconProp} onPress={() => {}} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <IconButton icon={faPalette as IconProp} onPress={openThemePicker} tokens={tokens} />
+            <IconButton icon={faBell as IconProp} onPress={() => {}} tokens={tokens} />
             <Pressable
               onPress={() => setIsAccountMenuOpen(true)}
-              className="h-9 flex-row items-center gap-2 rounded-full bg-[#eaf1ff] pl-1 pr-3"
+              style={{ height: 36, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, backgroundColor: tokens.primarySoft, paddingLeft: 4, paddingRight: 12 }}
             >
-              <View className="h-7 w-7 items-center justify-center rounded-full bg-white">
-                <Text className="text-[11px] font-extrabold text-[#2f64f6]">{profileInitials}</Text>
+              <View style={{ height: 28, width: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: tokens.surface }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: tokens.primary }}>{profileInitials}</Text>
               </View>
-              <FontAwesomeIcon icon={faChevronDown as IconProp} size={11} color="#6a7b98" />
+              <FontAwesomeIcon icon={faChevronDown as IconProp} size={11} color={tokens.muted} />
             </Pressable>
           </View>
         </View>
 
         {/* Account Menu Modal */}
-        <Modal
-          visible={isAccountMenuOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setIsAccountMenuOpen(false)}
-        >
-          <Pressable className="flex-1 bg-black/20 px-4" onPress={() => setIsAccountMenuOpen(false)}>
-            <View className="mt-20 self-end w-48 overflow-hidden rounded-3xl border border-[#dfe8f4] bg-white shadow-lg">
+        <Modal visible={isAccountMenuOpen} transparent animationType="fade" onRequestClose={() => setIsAccountMenuOpen(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 16 }} onPress={() => setIsAccountMenuOpen(false)}>
+            <View style={{ marginTop: 80, alignSelf: 'flex-end', width: 192, overflow: 'hidden', borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}>
               <Pressable
-                onPress={() => {
-                  setIsAccountMenuOpen(false);
-                  navigation.navigate('Profile');
-                }}
-                className="flex-row items-center gap-3 px-4 py-4"
+                onPress={() => { setIsAccountMenuOpen(false); navigation.navigate('Profile'); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faUser as IconProp} size={14} color="#2f64f6" />
-                <Text className="text-sm font-semibold text-[#13233e]">Visit Profile</Text>
+                <FontAwesomeIcon icon={faUser as IconProp} size={14} color={tokens.primary} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.text }}>Visit Profile</Text>
               </Pressable>
               <Pressable
-                onPress={() => {
-                  setIsAccountMenuOpen(false);
-                  void handleLogout();
-                }}
-                className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
+                onPress={() => { setIsAccountMenuOpen(false); void handleLogout(); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: tokens.border, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color="#d24f4f" />
-                <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
+                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color={tokens.danger} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.danger }}>Log out</Text>
               </Pressable>
             </View>
           </Pressable>
         </Modal>
 
         {/* Main Content */}
-        <ScrollView contentContainerClassName="pb-28" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 112 }} showsVerticalScrollIndicator={false}>
           {/* Title Section */}
-          <View className="border-b border-[#e6edf7] bg-white px-4 py-5">
-            <Text className="text-2xl font-extrabold tracking-[-0.03em] text-[#101d36]">Discussions</Text>
-            <Text className="mt-2 text-sm leading-5 text-[#5f7291]">
+          <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16, paddingVertical: 20 }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: tokens.text }}>Discussions</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: tokens.muted }}>
               Join conversations with your academic community
             </Text>
           </View>
 
           {/* New Discussion Button */}
-          <View className="px-4 pt-4">
-            <Pressable onPress={() => setShowCreateModal(true)} className="flex-row items-center justify-center gap-2 rounded-[24px] bg-[#2f64f6] px-4 py-3.5">
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+            <Pressable onPress={() => setShowCreateModal(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, backgroundColor: tokens.primary, paddingHorizontal: 16, paddingVertical: 14 }}>
               <FontAwesomeIcon icon={faPlus as IconProp} size={18} color="white" />
-              <Text className="text-base font-bold text-white">New Discussion</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>New Discussion</Text>
             </Pressable>
           </View>
 
           {/* Panel Tabs */}
           {availablePanels.length > 1 && (
-            <View className="mt-4 flex-row gap-2 px-4">
+            <View style={{ marginTop: 16, flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
               {availablePanels.map((panel) => {
                 const isActive = panel === activePanel;
                 const tabLabel = panel === 'ACADEMIC' ? 'Academic Discussions' : 'Career Advice';
                 const tabIcon = panel === 'ACADEMIC' ? faComments : faPalette;
-
                 return (
                   <Pressable
                     key={panel}
-                    onPress={() => {
-                      setActivePanel(panel);
-                      setSearchQuery('');
+                    onPress={() => { setActivePanel(panel); setSearchQuery(''); }}
+                    style={{
+                      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10,
+                      borderWidth: 1,
+                      borderColor: isActive ? tokens.primary : tokens.border,
+                      backgroundColor: isActive ? tokens.primarySoft : tokens.surface,
                     }}
-                    className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 ${
-                      isActive
-                        ? 'border border-[#2f64f6] bg-[#eaf1ff]'
-                        : 'border border-[#dde6f5] bg-white'
-                    }`}
                   >
-                    <FontAwesomeIcon
-                      icon={tabIcon as IconProp}
-                      size={13}
-                      color={isActive ? '#2f64f6' : '#6a7b98'}
-                    />
-                    <Text
-                      className={`text-sm font-semibold ${
-                        isActive ? 'text-[#2f64f6]' : 'text-[#5f7291]'
-                      }`}
-                      numberOfLines={1}
-                    >
+                    <FontAwesomeIcon icon={tabIcon as IconProp} size={13} color={isActive ? tokens.primary : tokens.muted} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? tokens.primary : tokens.muted }} numberOfLines={1}>
                       {tabLabel}
                     </Text>
                   </Pressable>
@@ -332,53 +233,58 @@ export function DiscussionsPage({ navigation }: Props) {
           )}
 
           {/* Panel Description */}
-          <View className="mt-4 px-4">
-            <View className="flex-row items-start gap-3 rounded-2xl bg-[#f0f4ff] p-3.5">
-              <View className="h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[#dbe8ff]">
-                <FontAwesomeIcon icon={faComments as IconProp} size={16} color="#2f64f6" />
+          <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 16, backgroundColor: tokens.primarySoft, padding: 14 }}>
+              <View style={{ height: 40, width: 40, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.surface }}>
+                <FontAwesomeIcon icon={faComments as IconProp} size={16} color={tokens.primary} />
               </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-[#101d36]">{panelLabel}</Text>
-                <Text className="mt-1 text-xs leading-4 text-[#5f7291]">{panelDescription}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.text }}>{panelLabel}</Text>
+                <Text style={{ marginTop: 4, fontSize: 12, lineHeight: 16, color: tokens.muted }}>{panelDescription}</Text>
               </View>
             </View>
           </View>
 
           {/* Search Bar */}
-          <View className="mt-4 px-4">
-            <View className="flex-row items-center rounded-2xl border border-[#dde6f5] bg-white pl-3 pr-2.5">
-              <FontAwesomeIcon icon={faSearch as IconProp} size={14} color="#9ca3af" />
+          <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingLeft: 12, paddingRight: 10 }}>
+              <FontAwesomeIcon icon={faSearch as IconProp} size={14} color={tokens.muted} />
               <TextInput
                 placeholder="Search discussions..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                className="ml-2.5 flex-1 py-2.5 text-sm text-[#1f2937]"
-                placeholderTextColor="#9ca3af"
+                style={{ marginLeft: 10, flex: 1, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                placeholderTextColor={tokens.muted}
               />
               {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery('')} className="p-1">
-                  <FontAwesomeIcon icon={faX as IconProp} size={12} color="#9ca3af" />
+                <Pressable onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                  <FontAwesomeIcon icon={faX as IconProp} size={12} color={tokens.muted} />
                 </Pressable>
               )}
             </View>
           </View>
 
           {/* Threads List */}
-          <View className="mt-4 px-4">
+          <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
             {loading ? (
-              <View className="items-center justify-center py-8">
-                <Text className="text-sm font-semibold text-[#7182a0]">Loading discussions...</Text>
+              <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>Loading discussions...</Text>
               </View>
             ) : filteredThreads.length === 0 ? (
-              <View className="items-center justify-center rounded-2xl border border-dashed border-[#d8e2f4] bg-[#fafcff] px-4 py-8">
-                <Text className="text-sm font-semibold text-[#7182a0]">
+              <View style={{ alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 16, paddingVertical: 32 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>
                   {searchQuery.trim() ? 'No discussions match your search' : 'No discussions yet. Start one!'}
                 </Text>
               </View>
             ) : (
-              <View className="gap-3">
+              <View style={{ gap: 12 }}>
                 {filteredThreads.map((thread) => (
-                  <DiscussionThreadItem key={thread.id} thread={thread} onPress={() => navigation.navigate('ThreadDetail', { threadId: thread.id })} />
+                  <DiscussionThreadItem
+                    key={thread.id}
+                    thread={thread}
+                    tokens={tokens}
+                    onPress={() => navigation.navigate('ThreadDetail', { threadId: thread.id })}
+                  />
                 ))}
               </View>
             )}
@@ -386,7 +292,7 @@ export function DiscussionsPage({ navigation }: Props) {
         </ScrollView>
 
         {/* Bottom Navigation */}
-        <View className="bg-white">
+        <View style={{ backgroundColor: tokens.surface }}>
           <MobileBottomNav activeTab="discussions" onNavigate={navigateBottom} />
         </View>
       </View>
@@ -399,11 +305,7 @@ export function DiscussionsPage({ navigation }: Props) {
         token={accessToken}
         onCreated={async () => {
           if (!accessToken) return;
-          const response = await listThreads(accessToken, {
-            panel: activePanel,
-            take: 50,
-            sortBy: 'newest',
-          });
+          const response = await listThreads(accessToken, { panel: activePanel, take: 50, sortBy: 'newest' });
           setThreads(response.threads);
         }}
       />
@@ -411,53 +313,38 @@ export function DiscussionsPage({ navigation }: Props) {
   );
 }
 
-function DiscussionThreadItem({ thread, onPress }: { thread: ThreadSummary; onPress: () => void }) {
+function DiscussionThreadItem({ thread, tokens, onPress }: { thread: ThreadSummary; tokens: any; onPress: () => void }) {
   const authorInitial = (thread.authorName || 'U').charAt(0).toUpperCase();
-  const panelBgColor = thread.panel === 'ALUMNI' ? 'bg-[#fff3df]' : 'bg-[#e7efff]';
-  const panelTextColor = thread.panel === 'ALUMNI' ? 'text-[#b86b00]' : 'text-[#2452c2]';
 
   return (
-    <Pressable
-      onPress={onPress}
-      className="overflow-hidden rounded-2xl border border-[#e6edf8] bg-white"
-    >
-      {/* Thread Header */}
-      <View className="flex-row items-start gap-3 p-3.5">
-        <View className="h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#dbe8ff]">
-          <Text className="text-sm font-bold text-[#2f64f6]">{authorInitial}</Text>
+    <Pressable onPress={onPress} style={{ overflow: 'hidden', borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 }}>
+        <View style={{ height: 40, width: 40, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: tokens.primarySoft }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.primary }}>{authorInitial}</Text>
         </View>
-        <View className="flex-1">
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="text-sm font-bold text-[#16233f]">{thread.authorName || 'UniBridge User'}</Text>
-            <View className={`rounded-full px-2 py-[2px] ${panelBgColor}`}>
-              <Text className={`text-[10px] font-bold uppercase ${panelTextColor}`}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.text }}>{thread.authorName || 'UniBridge User'}</Text>
+            <View style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: thread.panel === 'ALUMNI' ? tokens.accentSoft : tokens.primarySoft }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: thread.panel === 'ALUMNI' ? tokens.accent : tokens.primary }}>
                 {thread.panel === 'ALUMNI' ? 'alumni' : 'academic'}
               </Text>
             </View>
-            <Text className="text-xs font-medium text-[#8796af]">{formatRelativeDate(thread.updatedAt)}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: tokens.muted }}>{formatRelativeDate(thread.updatedAt)}</Text>
           </View>
 
-          {/* Title */}
-          <Text
-            className="mt-2 text-[15px] font-semibold leading-5 text-[#182842]"
-            numberOfLines={2}
-          >
+          <Text style={{ marginTop: 8, fontSize: 15, fontWeight: '600', lineHeight: 20, color: tokens.text }} numberOfLines={2}>
             {thread.title}
           </Text>
 
-          {/* Description Preview */}
           {thread.description && (
-            <Text
-              className="mt-1 text-sm leading-5 text-[#5f7090]"
-              numberOfLines={2}
-            >
+            <Text style={{ marginTop: 4, fontSize: 14, lineHeight: 20, color: tokens.muted }} numberOfLines={2}>
               {thread.description}
             </Text>
           )}
 
-          {/* Meta Information */}
-          <View className="mt-2.5 flex-row items-center gap-1.5">
-            <Text className="text-[12px] font-medium text-[#8796af]">
+          <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: tokens.muted }}>
               {thread.replyCount} {thread.replyCount === 1 ? 'reply' : 'replies'}
             </Text>
           </View>
@@ -467,13 +354,13 @@ function DiscussionThreadItem({ thread, onPress }: { thread: ThreadSummary; onPr
   );
 }
 
-function IconButton({ icon, onPress }: { icon: IconProp; onPress: () => void }) {
+function IconButton({ icon, onPress, tokens }: { icon: IconProp; onPress: () => void; tokens: any }) {
   return (
     <Pressable
       onPress={onPress}
-      className="h-9 w-9 items-center justify-center rounded-full border border-[#dde6f5] bg-white"
+      style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}
     >
-      <FontAwesomeIcon icon={icon} size={14} color="#607293" />
+      <FontAwesomeIcon icon={icon} size={14} color={tokens.muted} />
     </Pressable>
   );
 }
@@ -483,24 +370,11 @@ function formatRelativeDate(isoDate: string): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-
-  if (diffMins < 1) {
-    return 'just now';
-  }
-
-  if (diffMins < 60) {
-    return `${diffMins}m ago`;
-  }
-
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  }
-
+  if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 30) {
-    return `${diffDays}d ago`;
-  }
-
+  if (diffDays < 30) return `${diffDays}d ago`;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

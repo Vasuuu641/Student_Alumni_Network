@@ -1,4 +1,7 @@
-{
+import 'dotenv/config';
+
+
+export default {
   "expo": {
     "name": "mobile",
     "slug": "mobile",
@@ -24,6 +27,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "config": {
+        "googleMaps": {
+          "apiKey": process.env.GOOGLE_MAPS_API_KEY,
+        }
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
@@ -39,7 +47,9 @@
     "extra": {
       "eas": {
         "projectId": "4e456ca5-b55c-4bf7-b537-46440f48a26c"
-      }
+      },
+      "googleMapsApiKey": process.env.GOOGLE_MAPS_API_KEY
     }
   }
 }
+

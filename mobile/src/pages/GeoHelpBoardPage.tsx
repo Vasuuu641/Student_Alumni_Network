@@ -34,6 +34,8 @@ import {
   type GeoHelpSpotSection,
 } from '../api/geo-help-board.api';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme } from '../theme/theme';
+import { StatusBar } from 'expo-status-bar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GeoHelpBoard'>;
 type ResourceTab = 'OFFICIAL' | 'COMMUNITY';
@@ -167,9 +169,8 @@ async function reverseLookupLabel(point: Point): Promise<string> {
   }
 }
 
-export function GeoHelpBoardPage(props: Props) {
-  const navigation = props?.navigation;
-
+export function GeoHelpBoardPage({ navigation }: Props) {
+  const { tokens } = useTheme();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -680,9 +681,9 @@ export function GeoHelpBoardPage(props: Props) {
 
   if (isBooting || userRole === null) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#1d4ed8" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={tokens.primary} />
         </View>
       </SafeAreaView>
     );
@@ -690,11 +691,11 @@ export function GeoHelpBoardPage(props: Props) {
 
   if (!accessToken) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-center text-base text-[#3e5578]">Session expired. Please log in again.</Text>
-          <Pressable onPress={replaceToLogin} className="mt-4 rounded-xl bg-[#1d4ed8] px-4 py-3">
-            <Text className="text-sm font-bold text-white">Go to Login</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Text style={{ textAlign: 'center', fontSize: 16, color: tokens.muted }}>Session expired. Please log in again.</Text>
+          <Pressable onPress={replaceToLogin} style={{ marginTop: 16, borderRadius: 12, backgroundColor: tokens.primary, paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: 'white' }}>Go to Login</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -703,15 +704,16 @@ export function GeoHelpBoardPage(props: Props) {
 
   if (!canAccessGeoHelpBoard) {
     return (
-      <SafeAreaView className="flex-1 bg-[#f4f7ff]">
-        <View className="flex-1 justify-between px-4 pb-2 pt-4">
-          <View className="rounded-3xl border border-[#d7e1f2] bg-white p-5">
-            <Text className="text-3xl font-extrabold tracking-[-0.03em] text-[#0f2244]">Geo Help Board</Text>
-            <Text className="mt-3 text-[15px] leading-6 text-[#4c6487]">
+      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+        <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+        <View style={{ flex: 1, justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: tokens.danger }}>Access Denied</Text>
+            <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 24, color: tokens.muted, textAlign: 'center' }}>
               This page is available to students, professors, and admins.
             </Text>
-            <Pressable onPress={() => navigation?.navigate('Dashboard')} className="mt-5 rounded-xl bg-[#1d4ed8] px-4 py-3">
-              <Text className="text-center text-sm font-bold text-white">Back to Dashboard</Text>
+            <Pressable onPress={() => navigation?.navigate('Dashboard')} style={{ marginTop: 20, borderRadius: 12, backgroundColor: tokens.primary, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '700', color: 'white' }}>Back to Dashboard</Text>
             </Pressable>
           </View>
 
@@ -722,36 +724,37 @@ export function GeoHelpBoardPage(props: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f4f7ff]">
-      <View className="flex-1">
+    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
+      <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           {noticeMessage ? (
-            <View className="mb-3 rounded-2xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-              <Text className="text-sm font-semibold text-[#92400e]">{noticeMessage}</Text>
+            <View style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.accentSoft, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.accent }}>{noticeMessage}</Text>
             </View>
           ) : null}
 
           {errorMessage ? (
-            <View className="mb-3 rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3">
-              <Text className="text-sm font-semibold text-[#991b1b]">{errorMessage}</Text>
+            <View style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#ffe8e8', paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.danger }}>{errorMessage}</Text>
             </View>
           ) : null}
 
-          <View className="mb-3 rounded-[28px] border border-[#d6e1f3] bg-white px-4 py-5">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-2">
-                <Text className="text-[30px] font-extrabold tracking-[-0.05em] text-[#0f2244]">Geo Board</Text>
-                <Text className="mt-1 text-[15px] leading-6 text-[#4c6487]">
+          <View style={{ marginBottom: 12, borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16, paddingVertical: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: tokens.text }}>Geo Board</Text>
+                <Text style={{ marginTop: 4, fontSize: 14, lineHeight: 20, color: tokens.muted }}>
                   Explore campus resources and local picks on the live map.
                 </Text>
               </View>
 
-              <Pressable onPress={() => void handleLogout()} className="h-11 w-11 items-center justify-center rounded-full bg-[#eff6ff]">
-                <FontAwesomeIcon icon={faPowerOff as IconProp} size={16} color="#1d4ed8" />
+              <Pressable onPress={() => void handleLogout()} style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: tokens.primarySoft }}>
+                <FontAwesomeIcon icon={faPowerOff as IconProp} size={16} color={tokens.primary} />
               </Pressable>
             </View>
 
-            <View className="mt-4 flex-row gap-2">
+            <View style={{ marginTop: 16, flexDirection: 'row', gap: 8 }}>
               {(['OFFICIAL', 'COMMUNITY'] as const).map((tab) => {
                 const isActive = activeTab === tab;
                 return (
@@ -761,9 +764,12 @@ export function GeoHelpBoardPage(props: Props) {
                       setActiveTab(tab);
                       setCategory('ALL');
                     }}
-                    className={`flex-1 rounded-2xl px-3 py-3 ${isActive ? 'bg-[#1d4ed8]' : 'bg-[#eef5ff]'}`}
+                    style={{
+                      flex: 1, borderRadius: 12, paddingVertical: 10,
+                      backgroundColor: isActive ? tokens.primary : tokens.primarySoft
+                    }}
                   >
-                    <Text className={`text-center text-xs font-bold ${isActive ? 'text-white' : 'text-[#1f3a63]'}`}>
+                    <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: isActive ? 'white' : tokens.primary }}>
                       {tab === 'OFFICIAL' ? 'Official Resources' : 'Community Picks'}
                     </Text>
                   </Pressable>
@@ -772,55 +778,55 @@ export function GeoHelpBoardPage(props: Props) {
             </View>
           </View>
 
-          <View className="mb-3 rounded-[24px] border border-[#d6e1f3] bg-[#0f3b89] p-4">
-            <Text className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Current Search Area</Text>
-            <Text className="mt-2 text-[19px] font-extrabold tracking-[-0.02em] text-white">{locationLabel}</Text>
-            <Text className="mt-1 text-xs text-white/90">Spots are ranked around this location.</Text>
+          <View style={{ marginBottom: 12, borderRadius: 20, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.primary, padding: 16 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2, color: 'rgba(255,255,255,0.7)' }}>Current Search Area</Text>
+            <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '800', color: 'white' }}>{locationLabel}</Text>
+            <Text style={{ marginTop: 4, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>Spots are ranked around this location.</Text>
 
-            <View className="mt-3 flex-row gap-2">
+            <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
               <Pressable
                 onPress={() => void handleUseCurrentLocation()}
                 disabled={isLocating}
-                className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl px-3 py-2.5 ${isLocating ? 'bg-white/30' : 'bg-white/20'}`}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 8, paddingVertical: 10, backgroundColor: isLocating ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)' }}
               >
                 <FontAwesomeIcon icon={faCrosshairs as IconProp} size={13} color="white" />
-                <Text className="text-xs font-bold text-white">{isLocating ? 'Locating...' : 'Use My GPS'}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>{isLocating ? 'Locating...' : 'Use My GPS'}</Text>
               </Pressable>
 
               <Pressable
                 onPress={() => setShowSuggestModal(true)}
-                className="flex-row items-center justify-center gap-2 rounded-xl bg-white/20 px-3 py-2.5"
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 10 }}
               >
                 <FontAwesomeIcon icon={faPlus as IconProp} size={13} color="white" />
-                <Text className="text-xs font-bold text-white">Suggest</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>Suggest</Text>
               </Pressable>
             </View>
 
-            <View className="mt-3 flex-row gap-2">
+            <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
               <TextInput
                 value={locationQuery}
                 onChangeText={setLocationQuery}
                 placeholder="Search city or address"
-                className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm text-white"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                style={{ flex: 1, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: 'white' }}
+                placeholderTextColor="rgba(255,255,255,0.6)"
               />
               <Pressable
                 onPress={() => void handleFindLocation()}
                 disabled={isResolvingLocation}
-                className={`h-[42px] w-[42px] items-center justify-center rounded-xl ${isResolvingLocation ? 'bg-white/30' : 'bg-white/20'}`}
+                style={{ height: 38, width: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: isResolvingLocation ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)' }}
               >
                 <FontAwesomeIcon icon={faMagnifyingGlass as IconProp} size={13} color="white" />
               </Pressable>
             </View>
           </View>
 
-          <View className="mb-3 overflow-hidden rounded-[24px] border border-[#d6e1f3] bg-white">
-            <View className="px-4 pb-2 pt-3">
-              <Text className="text-base font-extrabold text-[#0f2244]">Live Map</Text>
-              <Text className="mt-1 text-xs text-[#4e6385]">Long-press on map to move your search area.</Text>
+          <View style={{ marginBottom: 12, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 8, paddingTop: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: tokens.text }}>Live Map</Text>
+              <Text style={{ marginTop: 2, fontSize: 12, color: tokens.muted }}>Long-press on map to move your search area.</Text>
             </View>
 
-            <View className="h-[270px]">
+            <View style={{ height: 270 }}>
               <MapView
                 style={{ flex: 1 }}
                 region={mapRegion}
@@ -845,67 +851,68 @@ export function GeoHelpBoardPage(props: Props) {
             </View>
           </View>
 
-          <View className="mb-3 rounded-[24px] border border-[#d6e1f3] bg-white p-4">
+          <View style={{ marginBottom: 12, borderRadius: 20, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search by title, city, address..."
-              className="rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-[15px] text-[#142748]"
-              placeholderTextColor="#6a7fa2"
+              style={{ borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+              placeholderTextColor={tokens.muted}
             />
 
-            <View className="mt-2 flex-row gap-2">
+            <View style={{ marginTop: 8, flexDirection: 'row', gap: 8 }}>
               <TextInput
                 value={cityFilter}
                 onChangeText={setCityFilter}
                 placeholder="City filter"
-                className="flex-1 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
+                style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                placeholderTextColor={tokens.muted}
               />
               <TextInput
                 value={radiusInput}
                 onChangeText={setRadiusInput}
                 keyboardType="decimal-pad"
                 placeholder="Radius"
-                className="w-24 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                placeholderTextColor="#6a7fa2"
+                style={{ width: 80, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                placeholderTextColor={tokens.muted}
               />
-              <Pressable onPress={() => void handleRefresh()} className="h-[46px] w-[46px] items-center justify-center rounded-xl bg-[#e6efff]">
-                <FontAwesomeIcon icon={faRotateRight as IconProp} size={14} color="#1d4ed8" />
+              <Pressable onPress={() => void handleRefresh()} style={{ height: 42, width: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.primarySoft }}>
+                <FontAwesomeIcon icon={faRotateRight as IconProp} size={14} color={tokens.primary} />
               </Pressable>
             </View>
 
-            <View className="mt-3 flex-row flex-wrap gap-2">
-              <FilterPill label="All" active={category === 'ALL'} onPress={() => setCategory('ALL')} />
+            <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <FilterPill label="All" active={category === 'ALL'} onPress={() => setCategory('ALL')} tokens={tokens} />
               {categoryOptions.map((option) => (
                 <FilterPill
                   key={option.value}
                   label={option.label}
                   active={category === option.value}
                   onPress={() => setCategory(option.value)}
+                  tokens={tokens}
                 />
               ))}
             </View>
           </View>
 
           {selectedSpot ? (
-            <View className="mb-3 rounded-2xl border border-[#d7e1f2] bg-[#eef4ff] px-4 py-3">
-              <Text className="text-xs font-bold uppercase tracking-[0.12em] text-[#4e6385]">Selected Place</Text>
-              <Text className="mt-1 text-base font-bold text-[#0f2244]">{selectedSpot.title}</Text>
-              <Text className="mt-1 text-xs text-[#4e6385]">{selectedSpot.address || selectedSpot.city}</Text>
+            <View style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.primarySoft, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2, color: tokens.primaryStrong }}>Selected Place</Text>
+              <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '800', color: tokens.text }}>{selectedSpot.title}</Text>
+              <Text style={{ marginTop: 2, fontSize: 12, color: tokens.muted }}>{selectedSpot.address || selectedSpot.city}</Text>
             </View>
           ) : null}
 
           {isLoading ? (
-            <View className="rounded-2xl border border-[#d7e1f2] bg-white px-4 py-8">
-              <ActivityIndicator size="large" color="#1d4ed8" />
+            <View style={{ borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16, paddingVertical: 32 }}>
+              <ActivityIndicator size="large" color={tokens.primary} />
             </View>
           ) : filteredSpots.length === 0 ? (
-            <View className="rounded-2xl border border-dashed border-[#c9d7ee] bg-white px-4 py-8">
-              <Text className="text-center text-sm font-semibold text-[#58709a]">No spots found with current filters.</Text>
+            <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 16, paddingVertical: 32 }}>
+              <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '600', color: tokens.muted }}>No spots found with current filters.</Text>
             </View>
           ) : (
-            <View className="gap-3">
+            <View style={{ gap: 12 }}>
               {filteredSpots.map((spot) => {
                 const badge = reviewBadgeStyles(spot.reviewStatus);
                 const canDelete = userRole === 'ADMIN' || userId === spot.createdById;
@@ -916,53 +923,62 @@ export function GeoHelpBoardPage(props: Props) {
                   <Pressable
                     key={spot.id}
                     onPress={() => setSelectedSpotId(spot.id)}
-                    className={`rounded-2xl border p-4 ${isSelected ? 'border-[#1d4ed8] bg-[#f2f7ff]' : 'border-[#d7e1f2] bg-white'}`}
+                    style={{
+                      borderRadius: 16, borderWidth: 1,
+                      borderColor: isSelected ? tokens.primary : tokens.border,
+                      backgroundColor: isSelected ? tokens.primarySoft : tokens.surface,
+                      padding: 16
+                    }}
                   >
-                    <View className="flex-row items-start justify-between gap-2">
-                      <View className="flex-1">
-                        <Text className="text-base font-extrabold text-[#0f2244]">{spot.title}</Text>
-                        <Text className="mt-1 text-xs text-[#4e6385]">{categoryLabel(spot.category)} • {spot.city}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: tokens.text }}>{spot.title}</Text>
+                        <Text style={{ marginTop: 4, fontSize: 12, color: tokens.muted }}>{categoryLabel(spot.category)} • {spot.city}</Text>
                       </View>
 
-                      <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badge.backgroundColor }}>
-                        <Text className="text-[10px] font-bold uppercase" style={{ color: badge.textColor }}>
+                      <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: badge.backgroundColor }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: badge.textColor }}>
                           {spot.reviewStatus}
                         </Text>
                       </View>
                     </View>
 
                     {spot.address ? (
-                      <View className="mt-2 flex-row items-center gap-2">
-                        <FontAwesomeIcon icon={faLocationDot as IconProp} size={12} color="#51678c" />
-                        <Text className="flex-1 text-sm text-[#304562]">{spot.address}</Text>
+                      <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <FontAwesomeIcon icon={faLocationDot as IconProp} size={12} color={tokens.muted} />
+                        <Text style={{ flex: 1, fontSize: 13, color: tokens.text }}>{spot.address}</Text>
                       </View>
                     ) : null}
 
-                    {spot.description ? <Text className="mt-2 text-sm text-[#304562]">{spot.description}</Text> : null}
+                    {spot.description ? <Text style={{ marginTop: 8, fontSize: 13, color: tokens.muted }}>{spot.description}</Text> : null}
 
-                    <Text className="mt-2 text-xs font-semibold text-[#637aa1]">
+                    <Text style={{ marginTop: 8, fontSize: 11, fontWeight: '600', color: tokens.muted }}>
                       {formatDistance(spot.distanceKm)} • {spot.visitCount} visits
                     </Text>
 
-                    <View className="mt-3 flex-row flex-wrap gap-2">
-                      <Pressable onPress={() => void handleOpenSpot(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#e6efff] px-3 py-2">
-                        <FontAwesomeIcon icon={faCompass as IconProp} size={12} color="#1d4ed8" />
-                        <Text className="text-xs font-bold text-[#1d4ed8]">Open</Text>
+                    <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      <Pressable onPress={() => void handleOpenSpot(spot)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.primarySoft, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <FontAwesomeIcon icon={faCompass as IconProp} size={12} color={tokens.primary} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>Open</Text>
                       </Pressable>
 
-                      <Pressable onPress={() => void handleOpenDirections(spot)} className="flex-row items-center gap-2 rounded-xl bg-[#ecfdf3] px-3 py-2">
+                      <Pressable onPress={() => void handleOpenDirections(spot)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: tokens.name === 'midnight' ? '#0d2d1a' : '#ecfdf3', paddingHorizontal: 12, paddingVertical: 6 }}>
                         <FontAwesomeIcon icon={faRoute as IconProp} size={12} color="#15803d" />
-                        <Text className="text-xs font-bold text-[#15803d]">Directions</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803d' }}>Directions</Text>
                       </Pressable>
 
                       {canDelete ? (
                         <Pressable
                           onPress={() => void handleDeactivate(spot)}
                           disabled={isBusy}
-                          className={`flex-row items-center gap-2 rounded-xl px-3 py-2 ${isBusy ? 'bg-[#f5d0d5]' : 'bg-[#fee2e2]'}`}
+                          style={{
+                            flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8,
+                            backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#fee2e2',
+                            paddingHorizontal: 12, paddingVertical: 6
+                          }}
                         >
-                          <FontAwesomeIcon icon={faTrash as IconProp} size={12} color="#991b1b" />
-                          <Text className="text-xs font-bold text-[#991b1b]">{isBusy ? 'Deleting...' : 'Delete'}</Text>
+                          <FontAwesomeIcon icon={faTrash as IconProp} size={12} color={tokens.danger} />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.danger }}>{isBusy ? 'Deleting...' : 'Delete'}</Text>
                         </Pressable>
                       ) : null}
                     </View>
@@ -973,22 +989,22 @@ export function GeoHelpBoardPage(props: Props) {
           )}
 
           {isRefreshing ? (
-            <View className="mt-3 items-center">
-              <ActivityIndicator size="small" color="#1d4ed8" />
+            <View style={{ marginTop: 12, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={tokens.primary} />
             </View>
           ) : null}
         </ScrollView>
 
         <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
-          <View className="flex-1 justify-end">
-            <Pressable className="absolute inset-0 bg-black/35" onPress={() => setShowSuggestModal(false)} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="max-h-[88%]">
-              <View className="rounded-t-[28px] bg-white px-4 pb-6 pt-4">
+          <View style={{ flex: 1, justifyContent: 'end' } as any}>
+            <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)' }} onPress={() => setShowSuggestModal(false)} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ maxHeight: '88%' }}>
+              <View style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: tokens.surface, paddingHorizontal: 16, paddingBottom: 24, paddingTop: 16 }}>
                 <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-                  <View className="mb-3 flex-row items-center justify-between">
-                    <Text className="text-lg font-extrabold text-[#0f2244]">Suggest a New Place</Text>
-                    <Pressable onPress={() => setShowSuggestModal(false)} className="h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff]">
-                      <FontAwesomeIcon icon={faX as IconProp} size={13} color="#4e6385" />
+                  <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' } as any}>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: tokens.text }}>Suggest a New Place</Text>
+                    <Pressable onPress={() => setShowSuggestModal(false)} style={{ height: 32, width: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.surfaceElevated }}>
+                      <FontAwesomeIcon icon={faX as IconProp} size={13} color={tokens.muted} />
                     </Pressable>
                   </View>
 
@@ -996,16 +1012,16 @@ export function GeoHelpBoardPage(props: Props) {
                     value={suggestTitle}
                     onChangeText={setSuggestTitle}
                     placeholder="Title"
-                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                    placeholderTextColor="#6a7fa2"
+                    style={{ marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                    placeholderTextColor={tokens.muted}
                   />
 
                   <TextInput
                     value={suggestDescription}
                     onChangeText={setSuggestDescription}
                     placeholder="Description (optional)"
-                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                    placeholderTextColor="#6a7fa2"
+                    style={{ marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                    placeholderTextColor={tokens.muted}
                     multiline
                   />
 
@@ -1013,8 +1029,8 @@ export function GeoHelpBoardPage(props: Props) {
                     value={suggestAddress}
                     onChangeText={setSuggestAddress}
                     placeholder="Address (optional)"
-                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                    placeholderTextColor="#6a7fa2"
+                    style={{ marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                    placeholderTextColor={tokens.muted}
                     returnKeyType="done"
                     onEndEditing={() => void handleResolveSuggestionLocation()}
                   />
@@ -1023,18 +1039,18 @@ export function GeoHelpBoardPage(props: Props) {
                     value={suggestCity}
                     onChangeText={setSuggestCity}
                     placeholder="City"
-                    className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3 text-sm text-[#142748]"
-                    placeholderTextColor="#6a7fa2"
+                    style={{ marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tokens.text }}
+                    placeholderTextColor={tokens.muted}
                     returnKeyType="done"
                     onEndEditing={() => void handleResolveSuggestionLocation()}
                   />
 
-                  <View className="mb-2 rounded-xl border border-[#d9e5f7] bg-[#f8fbff] px-3 py-3">
-                    <Text className="text-xs font-bold uppercase text-[#4e6385]">Suggestion Pin</Text>
-                    <Text className="mt-1 text-sm text-[#1f3a63]">{suggestPlaceLabel}</Text>
+                  <View style={{ marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', color: tokens.muted }}>Suggestion Pin</Text>
+                    <Text style={{ marginTop: 4, fontSize: 14, color: tokens.text }}>{suggestPlaceLabel}</Text>
                   </View>
 
-                  <View className="mb-2 h-[160px] overflow-hidden rounded-xl border border-[#d9e5f7]">
+                  <View style={{ marginBottom: 8, height: 160, overflow: 'hidden', borderRadius: 12, borderWidth: 1, borderColor: tokens.border }}>
                     <MapView
                       style={{ flex: 1 }}
                       region={{
@@ -1049,20 +1065,23 @@ export function GeoHelpBoardPage(props: Props) {
                         void reverseLookupLabel(nextPoint).then((label) => setSuggestPlaceLabel(label));
                       }}
                     >
-                      <Marker coordinate={suggestPoint} title="Suggestion Pin" pinColor="#1d4ed8" />
+                      <Marker coordinate={suggestPoint} title="Suggestion Pin" pinColor={tokens.primary} />
                     </MapView>
                   </View>
 
-                  <Pressable onPress={() => void handleUseCurrentLocationForSuggestion()} className="mb-3 items-center rounded-xl bg-[#eef4ff] px-3 py-2">
-                    <Text className="text-xs font-bold text-[#1d4ed8]">Use my current location</Text>
+                  <Pressable onPress={() => void handleUseCurrentLocationForSuggestion()} style={{ marginBottom: 12, alignItems: 'center', borderRadius: 12, backgroundColor: tokens.primarySoft, paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>Use my current location</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => void handleSubmitSuggestion()}
                     disabled={isSubmittingSuggestion}
-                    className={`items-center rounded-xl px-3 py-3 ${isSubmittingSuggestion ? 'bg-[#93b2f2]' : 'bg-[#1d4ed8]'}`}
+                    style={{
+                      alignItems: 'center', borderRadius: 12, paddingVertical: 12,
+                      backgroundColor: isSubmittingSuggestion ? tokens.primarySoft : tokens.primary
+                    }}
                   >
-                    <Text className="text-sm font-bold text-white">{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: 'white' }}>{isSubmittingSuggestion ? 'Submitting...' : 'Submit for review'}</Text>
                   </Pressable>
                 </ScrollView>
               </View>
@@ -1070,7 +1089,7 @@ export function GeoHelpBoardPage(props: Props) {
           </View>
         </Modal>
 
-        <View className="bg-white">
+        <View style={{ backgroundColor: tokens.surface }}>
           <MobileBottomNav activeTab="geo-board" onNavigate={handleNavigateBottom} />
         </View>
       </View>
@@ -1078,10 +1097,10 @@ export function GeoHelpBoardPage(props: Props) {
   );
 }
 
-function FilterPill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function FilterPill({ label, active, onPress, tokens }: { label: string; active: boolean; onPress: () => void; tokens: any }) {
   return (
-    <Pressable onPress={onPress} className={`rounded-full px-3 py-1.5 ${active ? 'bg-[#1d4ed8]' : 'bg-[#ebf2ff]'}`}>
-      <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-[#1d4ed8]'}`}>{label}</Text>
+    <Pressable onPress={onPress} style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: active ? tokens.primary : tokens.primarySoft }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: active ? 'white' : tokens.primary }}>{label}</Text>
     </Pressable>
   );
 }

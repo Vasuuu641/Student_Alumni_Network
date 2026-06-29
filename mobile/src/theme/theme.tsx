@@ -120,23 +120,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadTheme() {
       const storedTheme = await AsyncStorage.getItem(STORAGE_KEY);
-      if (cancelled) {
-        return;
-      }
-
+      if (cancelled) return;
       if (storedTheme && storedTheme in THEMES) {
         setThemeState(storedTheme as ThemeName);
       }
     }
-
     void loadTheme();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -146,11 +138,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const tokens = THEMES[theme];
 
   const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      tokens,
-      setTheme: setThemeState,
-    }),
+    () => ({ theme, tokens, setTheme: setThemeState }),
     [theme, tokens],
   );
 
@@ -167,35 +155,69 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       <ThemePickerContext.Provider value={pickerValue}>
         {children}
 
-        <Modal visible={isPickerOpen} transparent animationType="fade" onRequestClose={() => setIsPickerOpen(false)}>
-          <Pressable className="flex-1 justify-end bg-black/30 px-4 pb-6" onPress={() => setIsPickerOpen(false)}>
+        {/* ── Theme picker modal — fully themed ────────────────────────────── */}
+        <Modal
+          visible={isPickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsPickerOpen(false)}
+        >
+          <Pressable
+            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 16, paddingBottom: 24 }}
+            onPress={() => setIsPickerOpen(false)}
+          >
             <Pressable
-              onPress={(event) => event.stopPropagation()}
-              className="overflow-hidden rounded-[24px] border border-[#dce6f3] bg-white p-4"
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: tokens.border,
+                backgroundColor: tokens.surface,
+                padding: 16,
+                overflow: 'hidden',
+              }}
             >
-              <Text className="text-xs font-extrabold uppercase tracking-[0.15em] text-[#5f7291]">Choose Theme</Text>
+              {/* Header */}
+              <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', color: tokens.muted, marginBottom: 12 }}>
+                Choose Theme
+              </Text>
 
-              <ScrollView className="mt-3 max-h-[420px]" showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
                 {Object.values(THEMES).map((item) => {
                   const isActive = item.name === theme;
-
                   return (
                     <Pressable
                       key={item.name}
-                      onPress={() => {
-                        setThemeState(item.name);
-                        setIsPickerOpen(false);
+                      onPress={() => { setThemeState(item.name); setIsPickerOpen(false); }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        borderRadius: 16,
+                        borderWidth: 1.5,
+                        borderColor: isActive ? item.primary : tokens.border,
+                        backgroundColor: isActive ? item.primarySoft : tokens.surfaceElevated,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                        marginBottom: 8,
                       }}
-                      className={`mb-2 flex-row items-center gap-3 rounded-2xl border px-3 py-3 ${
-                        isActive ? 'border-[#2f64f6] bg-[#eef4ff]' : 'border-[#e7edf8] bg-white'
-                      }`}
                     >
-                      <View className="h-4 w-4 rounded-full" style={{ backgroundColor: item.primary }} />
-                      <View className="flex-1">
-                        <Text className="text-[15px] font-bold text-[#101d36]">{item.label}</Text>
-                        <Text className="mt-0.5 text-[12px] text-[#6a7b98]">{item.description}</Text>
+                      {/* Theme colour dot */}
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: item.primary, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: item.accent }} />
                       </View>
-                      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: item.accent }} />
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: tokens.text }}>{item.label}</Text>
+                        <Text style={{ fontSize: 12, color: tokens.muted, marginTop: 2 }}>{item.description}</Text>
+                      </View>
+
+                      {/* Active check */}
+                      {isActive && (
+                        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: item.primary, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900' }}>✓</Text>
+                        </View>
+                      )}
                     </Pressable>
                   );
                 })}
@@ -210,20 +232,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
-  }
-
+  if (!context) throw new Error('useTheme must be used within ThemeProvider');
   return context;
 }
 
 export function useThemePicker() {
   const context = useContext(ThemePickerContext);
-
-  if (!context) {
-    throw new Error('useThemePicker must be used within ThemeProvider');
-  }
-
+  if (!context) throw new Error('useThemePicker must be used within ThemeProvider');
   return context;
 }

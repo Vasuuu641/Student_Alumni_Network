@@ -16,10 +16,13 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { registerUser } from '../api/auth.api';
 import type { RootStackParamList } from '../navigation/root-stack';
+import { useTheme, useThemePicker } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export function RegisterPage({ navigation }: Props) {
+  const { tokens } = useTheme();
+  const { openThemePicker } = useThemePicker();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,61 +62,84 @@ export function RegisterPage({ navigation }: Props) {
     }
   }
 
+  const inputStyle = {
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.surfaceElevated,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: tokens.text,
+  };
+
+  const labelStyle = {
+    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: tokens.muted,
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-[#f4f7ff]">
-      <StatusBar style="dark" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', android: undefined })}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerClassName="flex-grow px-4 pb-8 pt-4"
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingBottom: 32, paddingTop: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable onPress={() => navigation.goBack()} className="self-start rounded-lg px-2 py-1.5">
-            <Text className="text-sm font-semibold text-[#3a5fba]">← Back</Text>
+          <Pressable onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primaryStrong }}>← Back</Text>
           </Pressable>
 
-          <View className="mt-4 items-center">
-            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+          <Pressable onPress={openThemePicker} style={{ marginTop: 8, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2, color: tokens.primary }}>Theme</Text>
+          </Pressable>
+
+          <View style={{ marginTop: 16, alignItems: 'center' }}>
+            <View style={{ height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={24} color="#ffffff" />
             </View>
-            <Text className="mt-3 text-[30px] font-extrabold text-ink">Join UniBridge</Text>
-            <Text className="mt-1 text-center text-sm text-muted">
+            <Text style={{ marginTop: 12, fontSize: 30, fontWeight: '800', color: tokens.text }}>Join UniBridge</Text>
+            <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 14, color: tokens.muted }}>
               Create your profile with your university email
             </Text>
           </View>
 
-          <View className="mt-6 rounded-3xl border border-[#dce5f8] bg-white p-4">
+          <View style={{ marginTop: 24, borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
             {errorMessage ? (
-              <Text className="mb-3 rounded-xl bg-[#ffecef] px-3 py-2 text-sm font-medium text-[#9c2f3f]">
+              <Text style={{ marginBottom: 12, borderRadius: 12, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#ffecef', paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: '500', color: tokens.danger }}>
                 {errorMessage}
               </Text>
             ) : null}
 
-            <Text className="mb-1 text-sm font-semibold text-[#344867]">First name</Text>
+            <Text style={labelStyle}>First name</Text>
             <TextInput
               value={firstName}
               onChangeText={setFirstName}
               placeholder="John"
               autoComplete="name-given"
-              className="mb-3 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
-              placeholderTextColor="#7c8ba3"
+              style={inputStyle}
+              placeholderTextColor={tokens.muted}
               maxLength={50}
             />
 
-            <Text className="mb-1 text-sm font-semibold text-[#344867]">Last name</Text>
+            <Text style={labelStyle}>Last name</Text>
             <TextInput
               value={lastName}
               onChangeText={setLastName}
               placeholder="Doe"
               autoComplete="name-family"
-              className="mb-3 rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
-              placeholderTextColor="#7c8ba3"
+              style={inputStyle}
+              placeholderTextColor={tokens.muted}
               maxLength={50}
             />
 
-            <Text className="mb-1 text-sm font-semibold text-[#344867]">University email</Text>
+            <Text style={labelStyle}>University email</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -121,14 +147,14 @@ export function RegisterPage({ navigation }: Props) {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
-              className="rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
-              placeholderTextColor="#7c8ba3"
+              style={{ ...inputStyle, marginBottom: 4 }}
+              placeholderTextColor={tokens.muted}
             />
-            <Text className="mb-3 mt-1 text-xs text-[#5f7290]">
+            <Text style={{ marginBottom: 12, marginTop: 4, fontSize: 12, color: tokens.muted }}>
               Only pre-approved university emails can register
             </Text>
 
-            <Text className="mb-1 text-sm font-semibold text-[#344867]">Password</Text>
+            <Text style={labelStyle}>Password</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -136,27 +162,33 @@ export function RegisterPage({ navigation }: Props) {
               autoCapitalize="none"
               autoComplete="new-password"
               secureTextEntry
-              className="rounded-xl border border-[#d8e1f3] bg-[#f9fbff] px-3 py-3 text-[15px] text-ink"
-              placeholderTextColor="#7c8ba3"
+              style={inputStyle}
+              placeholderTextColor={tokens.muted}
             />
 
             <Pressable
               onPress={handleCreateAccount}
               disabled={!canSubmit || isSubmitting}
-              className={`mt-5 min-h-12 items-center justify-center rounded-xl px-4 ${
-                !canSubmit || isSubmitting ? 'bg-[#98b4ff]' : 'bg-primary'
-              }`}
+              style={{
+                marginTop: 20,
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                backgroundColor: !canSubmit || isSubmitting ? tokens.primarySoft : tokens.primary,
+              }}
             >
-              <Text className="text-[15px] font-bold text-white">
+              <Text style={{ fontSize: 15, fontWeight: '700', color: !canSubmit || isSubmitting ? tokens.primary : '#fff' }}>
                 {isSubmitting ? 'Creating account...' : 'Create Account'}
               </Text>
             </Pressable>
           </View>
 
-          <View className="mt-5 flex-row items-center justify-center">
-            <Text className="text-sm text-muted">Already have an account? </Text>
+          <View style={{ marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 14, color: tokens.muted }}>Already have an account? </Text>
             <Pressable onPress={() => navigation.replace('Login')}>
-              <Text className="text-sm font-bold text-[#2d63e5]">Sign in</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.primary }}>Sign in</Text>
             </Pressable>
           </View>
         </ScrollView>

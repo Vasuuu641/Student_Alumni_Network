@@ -223,8 +223,8 @@ export function DashboardPage({ navigation }: Props) {
   const profileHeadline = buildProfileHeadline(profile, role);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f5f8ff]" edges={['top', 'left', 'right']} style={{ backgroundColor: tokens.background }}>
-      <StatusBar style="dark" />
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.background }}>
+      <StatusBar style={tokens.name === 'midnight' ? 'light' : 'dark'} />
 
       <View className="flex-1">
         <View className="min-h-[72px] flex-row items-center justify-between border-b border-[#e6edf7] bg-white px-4" style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}>
@@ -257,27 +257,27 @@ export function DashboardPage({ navigation }: Props) {
           animationType="fade"
           onRequestClose={() => setIsAccountMenuOpen(false)}
         >
-          <Pressable className="flex-1 bg-black/20 px-4" onPress={() => setIsAccountMenuOpen(false)}>
-            <View className="mt-20 self-end w-48 overflow-hidden rounded-3xl border border-[#dfe8f4] bg-white shadow-lg">
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 16 }} onPress={() => setIsAccountMenuOpen(false)}>
+            <View style={{ marginTop: 80, alignSelf: 'flex-end', width: 192, overflow: 'hidden', borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}>
               <Pressable
                 onPress={() => {
                   setIsAccountMenuOpen(false);
                   navigation.navigate('Profile');
                 }}
-                className="flex-row items-center gap-3 px-4 py-4"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faUser as IconProp} size={14} color="#2f64f6" />
-                <Text className="text-sm font-semibold text-[#13233e]">Visit Profile</Text>
+                <FontAwesomeIcon icon={faUser as IconProp} size={14} color={tokens.primary} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.text }}>Visit Profile</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
                   setIsAccountMenuOpen(false);
                   void handleLogout();
                 }}
-                className="flex-row items-center gap-3 border-t border-[#eef3fa] px-4 py-4"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: tokens.border, paddingHorizontal: 16, paddingVertical: 16 }}
               >
-                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color="#d24f4f" />
-                <Text className="text-sm font-semibold text-[#d24f4f]">Log out</Text>
+                <FontAwesomeIcon icon={faSignOutAlt as IconProp} size={14} color={tokens.danger} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.danger }}>Log out</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -365,31 +365,31 @@ export function DashboardPage({ navigation }: Props) {
               </Pressable>
             </View>
 
-            <View className="gap-3">
+            <View style={{ gap: 12 }}>
               {recentDiscussions.length === 0 ? (
-                <View className="rounded-2xl border border-dashed border-[#d8e2f4] bg-[#fafcff] px-4 py-4">
-                  <Text className="text-sm font-semibold text-[#7182a0]">No discussions yet. Start one from Discussions.</Text>
+                <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 16, paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>No discussions yet. Start one from Discussions.</Text>
                 </View>
               ) : (
                 recentDiscussions.map((thread) => (
-                  <View key={thread.id} className="flex-row gap-3 rounded-2xl border border-[#e6edf8] bg-[#f9fbff] p-3">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-[#dbe8ff]">
-                      <Text className="text-sm font-bold text-[#2f64f6]">{thread.authorName?.charAt(0).toUpperCase() || 'U'}</Text>
+                  <View key={thread.id} style={{ flexDirection: 'row', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, padding: 12 }}>
+                    <View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: tokens.primarySoft }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.primary }}>{thread.authorName?.charAt(0).toUpperCase() || 'U'}</Text>
                     </View>
-                    <View className="flex-1">
-                      <View className="mb-1 flex-row flex-wrap items-center gap-2">
-                        <Text className="text-sm font-bold text-[#16233f]">{thread.authorName || 'UniBridge User'}</Text>
-                        <View className={`rounded-full px-2 py-[2px] ${thread.panel === 'ALUMNI' ? 'bg-[#fff3df]' : 'bg-[#e7efff]'}`}>
-                          <Text className={`text-[10px] font-bold uppercase ${thread.panel === 'ALUMNI' ? 'text-[#b86b00]' : 'text-[#2452c2]'}`}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.text }}>{thread.authorName || 'UniBridge User'}</Text>
+                        <View style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: thread.panel === 'ALUMNI' ? tokens.accentSoft : tokens.primarySoft }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: thread.panel === 'ALUMNI' ? tokens.accent : tokens.primary }}>
                             {thread.panel === 'ALUMNI' ? 'alumni' : 'academic'}
                           </Text>
                         </View>
                       </View>
-                      <Text className="text-[15px] font-semibold leading-5 text-[#182842]">{thread.title}</Text>
-                      <Text className="mt-1 text-sm leading-5 text-[#5f7090]">
+                      <Text style={{ fontSize: 15, fontWeight: '600', lineHeight: 20, color: tokens.text }}>{thread.title}</Text>
+                      <Text style={{ marginTop: 4, fontSize: 14, lineHeight: 20, color: tokens.muted }}>
                         {thread.description || 'Open the discussion to see full details and replies.'}
                       </Text>
-                      <Text className="mt-2 text-[12px] font-medium text-[#8796af]">
+                      <Text style={{ marginTop: 8, fontSize: 12, fontWeight: '500', color: tokens.muted }}>
                         {formatRelativeDate(thread.updatedAt)} • {thread.replyCount} comments
                       </Text>
                     </View>
@@ -485,23 +485,25 @@ function DashboardStatCard({
   accent: 'blue' | 'gold' | 'green';
   onPress: () => void;
 }) {
-  const accentClass =
+  const { tokens } = useTheme();
+  const iconBg =
     accent === 'gold'
-      ? 'bg-[#fff4db] text-[#c07400]'
+      ? tokens.accentSoft
       : accent === 'green'
-        ? 'bg-[#e5f9eb] text-[#21894b]'
-        : 'bg-[#eaf1ff] text-[#2f64f6]';
-  const iconColor = accent === 'gold' ? '#c07400' : accent === 'green' ? '#21894b' : '#2f64f6';
+        ? (tokens.name === 'midnight' ? '#0d2b1a' : '#e5f9eb')
+        : tokens.primarySoft;
+  const iconColor =
+    accent === 'gold' ? tokens.accent : accent === 'green' ? tokens.success : tokens.primary;
 
   return (
-    <Pressable onPress={onPress} className="rounded-[26px] border border-[#e3ebf7] bg-white p-4">
-      <View className="flex-row items-start justify-between gap-4">
-        <View className="flex-1">
-          <Text className="text-sm font-semibold text-[#6f829f]">{title}</Text>
-          <Text className="mt-2 text-[30px] font-extrabold tracking-[-0.05em] text-[#0f1e37]">{value}</Text>
-          <Text className="mt-3 text-sm font-semibold text-[#2f64f6]">{actionLabel} →</Text>
+    <Pressable onPress={onPress} style={{ borderRadius: 26, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>{title}</Text>
+          <Text style={{ marginTop: 8, fontSize: 30, fontWeight: '800', color: tokens.text }}>{value}</Text>
+          <Text style={{ marginTop: 12, fontSize: 14, fontWeight: '600', color: tokens.primary }}>{actionLabel} →</Text>
         </View>
-        <View className={`h-12 w-12 items-center justify-center rounded-2xl ${accentClass}`}>
+        <View style={{ height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: iconBg }}>
           <FontAwesomeIcon icon={icon} size={16} color={iconColor} />
         </View>
       </View>
@@ -520,31 +522,39 @@ function ActionPill({
   tone: 'blue' | 'gold' | 'green' | 'purple';
   onPress: () => void;
 }) {
-  const toneClass =
+  const { tokens } = useTheme();
+  const iconBg =
     tone === 'gold'
-      ? 'bg-[#fff4db] text-[#c07400]'
+      ? tokens.accentSoft
       : tone === 'green'
-        ? 'bg-[#e5f9eb] text-[#21894b]'
-        : 'bg-[#eaf1ff] text-[#2f64f6]';
-  const iconColor = tone === 'gold' ? '#c07400' : tone === 'green' ? '#21894b' : tone === 'purple' ? '#8b45f7' : '#2f64f6';
+        ? (tokens.name === 'midnight' ? '#0d2b1a' : '#e5f9eb')
+        : tone === 'purple'
+          ? tokens.primarySoft
+          : tokens.primarySoft;
+  const iconColor =
+    tone === 'gold' ? tokens.accent
+    : tone === 'green' ? tokens.success
+    : tone === 'purple' ? tokens.primaryStrong
+    : tokens.primary;
 
   return (
-    <Pressable onPress={onPress} className="min-w-[47%] flex-1 flex-row items-center gap-3 rounded-2xl border border-[#e5ecf7] bg-[#f8fbff] px-3 py-3">
-      <View className={`h-9 w-9 items-center justify-center rounded-xl ${toneClass}`}>
+    <Pressable onPress={onPress} style={{ minWidth: '47%', flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 12 }}>
+      <View style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: iconBg }}>
         <FontAwesomeIcon icon={icon} size={14} color={iconColor} />
       </View>
-      <Text className="flex-1 text-sm font-semibold text-[#344766]">{label}</Text>
+      <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: tokens.text }}>{label}</Text>
     </Pressable>
   );
 }
 
 function IconButton({ icon, onPress }: { icon: IconProp; onPress: () => void }) {
+  const { tokens } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      className="h-9 w-9 items-center justify-center rounded-full border border-[#dde6f5] bg-white"
+      style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface }}
     >
-      <FontAwesomeIcon icon={icon} size={14} color="#607293" />
+      <FontAwesomeIcon icon={icon} size={14} color={tokens.muted} />
     </Pressable>
   );
 }

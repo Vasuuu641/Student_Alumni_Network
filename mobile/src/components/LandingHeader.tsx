@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faBridge } from '@fortawesome/free-solid-svg-icons';
+import { faBridge, faPalette } from '@fortawesome/free-solid-svg-icons';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import { useTheme, useThemePicker } from '../theme/theme';
 
@@ -16,26 +16,51 @@ export function LandingHeader({ onPressSignIn, onPressGetStarted, showThemeButto
 
   return (
     <View
-      className="min-h-[74px] flex-row items-center justify-between border-b border-[#eef3fb] bg-white px-4"
+      className="min-h-[60px] flex-row items-center justify-between border-b px-4"
       style={{ backgroundColor: tokens.surface, borderBottomColor: tokens.border }}
     >
+      {/* Logo */}
       <View className="flex-row items-center gap-2">
-        <View className="h-[34px] w-[34px] items-center justify-center rounded-[10px]" style={{ backgroundColor: tokens.primary }}>
-          <FontAwesomeIcon icon={faBridge as IconProp} size={15} color="#ffffff" />
+        <View
+          className="h-8 w-8 items-center justify-center rounded-[9px]"
+          style={{ backgroundColor: tokens.primary }}
+        >
+          <FontAwesomeIcon icon={faBridge as IconProp} size={14} color="#ffffff" />
         </View>
-        <Text className="text-lg font-bold text-ink" style={{ color: tokens.text }}>UniBridge</Text>
+        <Text className="text-[17px] font-extrabold" style={{ color: tokens.text }}>
+          UniBridge
+        </Text>
       </View>
 
-      <View className="flex-row items-center gap-2">
-        {showThemeButton ? (
-          <Pressable className="rounded-[10px] px-[10px] py-2" onPress={openThemePicker}>
-            <Text className="text-sm font-semibold text-muted" style={{ color: tokens.primary }}>Theme</Text>
+      {/* Actions */}
+      <View className="flex-row items-center gap-1">
+        {/* Theme picker — icon only, no label */}
+        {showThemeButton && (
+          <Pressable
+            onPress={openThemePicker}
+            className="h-9 w-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: tokens.primarySoft }}
+          >
+            <FontAwesomeIcon icon={faPalette as IconProp} size={16} color={tokens.primary} />
           </Pressable>
-        ) : null}
-        <Pressable className="rounded-[10px] px-[10px] py-2" onPress={onPressSignIn}>
-          <Text className="text-sm font-semibold text-muted" style={{ color: tokens.muted }}>Sign In</Text>
+        )}
+
+        {/* Sign In — compact */}
+        <Pressable
+          onPress={onPressSignIn}
+          className="rounded-lg px-3 py-2"
+        >
+          <Text className="text-sm font-semibold" style={{ color: tokens.muted }}>
+            Sign In
+          </Text>
         </Pressable>
-        <Pressable className="rounded-[10px] bg-primary px-3 py-2" onPress={onPressGetStarted} style={{ backgroundColor: tokens.primary }}>
+
+        {/* Get Started */}
+        <Pressable
+          onPress={onPressGetStarted}
+          className="rounded-lg px-3 py-2"
+          style={{ backgroundColor: tokens.primary }}
+        >
           <Text className="text-sm font-bold text-white">Get Started</Text>
         </Pressable>
       </View>
