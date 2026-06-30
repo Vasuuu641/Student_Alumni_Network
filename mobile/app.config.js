@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Resolve configuration folder relative to this file to handle workspace-root commands
+const projectDir = typeof __dirname !== 'undefined' ? __dirname : path.resolve(process.cwd(), 'mobile');
+dotenv.config({ path: path.resolve(projectDir, '.env') });
 
 
 export default {
