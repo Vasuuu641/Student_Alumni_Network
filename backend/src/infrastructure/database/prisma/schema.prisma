@@ -48,6 +48,8 @@ model User {
   notifications       Notification[] @relation("NotificationRecipient")
   notificationPreference NotificationPreference? @relation("NotificationPreferenceUser")
   interestProfile     UserInterestProfile?
+  threadAttachmentsUploaded ThreadAttachment[] @relation("ThreadAttachmentUploader")
+  groupPostAttachmentsUploaded StudyGroupPostAttachment[] @relation("GroupPostAttachmentUploader")
 }
 
 model Student {
@@ -406,6 +408,7 @@ model Thread {
   votes           ThreadVote[]
   threadEmbedding ThreadEmbedding?
   linkedNotes     NoteThreadLink[]
+  attachments     ThreadAttachment[]
 
   @@index([panel, status, createdAt])
   @@index([authorId])
@@ -431,6 +434,7 @@ model ThreadReply {
   parentReply  ThreadReply?      @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
   childReplies ThreadReply[]     @relation("ReplyHierarchy")
   votes        ThreadReplyVote[]
+  attachments  ThreadAttachment[]
 
   @@index([threadId, createdAt])
   @@index([threadId, voteScore])
@@ -624,6 +628,7 @@ model StudyGroupPost {
 
   group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   author User       @relation("StudyGroupPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments StudyGroupPostAttachment[]
 
   @@index([groupId, createdAt])
   @@index([authorId])
@@ -766,4 +771,41 @@ model StudyGroupJoinRequest {
 
   @@index([groupId])
   @@index([userId])
+}
+
+model ThreadAttachment {
+  id           String       @id @default(uuid())
+  threadId     String?
+  replyId      String?
+  key          String
+  url          String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  thread     Thread?      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reply      ThreadReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  uploadedBy User         @relation("ThreadAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([replyId])
+  @@index([uploadedById])
+}
+
+model StudyGroupPostAttachment {
+  id           String   @id @default(uuid())
+  postId       String
+  key          String
+  url          String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  post       StudyGroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation("GroupPostAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([uploadedById])
 }
