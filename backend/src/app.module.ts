@@ -4,6 +4,7 @@ import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './presentation/admin-users/users.module';
 import { AlumniModule } from './presentation/alumni/alumni.module';
 import { StudentsModule } from './presentation/students/students.module';
@@ -16,6 +17,9 @@ import { GeoHelpBoardModule } from './presentation/geo-help-board/geo-help-board
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     ServeStaticModule.forRoot({
       // Resolve to backend/uploads in both src and dist runtime layouts.
       rootPath: join(__dirname, '..', 'uploads'),
