@@ -136,3 +136,26 @@ function getErrorMessage(data: unknown, fallback: string): string {
 
 	return fallback;
 }
+
+export async function updateProfilePicture(
+  role: Exclude<UserRole, 'ADMIN'>,
+  file: File,
+): Promise<UserProfileData> {
+  const endpoint = profileEndpointByRole[role];
+  const formData = new FormData();
+  formData.append('profilePicture', file);
+
+  const response = await authFetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PUT',
+    body: formData,
+    // NOTE: do NOT set Content-Type header manually — the browser sets the
+    // correct multipart boundary automatically when body is a FormData instance
+  });
+
+  const data = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, 'Unable to update profile picture.'));
+  }
+
+  return (data as UserProfileData) ?? {};
+}

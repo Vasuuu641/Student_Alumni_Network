@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth';
 import { getAdminProfile, getCurrentUserProfile, updateAdminProfile, type AdminProfileData, type UserProfileData } from '../api/profile.api';
 import { listThreads, type Thread } from '../api/threads.api';
 import { listUserNotes, type Note } from '../api/notes.api';
+import { updateProfilePicture } from '../api/profile.api';
 import Button from '../components/Button';
 import {
   Mail,
@@ -14,6 +15,7 @@ import {
   ArrowLeft,
   Save,
   Shield,
+  Camera,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -74,6 +76,9 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminNotice, setAdminNotice] = useState('');
   const [adminError, setAdminError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+  const [pictureError, setPictureError] = useState('');
 
   const token = getAccessToken();
   const role = token ? getRoleFromAccessToken(token) : null;
@@ -215,7 +220,7 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
       }
     }
 
-    return (
+  return (
       <main className="profile-page">
         <button className="profile-back-button" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} />
@@ -346,6 +351,33 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
     profile.yearofGraduation ? `Class of ${profile.yearofGraduation}` : undefined,
   ].filter(Boolean) as string[];
 
+  async function handleProfilePictureSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !role || role === 'ADMIN') return;
+
+    const validTypes = ['image/jpeg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      setPictureError('Only JPEG and PNG images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPictureError('Image must be under 5MB.');
+      return;
+    }
+
+    try {
+      setIsUploadingPicture(true);
+      setPictureError('');
+      const updated = await updateProfilePicture(role, file);
+      setProfile((prev) => (prev ? { ...prev, profilePictureUrl: updated.profilePictureUrl } : prev));
+    } catch (error) {
+      setPictureError(error instanceof Error ? error.message : 'Unable to update profile picture.');
+    } finally {
+      setIsUploadingPicture(false);
+    }
+  }
+
   return (
     <main className="profile-page">
       <button
@@ -361,7 +393,12 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
         <div className="profile-header">
           <div className="profile-header__cover" aria-hidden="true" />
           <div className="profile-header__content">
-            <div className="profile-avatar">
+            <div
+              className={`profile-avatar ${isOwnProfile ? 'profile-avatar--editable' : ''}`}
+              onClick={() => isOwnProfile && fileInputRef.current?.click()}
+              role={isOwnProfile ? 'button' : undefined}
+              tabIndex={isOwnProfile ? 0 : undefined}
+            >
               {profilePictureSrc ? (
                 <img
                   src={profilePictureSrc}
@@ -373,8 +410,25 @@ export function ProfilePage({ isOwnProfile = true }: ProfilePageProps) {
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-            </div>
 
+              {isOwnProfile && (
+                <div className="profile-avatar__overlay">
+                  {isUploadingPicture ? <span>Uploading...</span> : <Camera size={20} />}
+                </div>
+              )}
+
+              {isOwnProfile && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="profile-avatar__file-input"
+                  onChange={handleProfilePictureSelect}
+                  disabled={isUploadingPicture}
+                />
+              )}
+            </div>
+            {pictureError && <p className="profile-avatar__error">{pictureError}</p>}
             <div className="profile-header__info">
               <h1 className="profile-name">{displayName}</h1>
               <p className="profile-headline">{profileHeadline}</p>
