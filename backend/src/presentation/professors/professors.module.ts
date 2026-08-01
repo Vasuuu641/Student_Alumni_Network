@@ -5,7 +5,6 @@ import { UpdateProfessorProfileUseCase } from '../../application/professors/upda
 import { PrismaProfessorRepository } from '../../infrastructure/repositories/prisma-professor.repository';
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma-user.repository';
 import { PrismaUserInterestProfileRepository } from '../../infrastructure/repositories/prisma-user-interest.repository';
-import { R2FileStorageService } from '../../infrastructure/services/file-storage.service';
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
 
@@ -18,11 +17,9 @@ import { AuthModule } from '../../auth/auth.module';
     PrismaProfessorRepository,
     PrismaUserRepository,
     PrismaUserInterestProfileRepository,
-    R2FileStorageService,
     { provide: 'ProfessorRepository', useClass: PrismaProfessorRepository },
     { provide: 'UserRepository', useClass: PrismaUserRepository },
     { provide: 'UserInterestProfileRepository', useClass: PrismaUserInterestProfileRepository },
-    { provide: 'FileStorageService', useClass: R2FileStorageService },
   ],
 })
 export class ProfessorsModule {}
