@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
+import {getErrorMessage, getErrorStatus} from '../../shared/utils/getErrorMessage';
 
 import { CreateThreadUseCase } from '../../application/threads/create-thread.usecase';
 import { GetThreadUseCase } from '../../application/threads/get-thread.usecase';
@@ -100,8 +101,8 @@ export class ThreadsController {
       return { threadId };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to create thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to create thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -135,8 +136,8 @@ export class ThreadsController {
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list threads',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to list threads',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -160,8 +161,8 @@ export class ThreadsController {
       return { thread: threadWithVote };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to get thread',
-        error.status || HttpStatus.NOT_FOUND,
+        getErrorMessage(error) || 'Failed to get thread',
+        getErrorStatus(error) || HttpStatus.NOT_FOUND,
       );
     }
   }
@@ -188,8 +189,8 @@ export class ThreadsController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to update thread status',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to update thread status',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -215,8 +216,8 @@ export class ThreadsController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to delete thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to delete thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -249,8 +250,8 @@ export class ThreadsController {
 
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to post reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to post reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -285,8 +286,8 @@ async listReplies(
     };
   } catch (error) {
     throw new HttpException(
-      error.message || 'Failed to list replies',
-      error.status || HttpStatus.BAD_REQUEST,
+      getErrorMessage(error) || 'Failed to list replies',
+      getErrorStatus(error) || HttpStatus.BAD_REQUEST,
     );
   }
 }
@@ -310,8 +311,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to edit reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to edit reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -334,8 +335,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to delete reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to delete reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -366,8 +367,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to vote on thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to vote on thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -399,8 +400,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to vote on reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to vote on reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }

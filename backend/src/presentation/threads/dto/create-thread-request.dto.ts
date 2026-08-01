@@ -5,7 +5,7 @@ export class CreateThreadRequestDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255, { message: 'Title cannot exceed 255 characters' })
-  title: string;
+  title!: string;
 
   @IsString()
   @IsOptional()
@@ -13,5 +13,5 @@ export class CreateThreadRequestDto {
 
   @IsEnum(ThreadPanel)
   @IsNotEmpty()
-  panel: ThreadPanel;
+  panel!: ThreadPanel;
 }
