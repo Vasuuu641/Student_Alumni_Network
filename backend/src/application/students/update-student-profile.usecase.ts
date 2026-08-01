@@ -6,6 +6,7 @@ import type { StudentRepository } from '../../domain/repositories/student.reposi
 import { Student } from '../../domain/entities/student.entity';
 import { UserInterestProfile } from '../../domain/entities/user-interest.entity';
 import type { UserInterestProfileRepository } from '../../domain/repositories/user-interest.repository';
+import { PROFILE_PICTURE_UPLOAD_OPTIONS } from '../../shared/constants/upload_limits';
 
 interface UpdateStudentProfileDTO {
   firstName?: string;
@@ -87,7 +88,12 @@ export class UpdateStudentProfileUseCase {
           size: profilePicture.size,
         };
 
-        const newFileUploaded = await this.fileStorageService.uploadFile('student-profiles', userId, fileRequest);
+        const newFileUploaded = await this.fileStorageService.uploadFile
+        ('student-profiles', 
+          userId, 
+          fileRequest, 
+          PROFILE_PICTURE_UPLOAD_OPTIONS,
+        );
         profilePictureUrl = newFileUploaded;
 
         const updatedStudent = new Student(

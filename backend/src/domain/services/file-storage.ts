@@ -5,23 +5,19 @@ export interface FileUploadRequest {
   size: number;
 }
 
+export interface FileUploadOptions {
+  allowedMimeTypes: string[];
+  maxSizeBytes: number;
+}
+
 export interface FileStorageService {
-  /**
-   * Upload a file and return the URL/path where it can be accessed
-   */
   uploadFile(
-    category: string, // e.g., 'student-profiles', 'alumni-profiles'
+    category: string,
     userId: string,
-    file: FileUploadRequest
+    file: FileUploadRequest,
+    options: FileUploadOptions,
   ): Promise<string>;
 
-  /**
-   * Delete a file by its URL/path
-   */
   deleteFile(fileUrl: string): Promise<void>;
-
-  /**
-   * Check if a file exists
-   */
   fileExists(fileUrl: string): Promise<boolean>;
 }

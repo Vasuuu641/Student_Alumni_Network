@@ -8,6 +8,7 @@ import { UserInterestProfile } from '../../domain/entities/user-interest.entity'
 import type { UserInterestProfileRepository } from '../../domain/repositories/user-interest.repository';
 import type { FileStorageService } from '../../domain/services/file-storage';
 import { FileUploadRequest } from '../../domain/services/file-storage';
+import { PROFILE_PICTURE_UPLOAD_OPTIONS } from '../../shared/constants/upload_limits';
 
 export interface UpdateAlumniProfileRequest {
   firstName?: string;
@@ -97,7 +98,8 @@ export class UpdateAlumniProfileUseCase {
         newFileUploaded = await this.fileStorageService.uploadFile(
           'alumni-profiles',
           userId,
-          fileRequest
+          fileRequest,
+          PROFILE_PICTURE_UPLOAD_OPTIONS,
         );
         profilePictureUrl = newFileUploaded;
 
