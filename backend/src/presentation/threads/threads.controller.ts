@@ -12,7 +12,11 @@ import {
   HttpStatus,
   Logger,
   Inject,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import * as multer from 'multer';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import {getErrorMessage, getErrorStatus} from '../../shared/utils/getErrorMessage';
@@ -85,18 +89,29 @@ export class ThreadsController {
    */
   @Post()
   @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FilesInterceptor('attachments', 5, { limits: { fileSize: 10 * 1024 * 1024 } })) // Limit to 5 files, each max 10MB
   async createThread(
     @Req() request: any,
     @Body() body: CreateThreadRequestDto,
+    @UploadedFiles() uploadedFiles?: multer.File[],
   ): Promise<{ threadId: string }> {
     try {
       const { userId, role } = request.user;
+
+      const attachments = (uploadedFiles ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
+
       const threadId = await this.createThreadUseCase.execute(
         userId,
         role,
         body.title,
         body.description ?? null,
         body.panel,
+        attachments,
       );
       return { threadId };
     } catch (error) {
@@ -228,13 +243,21 @@ export class ThreadsController {
    */
   @Post(':id/replies')
   @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FilesInterceptor('attachments', 5, { limits: { fileSize: 10 * 1024 * 1024 } })) // Limit to 5 files, each max 10MB
   async postReply(
     @Req() request: any,
     @Param('id') threadId: string,
     @Body() body: PostReplyRequestDto,
+    @UploadedFiles() uploadedFiles?: multer.File[],
   ) {
     try {
       const { userId } = request.user;
+      const attachments = (uploadedFiles ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
       const reply = await this.postReplyUseCase.execute(
         threadId,
         userId,
