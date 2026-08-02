@@ -15,6 +15,7 @@ import { ListRepliesUseCase } from '../../application/threads/list-replies.useca
 import { PrismaThreadRepository } from '../../infrastructure/repositories/prisma-thread.repository';
 import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/prisma-thread-reply.repository';
 import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/prisma-thread-vote.repository';
+import { PrismaThreadAttachmentRepository } from '../../infrastructure/repositories/prisma-thread-attachment.repository';
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
@@ -43,6 +44,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PrismaThreadRepository,
     PrismaThreadReplyRepository,
     PrismaThreadVoteRepository,
+    PrismaThreadAttachmentRepository,
 
     // LLM service
     CohereThreadLLMService,
@@ -52,6 +54,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     { provide: 'ThreadRepository', useClass: PrismaThreadRepository },
     { provide: 'ThreadReplyRepository', useClass: PrismaThreadReplyRepository },
     { provide: 'ThreadVoteRepository', useClass: PrismaThreadVoteRepository },
+    { provide: 'ThreadAttachmentRepository', useClass: PrismaThreadAttachmentRepository },
     { provide: 'ThreadLLMService', useClass: CohereThreadLLMService },
 
     // Gateway + realtime publisher
