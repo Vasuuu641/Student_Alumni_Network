@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/repositories/thread.repository';
+import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
+import type {FileStorageService, FileUploadRequest} from 'src/domain/services/file-storage';
+import {THREAD_ATTACHMENT_UPLOAD_OPTIONS} from 'src/shared/constants/upload_limits';
 import { ThreadReply, ReplyStatus } from 'src/domain/entities/thread.entity';
 import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';
 import { NotificationType } from 'src/domain/entities/notification.entity';
@@ -14,6 +17,8 @@ export class PostReplyUseCase {
   constructor(
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
     @Inject('ThreadReplyRepository') private readonly replyRepository: ThreadReplyRepository,
+    @Inject('ThreadAttachmentRepository') private readonly threadAttachmentRepository: ThreadAttachmentRepository,
+    @Inject('FileStorageService') private readonly fileStorageService: FileStorageService,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
     private readonly eligibilityService: NotificationEligibilityService,
     private readonly mentorClusteringService: MentorClusteringService,
@@ -26,6 +31,7 @@ export class PostReplyUseCase {
     userId: string,
     content: string,
     parentReplyId: string | null,
+    attachments: FileUploadRequest[] = [],
   ): Promise<ThreadReply> {
     const thread = await this.threadRepository.findById(threadId);
 
@@ -53,6 +59,29 @@ export class PostReplyUseCase {
       isAuthoredBy: (checkUserId: string) => userId === checkUserId,
       isDeleted: () => false,
     });
+
+    if (attachments?.length) {
+      await Promise.all(
+        attachments.map(async (file) => {
+          const url = await this.fileStorageService.uploadFile(
+            'thread',
+            userId,
+            file,
+            THREAD_ATTACHMENT_UPLOAD_OPTIONS,
+          );
+          const key = url.substring(url.indexOf('/thread/') + 1);
+          await this.threadAttachmentRepository.create({
+            threadId: null,
+            replyId: reply.id,
+            key,
+            url,
+            mimeType: file.mimeType,
+            size: file.size,
+            uploadedById: userId,
+          });
+        }),
+      );
+    }
 
     await this.threadRepository.incrementReplyCount(threadId);
 
