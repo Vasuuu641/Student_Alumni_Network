@@ -84,6 +84,8 @@ export function ThreadsPage() {
 	const [toast, setToast] = useState<string | null>(null)
 	const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
 
+	const [createAttachments, setCreateAttachments] = useState<File[]>([])
+
 	useEffect(() => {
 		if (!token) {
 			navigate('/login', { replace: true })
@@ -265,11 +267,13 @@ export function ThreadsPage() {
 				title,
 				description: description || undefined,
 				panel: activePanel,
+				attachments: createAttachments,
 			})
 
 			setShowCreateModal(false)
 			setCreateTitle('')
 			setCreateDescription('')
+			setCreateAttachments([])
 			setSimilarThreads([])
 
 			await fetchThreads()
@@ -470,6 +474,22 @@ export function ThreadsPage() {
 									onChange={(e) => setCreateDescription(e.target.value)}
 									placeholder="Share more details..."
 								/>
+							</label>
+
+							<label>
+								<span>Attachments (optional)</span>
+								<input
+									type="file"
+									accept="image/jpeg,image/png,application/pdf"
+									multiple
+									onChange={(e) => {
+										const files = Array.from(e.target.files ?? []).slice(0, 5)
+										setCreateAttachments(files)
+									}}
+								/>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
 							</label>
 
 							<section className="similarity-panel">

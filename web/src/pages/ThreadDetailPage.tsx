@@ -103,6 +103,7 @@ export function ThreadDetailPage() {
   const [replyingTo, setReplyingTo] = useState<ThreadReply | null>(null)
   const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
   const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([])
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -783,6 +784,19 @@ export function ThreadDetailPage() {
                   placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
                   disabled={!canReplyToThread}
                 />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  multiple
+                  disabled={!canReplyToThread}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []).slice(0, 5)
+                    setReplyAttachments(files)
+                  }}
+                />
+                {replyAttachments.length > 0 && (
+                  <small>{replyAttachments.length} file(s) selected</small>
+                )}
                 <button
                   className="threads-primary-btn"
                   disabled={postingReply || !replyDraft.trim() || !canReplyToThread}

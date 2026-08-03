@@ -81,8 +81,17 @@ export async function createThread(payload: {
 	title: string
 	description?: string
 	panel: ThreadPanel
+	attachments?: File[]
 }): Promise<{ threadId: string }> {
-	const { data } = await api.post<{ threadId: string }>('/threads', payload)
+	const formData = new FormData()
+	formData.append('title', payload.title)
+	if (payload.description) formData.append('description', payload.description)
+	formData.append('panel', payload.panel)
+	;(payload.attachments ?? []).forEach((file) => {
+		formData.append('attachments', file)
+	})
+
+	const { data } = await api.post<{ threadId: string }>('/threads', formData)
 	return data
 }
 
@@ -123,12 +132,16 @@ export async function postReply(payload: {
 	threadId: string
 	content: string
 	parentReplyId?: string
+	attachments?: File[]
 }): Promise<{ reply: ThreadReply }> {
-	const { data } = await api.post<{ reply: ThreadReply }>(`/threads/${payload.threadId}/replies`, {
-		content: payload.content,
-		parentReplyId: payload.parentReplyId,
+	const formData = new FormData()
+	formData.append('content', payload.content)
+	if (payload.parentReplyId) formData.append('parentReplyId', payload.parentReplyId)
+	;(payload.attachments ?? []).forEach((file) => {
+		formData.append('attachments', file)
 	})
 
+	const { data } = await api.post<{ reply: ThreadReply }>(`/threads/${payload.threadId}/replies`, formData)
 	return data
 }
 
