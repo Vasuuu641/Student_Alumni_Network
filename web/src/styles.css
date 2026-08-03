@@ -5367,6 +5367,36 @@
 
   .thread-reply-box textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.18); }
 
+  .thread-composer-field {
+    position: relative;
+  }
+
+  .thread-composer-field textarea {
+    width: 100%;
+    padding-bottom: 3rem;
+    padding-left: 3rem;
+    box-sizing: border-box;
+  }
+
+  .thread-attach-btn.thread-composer-field__attach {
+    position: absolute;
+    left: 0.65rem;
+    bottom: 0.65rem;
+    z-index: 1;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  .thread-composer-field--create textarea {
+    min-height: 7.4rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .thread-composer-field--create .thread-attach-btn.thread-composer-field__attach {
+    left: 0.65rem;
+    right: auto;
+  }
+
   /* ─────────────────────────────────────────────────────────────
      THREAD REPLIES — Reddit-style connector rails
      Replace the existing thread reply classes in your global CSS
@@ -5720,6 +5750,11 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+  }
+
+  .thread-reply-edit-actions .threads-primary-btn,
+  .thread-reply-edit-actions .threads-secondary-btn {
+    min-width: 5.5rem;
   }
 
   /* ── Reply-to target banner ── */

@@ -471,41 +471,40 @@ export function ThreadsPage() {
 
 							<label>
 								<span>Content</span>
-								<textarea
-									value={createDescription}
-									onChange={(e) => setCreateDescription(e.target.value)}
-									placeholder="Share more details..."
-								/>
-							</label>
-
-							<div className="thread-attach-row">
-								<input
-									ref={createFileInputRef}
-									type="file"
-									accept="image/jpeg,image/png,application/pdf"
-									multiple
-									className="thread-reply-file-input"
-									onChange={(e) => {
-										const files = Array.from(e.target.files ?? []).slice(0, 5)
-										setCreateAttachments(files)
-									}}
-								/>
-								<button
-									type="button"
-									className="thread-attach-btn"
-									onClick={() => createFileInputRef.current?.click()}
-									aria-label="Attach files"
-									title="Attach image or PDF"
-								>
-									<Paperclip size={16} />
-									{createAttachments.length > 0 && (
-										<span className="thread-attach-count">{createAttachments.length}</span>
-									)}
-								</button>
+								<div className="thread-composer-field thread-composer-field--create">
+									<textarea
+										value={createDescription}
+										onChange={(e) => setCreateDescription(e.target.value)}
+										placeholder="Share more details..."
+									/>
+									<input
+										ref={createFileInputRef}
+										type="file"
+										accept="image/jpeg,image/png,application/pdf"
+										multiple
+										className="thread-reply-file-input"
+										onChange={(e) => {
+											const files = Array.from(e.target.files ?? []).slice(0, 5)
+											setCreateAttachments(files)
+										}}
+									/>
+									<button
+										type="button"
+										className="thread-attach-btn thread-composer-field__attach"
+										onClick={() => createFileInputRef.current?.click()}
+										aria-label="Attach files"
+										title="Attach image or PDF"
+									>
+										<Paperclip size={16} />
+										{createAttachments.length > 0 && (
+											<span className="thread-attach-count">{createAttachments.length}</span>
+										)}
+									</button>
+								</div>
 								{createAttachments.length > 0 && (
 									<small>{createAttachments.length} file(s) selected</small>
 								)}
-							</div>
+							</label>
 
 							{/* <label>
 								<span>Attachments (optional)</span>
