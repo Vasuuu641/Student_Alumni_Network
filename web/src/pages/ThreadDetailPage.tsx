@@ -356,7 +356,8 @@ export function ThreadDetailPage() {
   }
 
   async function handlePostReply() {
-    if (!threadId || !replyDraft.trim()) return
+    if (!threadId) return
+    if (!replyDraft.trim() && replyAttachments.length === 0) return
 
     try {
       setPostingReply(true)
@@ -526,8 +527,8 @@ export function ThreadDetailPage() {
                 <div className="thread-reply-edit-actions">
                   <button
                     className="threads-primary-btn"
-                    onClick={() => void handleSaveEditedReply(reply.id)}
-                    disabled={!editingReplyDraft.trim()}
+                    disabled={postingReply || (!replyDraft.trim() && replyAttachments.length === 0) || !canReplyToThread}
+                    onClick={() => void handlePostReply()}
                   >
                     Save
                   </button>

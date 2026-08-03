@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/repositories/thread.repository';
 import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
 import type {FileStorageService, FileUploadRequest} from 'src/domain/services/file-storage';
@@ -11,6 +11,7 @@ import { InterestSignalType } from 'src/domain/entities/user-interest.entity';
 import type { UserInterestSignalRepository } from 'src/domain/repositories/user-interest.repository';
 import { ThreadPanel } from 'src/domain/entities/thread.entity';
 import { MentorClusteringService } from 'src/infrastructure/ai/cohere/mentor-clustering.service';
+import { ThreadAttachment } from 'src/domain/entities/threadAttachment.entity';
 
 @Injectable()
 export class PostReplyUseCase {
@@ -34,6 +35,11 @@ export class PostReplyUseCase {
     attachments: FileUploadRequest[] = [],
   ): Promise<ThreadReply> {
     const thread = await this.threadRepository.findById(threadId);
+
+    if (!content?.trim() && !attachments?.length) {
+    throw new BadRequestException('Reply must include text or at least one attachment');
+    }
+
 
     if (!thread) {
       throw new NotFoundException(`Thread ${threadId} not found`);
@@ -60,21 +66,23 @@ export class PostReplyUseCase {
       isDeleted: () => false,
     });
 
+    let createdAttachments: ThreadAttachment[] = [];
+
     if (attachments?.length) {
-      await Promise.all(
+      createdAttachments = await Promise.all(
         attachments.map(async (file) => {
-          const url = await this.fileStorageService.uploadFile(
+          const file_url = await this.fileStorageService.uploadFile(
             'thread',
             userId,
             file,
             THREAD_ATTACHMENT_UPLOAD_OPTIONS,
           );
-          const key = url.substring(url.indexOf('/thread/') + 1);
-          await this.threadAttachmentRepository.create({
+          const key = file_url.substring(file_url.indexOf('/thread/') + 1);
+          return this.threadAttachmentRepository.create({
             threadId: null,
             replyId: reply.id,
             key,
-            url,
+            url: file_url,
             mimeType: file.mimeType,
             size: file.size,
             uploadedById: userId,
@@ -82,7 +90,6 @@ export class PostReplyUseCase {
         }),
       );
     }
-
     await this.threadRepository.incrementReplyCount(threadId);
 
     if (thread.authorId !== userId) {
@@ -162,7 +169,7 @@ export class PostReplyUseCase {
       }
     }
 
-    return reply;
+    return Object.assign(reply, { attachments: createdAttachments });
   }
 
   private generateUniqueId(): string {

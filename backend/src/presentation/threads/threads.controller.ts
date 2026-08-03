@@ -261,8 +261,9 @@ export class ThreadsController {
       const reply = await this.postReplyUseCase.execute(
         threadId,
         userId,
-        body.content,
+        body.content ?? null,
         body.parentReplyId ?? null,
+        attachments,
       );
 
       const [replyWithAuthor] = await this.withReplyAuthorNames([reply]);
