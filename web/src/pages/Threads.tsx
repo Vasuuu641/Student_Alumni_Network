@@ -8,6 +8,7 @@ import {
 	Plus,
 	Search,
 	X,
+	Paperclip,
 } from 'lucide-react'
 import {
 	createThread,
@@ -83,6 +84,9 @@ export function ThreadsPage() {
 
 	const [toast, setToast] = useState<string | null>(null)
 	const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
+
+	const [createAttachments, setCreateAttachments] = useState<File[]>([])
+	const createFileInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (!token) {
@@ -265,11 +269,13 @@ export function ThreadsPage() {
 				title,
 				description: description || undefined,
 				panel: activePanel,
+				attachments: createAttachments,
 			})
 
 			setShowCreateModal(false)
 			setCreateTitle('')
 			setCreateDescription('')
+			setCreateAttachments([])
 			setSimilarThreads([])
 
 			await fetchThreads()
@@ -465,12 +471,56 @@ export function ThreadsPage() {
 
 							<label>
 								<span>Content</span>
-								<textarea
-									value={createDescription}
-									onChange={(e) => setCreateDescription(e.target.value)}
-									placeholder="Share more details..."
-								/>
+								<div className="thread-composer-field thread-composer-field--create">
+									<textarea
+										value={createDescription}
+										onChange={(e) => setCreateDescription(e.target.value)}
+										placeholder="Share more details..."
+									/>
+									<input
+										ref={createFileInputRef}
+										type="file"
+										accept="image/jpeg,image/png,application/pdf"
+										multiple
+										className="thread-reply-file-input"
+										onChange={(e) => {
+											const files = Array.from(e.target.files ?? []).slice(0, 5)
+											setCreateAttachments(files)
+										}}
+									/>
+									<button
+										type="button"
+										className="thread-attach-btn thread-composer-field__attach"
+										onClick={() => createFileInputRef.current?.click()}
+										aria-label="Attach files"
+										title="Attach image or PDF"
+									>
+										<Paperclip size={16} />
+										{createAttachments.length > 0 && (
+											<span className="thread-attach-count">{createAttachments.length}</span>
+										)}
+									</button>
+								</div>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
 							</label>
+
+							{/* <label>
+								<span>Attachments (optional)</span>
+								<input
+									type="file"
+									accept="image/jpeg,image/png,application/pdf"
+									multiple
+									onChange={(e) => {
+										const files = Array.from(e.target.files ?? []).slice(0, 5)
+										setCreateAttachments(files)
+									}}
+								/>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
+							</label>*/}
 
 							<section className="similarity-panel">
 								<p className="similarity-panel__headline">{similarityHeadline}</p>

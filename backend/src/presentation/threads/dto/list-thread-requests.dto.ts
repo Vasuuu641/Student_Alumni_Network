@@ -5,7 +5,7 @@ import type { ThreadSortBy } from 'src/domain/repositories/thread.repository';
 
 export class ListThreadsRequestDto {
   @IsEnum(ThreadPanel)
-  panel: ThreadPanel;
+  panel!: ThreadPanel;
 
   @IsOptional()
   @IsEnum(['newest', 'mostReplies', 'topVoted'])

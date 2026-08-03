@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2 } from 'lucide-react'
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2, Paperclip } from 'lucide-react'
 import {
   createThreadsSocket,
   deleteReply,
@@ -103,6 +103,8 @@ export function ThreadDetailPage() {
   const [replyingTo, setReplyingTo] = useState<ThreadReply | null>(null)
   const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
   const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([])
+  const replyFileInputRef = useRef<HTMLInputElement>(null)
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -354,7 +356,8 @@ export function ThreadDetailPage() {
   }
 
   async function handlePostReply() {
-    if (!threadId || !replyDraft.trim()) return
+    if (!threadId) return
+    if (!replyDraft.trim() && replyAttachments.length === 0) return
 
     try {
       setPostingReply(true)
@@ -362,10 +365,12 @@ export function ThreadDetailPage() {
         threadId,
         content: replyDraft.trim(),
         parentReplyId: replyingTo?.id,
+        attachments: replyAttachments,
       })
       appendReplyIfMissing(reply)
       setReplyDraft('')
       setReplyingTo(null)
+      setReplyAttachments([])
     } finally {
       setPostingReply(false)
     }
@@ -472,17 +477,12 @@ export function ThreadDetailPage() {
 
     return (
       <div key={reply.id} className="thread-reply-tree-node">
-
-        {/* ── Main row: [rail col] [content] ── */}
         <div className="thread-reply-item">
-
-          {/* Rail column: avatar on top, then vertical line + collapse icon below */}
           <div className="thread-reply-rail">
             <div className="thread-reply-avatar" aria-hidden="true">
               {avatarInitials}
             </div>
 
-            {/* Line + icon only rendered when this reply has children */}
             {hasChildren && (
               <div
                 className="thread-reply-rail-wrap"
@@ -492,9 +492,7 @@ export function ThreadDetailPage() {
                 aria-label={isCollapsed ? 'Expand replies' : 'Collapse replies'}
                 title={isCollapsed ? 'Expand replies' : 'Collapse replies'}
               >
-                {/* The vertical line — flex:1 so it stretches to match content height */}
                 <div className="thread-reply-rail-line" />
-                {/* ± icon anchored to the bottom of the line */}
                 <div className="thread-reply-collapse-icon">
                   {isCollapsed ? '+' : '−'}
                 </div>
@@ -502,7 +500,6 @@ export function ThreadDetailPage() {
             )}
           </div>
 
-          {/* Content area */}
           <div className="thread-reply-content">
             <div className="thread-reply-head">
               <div className="thread-meta-row">
@@ -521,13 +518,14 @@ export function ThreadDetailPage() {
                 />
                 <div className="thread-reply-edit-actions">
                   <button
+                    type="button"
                     className="threads-primary-btn"
+                    disabled={postingReply || !editingReplyDraft.trim()}
                     onClick={() => void handleSaveEditedReply(reply.id)}
-                    disabled={!editingReplyDraft.trim()}
                   >
                     Save
                   </button>
-                  <button className="threads-secondary-btn" onClick={cancelEditReply}>
+                  <button type="button" className="threads-secondary-btn" onClick={cancelEditReply}>
                     Cancel
                   </button>
                 </div>
@@ -536,8 +534,29 @@ export function ThreadDetailPage() {
               <>
                 <p>{reply.content}</p>
 
+                {reply.attachments && reply.attachments.length > 0 && (
+                  <div className="thread-attachments thread-attachments--reply">
+                    {reply.attachments.map((attachment) => (
+                      attachment.mimeType.startsWith('image/') ? (
+                        <a key={attachment.id} href={attachment.url} target="_blank" rel="noopener noreferrer">
+                          <img src={attachment.url} alt="Reply attachment" className="thread-attachment-image thread-attachment-image--small" />
+                        </a>
+                      ) : (
+                        <a
+                          key={attachment.id}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="thread-attachment-file"
+                        >
+                          📄 View attached document
+                        </a>
+                      )
+                    ))}
+                  </div>
+                )}
+
                 <div className="thread-reply-actions-row">
-                  {/* Inline vote buttons */}
                   <div className="thread-votes thread-votes--reply-inline">
                     <button
                       type="button"
@@ -561,7 +580,6 @@ export function ThreadDetailPage() {
                     <span>{reply.downvoteCount ?? 0}</span>
                   </div>
 
-                  {/* Reply / Edit / Delete */}
                   <div className="thread-reply-owner-actions thread-reply-owner-actions--inline">
                     {canReplyToThread && (
                       <button
@@ -603,7 +621,6 @@ export function ThreadDetailPage() {
           </div>
         </div>
 
-        {/* "N replies collapsed" restore link — only visible when collapsed */}
         {hasChildren && isCollapsed && (
           <button
             type="button"
@@ -614,23 +631,13 @@ export function ThreadDetailPage() {
           </button>
         )}
 
-        {/* ── Children block — hidden when collapsed ── */}
         {hasChildren && !isCollapsed && (
           <div className="thread-reply-children">
             {children.map((child, i) => {
               const isLast = i === children.length - 1
               return (
                 <div key={child.id} className="thread-reply-kid-wrap">
-
-                  {/* Elbow gutter: SVG curve + continuing vertical line */}
                   <div className="thread-reply-kid-rail">
-                    {/*
-                      SVG elbow path:
-                        M16,0  — start at top-center (aligns with parent's rail line)
-                        L16,10 — go straight down
-                        Q16,18 24,18 — quadratic curve bending right
-                        L32,18 — horizontal arm pointing into child content
-                    */}
                     <svg
                       width="32"
                       height="20"
@@ -646,22 +653,14 @@ export function ThreadDetailPage() {
                       />
                     </svg>
 
-                    {/*
-                      Continuing vertical line between siblings.
-                      Runs from top:20px (below the elbow) to bottom:0,
-                      so it connects this child's elbow to the next sibling's elbow.
-                      Omitted on the last child so the line doesn't dangle.
-                    */}
                     {!isLast && (
                       <div className="thread-reply-kid-vline" />
                     )}
                   </div>
 
-                  {/* Recursive child node */}
                   <div className="thread-reply-kid-content">
                     {renderReplyNode(child, depth + 1)}
                   </div>
-
                 </div>
               )
             })}
@@ -742,6 +741,29 @@ export function ThreadDetailPage() {
                 <div className="thread-main" style={{ cursor: 'default' }}>
                   <h3>{thread.title}</h3>
                   {thread.description && <p>{thread.description}</p>}
+
+                  {thread.attachments && thread.attachments.length > 0 && (
+                    <div className="thread-attachments">
+                      {thread.attachments.map((attachment) => (
+                        attachment.mimeType.startsWith('image/') ? (
+                          <a key={attachment.id} href={attachment.url} target="_blank" rel="noopener noreferrer">
+                            <img src={attachment.url} alt="Thread attachment" className="thread-attachment-image" />
+                          </a>
+                        ) : (
+                          <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="thread-attachment-file"
+                          >
+                            📄 View attached document
+                          </a>
+                        )
+                      ))}
+                    </div>
+                  )}
+
                   <div className="thread-meta-row">
                     <span>By {threadAuthorLabel}</span>
                     <span>{formatRelativeDate(thread.createdAt)}</span>
@@ -772,18 +794,49 @@ export function ThreadDetailPage() {
                 {replyingTo && (
                   <div className="thread-reply-target">
                     Replying to {replyingTo.authorName ?? replyingTo.authorId.slice(0, 8)}
-                    <button className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
+                    <button type="button" className="threads-secondary-btn" onClick={() => setReplyingTo(null)}>
                       Cancel
                     </button>
                   </div>
                 )}
-                <textarea
-                  value={replyDraft}
-                  onChange={(e) => setReplyDraft(e.target.value)}
-                  placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
-                  disabled={!canReplyToThread}
-                />
+                <div className="thread-composer-field">
+                  <textarea
+                    value={replyDraft}
+                    onChange={(e) => setReplyDraft(e.target.value)}
+                    placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
+                    disabled={!canReplyToThread}
+                  />
+                  <input
+                    ref={replyFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,application/pdf"
+                    multiple
+                    disabled={!canReplyToThread}
+                    className="thread-reply-file-input"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []).slice(0, 5)
+                      setReplyAttachments(files)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="thread-attach-btn thread-composer-field__attach"
+                    disabled={!canReplyToThread}
+                    onClick={() => replyFileInputRef.current?.click()}
+                    aria-label="Attach files"
+                    title="Attach image or PDF"
+                  >
+                    <Paperclip size={16} />
+                    {replyAttachments.length > 0 && (
+                      <span className="thread-attach-count">{replyAttachments.length}</span>
+                    )}
+                  </button>
+                </div>
+                {replyAttachments.length > 0 && (
+                  <small>{replyAttachments.length} file(s) selected</small>
+                )}
                 <button
+                  type="button"
                   className="threads-primary-btn"
                   disabled={postingReply || !replyDraft.trim() || !canReplyToThread}
                   onClick={() => void handlePostReply()}

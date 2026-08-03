@@ -5367,6 +5367,36 @@
 
   .thread-reply-box textarea:focus { border-color: #7ea1ff; box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.18); }
 
+  .thread-composer-field {
+    position: relative;
+  }
+
+  .thread-composer-field textarea {
+    width: 100%;
+    padding-bottom: 3rem;
+    padding-left: 3rem;
+    box-sizing: border-box;
+  }
+
+  .thread-attach-btn.thread-composer-field__attach {
+    position: absolute;
+    left: 0.65rem;
+    bottom: 0.65rem;
+    z-index: 1;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  .thread-composer-field--create textarea {
+    min-height: 7.4rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .thread-composer-field--create .thread-attach-btn.thread-composer-field__attach {
+    left: 0.65rem;
+    right: auto;
+  }
+
   /* ─────────────────────────────────────────────────────────────
      THREAD REPLIES — Reddit-style connector rails
      Replace the existing thread reply classes in your global CSS
@@ -5722,6 +5752,11 @@
     gap: 0.45rem;
   }
 
+  .thread-reply-edit-actions .threads-primary-btn,
+  .thread-reply-edit-actions .threads-secondary-btn {
+    min-width: 5.5rem;
+  }
+
   /* ── Reply-to target banner ── */
   .thread-reply-target {
     display: flex;
@@ -5819,6 +5854,111 @@
     padding: 0.65rem 0.85rem; border-radius: 0.6rem; font-size: 0.87rem;
     z-index: 75; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
   }
+
+  .thread-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.thread-attachments--reply {
+  margin: 0.35rem 0;
+}
+
+.thread-attachment-image {
+  max-width: 16rem;
+  max-height: 12rem;
+  border-radius: 0.55rem;
+  border: 1px solid #dbe4f1;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.thread-attachment-image:hover {
+  transform: scale(1.02);
+}
+
+.thread-attachment-image--small {
+  max-width: 10rem;
+  max-height: 8rem;
+}
+
+.thread-attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #dbe4f1;
+  background: #f8fbff;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2f55d4;
+  text-decoration: none;
+}
+
+.thread-attachment-file:hover {
+  background: #eef4ff;
+}
+
+.thread-attach-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thread-reply-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.thread-attach-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid #dbe4f1;
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.thread-attach-btn:hover:not(:disabled) {
+  background: #eef4ff;
+  border-color: #bfd0f6;
+  color: #2f55d4;
+}
+
+.thread-attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thread-attach-count {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: #2f64f6;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.2rem;
+}
 
   /* ─────────────────────────────────────────────────────────────
      LLM PANEL

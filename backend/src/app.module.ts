@@ -14,12 +14,14 @@ import { NotificationsModule } from './presentation/notifications/notifications.
 import { ThreadsModule } from './presentation/threads/threads.module';
 import { StudyGroupsModule } from './presentation/study-groups/study-groups.module';
 import { GeoHelpBoardModule } from './presentation/geo-help-board/geo-help-board.module';
+import { FileStorageModule } from './infrastructure/services/file-storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    FileStorageModule,
     ServeStaticModule.forRoot({
       // Resolve to backend/uploads in both src and dist runtime layouts.
       rootPath: join(__dirname, '..', 'uploads'),

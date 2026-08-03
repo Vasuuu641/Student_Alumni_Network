@@ -8,7 +8,7 @@ import {
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
-import { FileStorageService, FileUploadRequest } from '../../domain/services/file-storage';
+import { FileStorageService, FileUploadRequest, FileUploadOptions } from '../../domain/services/file-storage';
 import { getErrorMessage } from '../../shared/utils/getErrorMessage';
 
 @Injectable()
@@ -16,8 +16,6 @@ export class R2FileStorageService implements FileStorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
-  private readonly validMimeTypes = ['image/jpeg', 'image/png'];
-  private readonly maxSize = 5 * 1024 * 1024; // 5MB
 
   constructor(private readonly config: ConfigService) {
     const accountId = this.config.getOrThrow<string>('R2_ACCOUNT_ID');
@@ -38,18 +36,19 @@ export class R2FileStorageService implements FileStorageService {
     category: string,
     userId: string,
     file: FileUploadRequest,
+    options: FileUploadOptions,
   ): Promise<string> {
-    if (!this.validMimeTypes.includes(file.mimeType)) {
-      throw new Error('Invalid file type. Only JPEG and PNG are allowed.');
+    if (!options.allowedMimeTypes.includes(file.mimeType)) {
+      throw new Error(`Invalid file type. Allowed types: ${options.allowedMimeTypes.join(', ')}`);
     }
-    if (file.size > this.maxSize) {
-      throw new Error('File size exceeds 5MB limit.');
+    if (file.size > options.maxSizeBytes) {
+      throw new Error(`File size exceeds ${Math.round(options.maxSizeBytes / (1024 * 1024))}MB limit.`);
     }
     if (!file.buffer || file.buffer.length === 0) {
       throw new Error('File buffer is empty.');
     }
 
-    const ext = this.getFileExtension(file.originalName);
+    const ext = this.getFileExtension(file.originalName, file.mimeType);
     const key = `${category}/${userId}-${Date.now()}-${randomUUID()}${ext}`;
 
     try {
@@ -72,11 +71,8 @@ export class R2FileStorageService implements FileStorageService {
   async deleteFile(fileUrl: string): Promise<void> {
     if (!fileUrl) return;
     const key = fileUrl.replace(`${this.publicUrl}/`, '');
-
     try {
-      await this.client.send(
-        new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
-      );
+      await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
     } catch (error: unknown) {
       throw new Error(`Failed to delete file at ${fileUrl}: ${getErrorMessage(error)}`);
     }
@@ -85,21 +81,22 @@ export class R2FileStorageService implements FileStorageService {
   async fileExists(fileUrl: string): Promise<boolean> {
     if (!fileUrl) return false;
     const key = fileUrl.replace(`${this.publicUrl}/`, '');
-
     try {
-      await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
-      );
+      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
       return true;
     } catch {
       return false;
     }
   }
 
-  private getFileExtension(filename: string): string {
+  private getFileExtension(filename: string, mimeType: string): string {
     const ext = filename.toLowerCase().split('.').pop();
-    if (ext === 'jpg' || ext === 'jpeg') return '.jpg';
-    if (ext === 'png') return '.png';
+    if (ext && ['jpg', 'jpeg', 'png', 'pdf', 'webp'].includes(ext)) {
+      return ext === 'jpeg' ? '.jpg' : `.${ext}`;
+    }
+    // Fallback based on mimeType if extension is missing/unreliable
+    if (mimeType === 'image/png') return '.png';
+    if (mimeType === 'application/pdf') return '.pdf';
     return '.jpg';
   }
 }

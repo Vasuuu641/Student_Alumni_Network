@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { ThreadRepository } from 'src/domain/repositories/thread.repository';
+import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
+import type {FileStorageService, FileUploadRequest} from 'src/domain/services/file-storage';
+import {THREAD_ATTACHMENT_UPLOAD_OPTIONS} from 'src/shared/constants/upload_limits';
 import { ThreadPanel, ThreadStatus } from 'src/domain/entities/thread.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
 import { Role } from 'src/domain/entities/authorized-user.entity';
@@ -13,6 +16,8 @@ import { PersonalizedNotificationFanoutService } from 'src/infrastructure/servic
 export class CreateThreadUseCase {
   constructor(
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
+    @Inject('ThreadAttachmentRepository') private readonly threadAttachmentRepository: ThreadAttachmentRepository,
+    @Inject('FileStorageService') private readonly fileStorageService: FileStorageService,
     @Inject('ThreadLLMService') private readonly threadLLMService: ThreadLLMService,
     private readonly mentorClusteringService: MentorClusteringService,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
@@ -25,6 +30,7 @@ export class CreateThreadUseCase {
     title: string,
     description: string | null,
     panel: ThreadPanel,
+    attachments: FileUploadRequest[] = [],
   ): Promise<string> {
     ThreadAccessPolicy.validatePanelAccess(userRole, panel);
 
@@ -47,6 +53,30 @@ export class CreateThreadUseCase {
       isOpen: () => true,
       canAcceptReplies: () => true,
     });
+
+    if (attachments?.length) {
+      await Promise.all(
+        attachments.map(async (file) => {
+          const file_url = await this.fileStorageService.uploadFile(
+            'thread',
+            userId,
+            file,
+            THREAD_ATTACHMENT_UPLOAD_OPTIONS,
+          );
+
+          const key = file_url.substring(file_url.indexOf('/thread/') + 1);
+          await this.threadAttachmentRepository.create({
+            threadId: thread.id,
+            replyId: null,
+            key: file.originalName,
+            url: file_url,
+            mimeType: file.mimeType,
+            size: file.size,
+            uploadedById: userId,
+          });
+        }),
+      );
+    }
 
     // Embed in background — don't await so user gets response immediately
     this.threadLLMService.embedThread(thread.id, title).catch((err) => {

@@ -6,6 +6,7 @@ import type { ProfessorRepository } from '../../domain/repositories/professor.re
 import { Professor } from '../../domain/entities/professor.entity';
 import { UserInterestProfile } from '../../domain/entities/user-interest.entity';
 import type { UserInterestProfileRepository } from '../../domain/repositories/user-interest.repository';
+import { PROFILE_PICTURE_UPLOAD_OPTIONS } from '../../shared/constants/upload_limits';
 
 interface UpdateProfessorProfileDTO {
   firstName?: string;
@@ -78,7 +79,13 @@ export class UpdateProfessorProfileUseCase {
         size: profilePicture.size,
       };
 
-      const newFileUploaded = await this.fileStorageService.uploadFile('professor-profiles', userId, fileRequest);
+     const newFileUploaded = await this.fileStorageService.uploadFile(
+       'professor-profiles',
+        userId,
+        fileRequest,
+        PROFILE_PICTURE_UPLOAD_OPTIONS,
+      );
+
       profilePictureUrl = newFileUploaded;
 
       const updatedProfessor = new Professor(
