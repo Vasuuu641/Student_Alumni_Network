@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2 } from 'lucide-react'
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2, Paperclip } from 'lucide-react'
 import {
   createThreadsSocket,
   deleteReply,
@@ -104,6 +104,7 @@ export function ThreadDetailPage() {
   const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
   const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
   const [replyAttachments, setReplyAttachments] = useState<File[]>([])
+  const replyFileInputRef = useRef<HTMLInputElement>(null)
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
   const repliesRef = useRef<ThreadReply[]>([])
@@ -363,10 +364,12 @@ export function ThreadDetailPage() {
         threadId,
         content: replyDraft.trim(),
         parentReplyId: replyingTo?.id,
+        attachments: replyAttachments,
       })
       appendReplyIfMissing(reply)
       setReplyDraft('')
       setReplyingTo(null)
+      setReplyAttachments([])
     } finally {
       setPostingReply(false)
     }
@@ -536,6 +539,28 @@ export function ThreadDetailPage() {
             ) : (
               <>
                 <p>{reply.content}</p>
+
+                {reply.attachments && reply.attachments.length > 0 && (
+                  <div className="thread-attachments thread-attachments--reply">
+                    {reply.attachments.map((attachment) => (
+                      attachment.mimeType.startsWith('image/') ? (
+                        <a key={attachment.id} href={attachment.url} target="_blank" rel="noopener noreferrer">
+                          <img src={attachment.url} alt="Reply attachment" className="thread-attachment-image thread-attachment-image--small" />
+                        </a>
+                      ) : (
+                        <a
+                          key={attachment.id}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="thread-attachment-file"
+                          >
+                          📄 View attached document
+                        </a>
+                      )
+                    ))}
+                  </div>
+                )}
 
                 <div className="thread-reply-actions-row">
                   {/* Inline vote buttons */}
@@ -743,7 +768,30 @@ export function ThreadDetailPage() {
                 <div className="thread-main" style={{ cursor: 'default' }}>
                   <h3>{thread.title}</h3>
                   {thread.description && <p>{thread.description}</p>}
-                  <div className="thread-meta-row">
+
+                  {thread.attachments && thread.attachments.length > 0 && (
+                    <div className="thread-attachments">
+                      {thread.attachments.map((attachment) => (
+                        attachment.mimeType.startsWith('image/') ? (
+                          <a key={attachment.id} href={attachment.url} target="_blank" rel="noopener noreferrer">
+                            <img src={attachment.url} alt="Thread attachment" className="thread-attachment-image" />
+                          </a>
+                        ) : (
+                          <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="thread-attachment-file"
+                          >
+                            📄 View attached document
+                          </a>
+                        )
+                      ))}
+                    </div>
+                  )}
+
+                    <div className="thread-meta-row">
                     <span>By {threadAuthorLabel}</span>
                     <span>{formatRelativeDate(thread.createdAt)}</span>
                     <span>{thread.replyCount} comments</span>
@@ -784,19 +832,36 @@ export function ThreadDetailPage() {
                   placeholder={canReplyToThread ? 'Share your thoughts...' : 'Thread is closed. Replies are disabled.'}
                   disabled={!canReplyToThread}
                 />
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf"
-                  multiple
-                  disabled={!canReplyToThread}
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []).slice(0, 5)
-                    setReplyAttachments(files)
-                  }}
-                />
-                {replyAttachments.length > 0 && (
-                  <small>{replyAttachments.length} file(s) selected</small>
-                )}
+                <div className="thread-attach-row">
+                  <input
+                    ref={replyFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,application/pdf"
+                    multiple
+                    disabled={!canReplyToThread}
+                    className="thread-reply-file-input"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []).slice(0, 5)
+                      setReplyAttachments(files)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="thread-attach-btn"
+                    disabled={!canReplyToThread}
+                    onClick={() => replyFileInputRef.current?.click()}
+                    aria-label="Attach files"
+                    title="Attach image or PDF"
+                  >
+                    <Paperclip size={16} />
+                    {replyAttachments.length > 0 && (
+                      <span className="thread-attach-count">{replyAttachments.length}</span>
+                    )}
+                  </button>
+                  {replyAttachments.length > 0 && (
+                    <small>{replyAttachments.length} file(s) selected</small>
+                  )}
+                </div>
                 <button
                   className="threads-primary-btn"
                   disabled={postingReply || !replyDraft.trim() || !canReplyToThread}

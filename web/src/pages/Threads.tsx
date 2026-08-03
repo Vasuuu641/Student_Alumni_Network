@@ -8,6 +8,7 @@ import {
 	Plus,
 	Search,
 	X,
+	Paperclip,
 } from 'lucide-react'
 import {
 	createThread,
@@ -85,6 +86,7 @@ export function ThreadsPage() {
 	const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
 
 	const [createAttachments, setCreateAttachments] = useState<File[]>([])
+	const createFileInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (!token) {
@@ -476,7 +478,36 @@ export function ThreadsPage() {
 								/>
 							</label>
 
-							<label>
+							<div className="thread-attach-row">
+								<input
+									ref={createFileInputRef}
+									type="file"
+									accept="image/jpeg,image/png,application/pdf"
+									multiple
+									className="thread-reply-file-input"
+									onChange={(e) => {
+										const files = Array.from(e.target.files ?? []).slice(0, 5)
+										setCreateAttachments(files)
+									}}
+								/>
+								<button
+									type="button"
+									className="thread-attach-btn"
+									onClick={() => createFileInputRef.current?.click()}
+									aria-label="Attach files"
+									title="Attach image or PDF"
+								>
+									<Paperclip size={16} />
+									{createAttachments.length > 0 && (
+										<span className="thread-attach-count">{createAttachments.length}</span>
+									)}
+								</button>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
+							</div>
+
+							{/* <label>
 								<span>Attachments (optional)</span>
 								<input
 									type="file"
@@ -490,7 +521,7 @@ export function ThreadsPage() {
 								{createAttachments.length > 0 && (
 									<small>{createAttachments.length} file(s) selected</small>
 								)}
-							</label>
+							</label>*/}
 
 							<section className="similarity-panel">
 								<p className="similarity-panel__headline">{similarityHeadline}</p>

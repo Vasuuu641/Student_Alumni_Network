@@ -27,6 +27,14 @@ export interface Thread {
 	voteScore: number
 	createdAt: string
 	updatedAt: string
+	attachments?: ThreadAttachment[]
+}
+
+export interface ThreadAttachment {
+	id: string
+	url: string
+	mimeType: string
+	size: number
 }
 
 export interface ThreadReply {
@@ -44,6 +52,7 @@ export interface ThreadReply {
 	parentReplyId: string | null
 	createdAt: string
 	updatedAt: string
+	attachments?: ThreadAttachment[]
 }
 
 export interface SimilarThread {
