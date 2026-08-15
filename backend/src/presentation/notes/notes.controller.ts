@@ -42,6 +42,12 @@ import { UpdateNoteRequestDto } from './dto/update-note-request.dto';
 import { ShareNoteRequest } from './dto/share-note-request.dto';
 import { UpdateShareRoleRequestDto } from './dto/update-share-role-request.dto';
 
+// File upload
+import { UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import * as multer from 'multer';
+import { UploadNoteImageUseCase } from '../../application/notes/upload-note-image.usecase';
+
 @Controller('notes')
 @Roles(Role.STUDENT, Role.PROFESSOR)
 export class NotesController {
@@ -66,6 +72,7 @@ export class NotesController {
     private readonly listNoteCollaboratorsUseCase: ListNoteCollaboratorsUseCase,
     @Inject('NotesRealtimePublisher')
     private readonly notesRealtimePublisher: NotesRealtimePublisher,
+    private readonly uploadNoteImageUseCase: UploadNoteImageUseCase,
   ) {}
 
   /**
@@ -199,6 +206,41 @@ export class NotesController {
       }
       throw new HttpException(
         this.getErrorMessage(error, 'Failed to update note'),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * POST /notes/:id/images
+   * Upload an image for inline embedding in the note editor.
+   * Returns the public URL — the frontend inserts it into contentJson.
+   */
+  @Post(':id/images')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadImage(
+    @Req() request: any,
+    @Param('id') noteId: string,
+    @UploadedFile() file?: multer.File,
+  ): Promise<{ url: string }> {
+    try {
+      if (!file) {
+        throw new HttpException('No image file provided', HttpStatus.BAD_REQUEST);
+      }
+
+      const userId = request.user.userId;
+      const url = await this.uploadNoteImageUseCase.execute(noteId, userId, {
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      });
+
+      return { url };
+    } catch (error) {
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to upload image'),
         HttpStatus.BAD_REQUEST,
       );
     }
