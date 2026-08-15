@@ -11,6 +11,7 @@ import { PrismaStudyGroupPostRepository } from '../../infrastructure/repositorie
 import { PrismaStudyGroupInviteRepository } from '../../infrastructure/repositories/prisma-study-group-invite.repository';
 import { PrismaStudyGroupJoinRequestRepository } from '../../infrastructure/repositories/prisma-study-group-join-request.repository';
 import { PrismaStudyGroupUserArchiveRepository } from '../../infrastructure/repositories/prisma-study-group-user-archive.repository';
+import { PrismaStudyGroupPostAttachmentRepository } from '../../infrastructure/repositories/prisma-study-group-post-attachment.repository';
 import { CohereStudyGroupRecommendationService } from '../../infrastructure/ai/cohere/cohere-study-group-recommendation.service';
 
 import { FormGroupUseCase } from '../../application/study-groups/form-group.usecase';
@@ -36,6 +37,7 @@ import { RecommendGroupsUseCase } from '../../application/study-groups/recommend
 import { DeleteGroupUseCase } from '../../application/study-groups/delete-group.usecase';
 import { ListArchivedGroupsUseCase } from '../../application/study-groups/list-archived-groups.usecase';
 import { UnarchiveGroupUseCase } from '../../application/study-groups/unarchive-group.usecase';
+
 
 import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.gateway';
 
@@ -74,6 +76,7 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     PrismaStudyGroupJoinRequestRepository,
     PrismaStudyGroupUserArchiveRepository,
     CohereStudyGroupRecommendationService,
+    PrismaStudyGroupPostAttachmentRepository,
 
     // WebSocket gateway
     StudyGroupsGateway,
@@ -87,6 +90,7 @@ import { StudyGroupsGateway } from '../../infrastructure/websocket/study-groups.
     { provide: 'StudyGroupUserArchiveRepository', useClass: PrismaStudyGroupUserArchiveRepository },
     { provide: 'StudyGroupRecommendationService', useClass: CohereStudyGroupRecommendationService },
     { provide: 'StudyGroupsRealtimePublisher', useClass: StudyGroupsGateway },
+    { provide: 'StudyGroupPostAttachmentRepository', useClass: PrismaStudyGroupPostAttachmentRepository },
   ],
   controllers: [
     // controller wired to these use-cases

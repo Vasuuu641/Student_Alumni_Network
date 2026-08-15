@@ -26,6 +26,10 @@ import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
 
+import { UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import * as multer from 'multer';
+
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { JoinGroupRequestDto } from './dto/join-group-request.dto';
@@ -251,11 +255,29 @@ export class StudyGroupsController {
   @Post(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')
-  async createPost(@Req() request: any, @Param('id') id: string, @Body() body: CreatePostDto) {
+  @UseInterceptors(FilesInterceptor('attachments', 5, { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async createPost(
+    @Req() request: any,
+    @Param('id') id: string,
+    @Body() body: CreatePostDto,
+    @UploadedFiles() uploadedFiles?: multer.File[],
+  ) {
     const authorId = request.user?.userId;
-    return this.createPostUseCase.execute({ studyGroupId: id, authorId, content: body.content });
-  }
+    const attachments = (uploadedFiles ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
 
+    return this.createPostUseCase.execute({
+      studyGroupId: id,
+      authorId,
+      content: body.content,
+      attachments,
+    });
+  }
+  
   @Get(':id/posts')
   @UseGuards(JwtStrategy, RolesGuard)
   @Roles('STUDENT', 'PROFESSOR')

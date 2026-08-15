@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -68,6 +68,9 @@ export function StudyGroupDetailPage() {
   const [working, setWorking] = useState(false);
 
   const isAuthenticated = Boolean(token);
+
+  const [composerAttachments, setComposerAttachments] = useState<File[]>([]);
+  const composerFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -188,20 +191,21 @@ export function StudyGroupDetailPage() {
   }
 
   async function submitPostFromComposer() {
-    const content = composerValue.trim();
-    if (!groupId || !content || !canPost || working) return;
+  const content = composerValue.trim();
+  if (!groupId || (!content && composerAttachments.length === 0) || !canPost || working) return;
 
-    try {
-      setWorking(true);
-      const post = await createStudyGroupPost(groupId, content);
-      setPosts((prev) => [...prev, post]);
-      setComposerValue('');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to post to group.');
-    } finally {
-      setWorking(false);
-    }
+  try {
+    setWorking(true);
+    const post = await createStudyGroupPost(groupId, content, composerAttachments);
+    setPosts((prev) => [...prev, post]);
+    setComposerValue('');
+    setComposerAttachments([]);
+  } catch (error) {
+    setErrorMessage(error instanceof Error ? error.message : 'Unable to post to group.');
+  } finally {
+    setWorking(false);
   }
+}
 
   async function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -411,7 +415,32 @@ export function StudyGroupDetailPage() {
                                 }`}
                                 style={own ? { background: 'var(--theme-primary)', color: 'var(--primary-foreground)' } : undefined}
                               >
-                                {post.content}
+                                {post.content && <span>{post.content}</span>}
+                                {post.attachments && post.attachments.length > 0 && (
+                                  <div className={`thread-attachments ${post.content ? 'mt-2' : ''}`}>
+                                    {post.attachments.map((attachment) => (
+                                      attachment.mimeType.startsWith('image/') ? (
+                                        <a key={attachment.id} href={attachment.url} target="_blank" rel="noopener noreferrer">
+                                          <img
+                                            src={attachment.url}
+                                            alt="Attachment"
+                                            className="thread-attachment-image thread-attachment-image--small"
+                                          />
+                                        </a>
+                                      ) : (
+                                        <a
+                                          key={attachment.id}
+                                          href={attachment.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="thread-attachment-file"
+                                        >
+                                          📄 View document
+                                        </a>
+                                      )
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <p className="mt-1 px-1 text-[11px] text-slate-400">{getPostTime(post)}</p>
                             </div>
@@ -429,16 +458,32 @@ export function StudyGroupDetailPage() {
             )}
           </div>
 
-          <form onSubmit={handleCreatePost} className="border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+         <form onSubmit={handleCreatePost} className="border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
             <div className="flex items-end gap-2 sm:gap-3">
+              <input
+                ref={composerFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                multiple
+                disabled={!canPost}
+                className="thread-reply-file-input"
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []).slice(0, 5);
+                  setComposerAttachments(files);
+                }}
+              />
               <button
                 type="button"
-                disabled
-                title="File upload coming soon"
-                className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400"
-                aria-label="File upload coming soon"
+                disabled={!canPost}
+                title="Attach image or PDF"
+                onClick={() => composerFileInputRef.current?.click()}
+                className="relative inline-flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
+                aria-label="Attach files"
               >
                 <Paperclip size={17} />
+                {composerAttachments.length > 0 && (
+                  <span className="thread-attach-count">{composerAttachments.length}</span>
+                )}
               </button>
 
               <textarea
@@ -451,12 +496,18 @@ export function StudyGroupDetailPage() {
                 placeholder={canPost ? 'Type a message...' : 'Join the group to send messages.'}
               />
 
-              <Button variant="get-started" type="submit" disabled={!canPost || !composerValue.trim() || working}>
+              <Button
+                variant="get-started"
+                type="submit"
+                disabled={!canPost || (!composerValue.trim() && composerAttachments.length === 0) || working}
+              >
                 <Send size={15} />
                 Send
               </Button>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Attachment upload icon is shown as a placeholder until backend file APIs are implemented.</p>
+            {composerAttachments.length > 0 && (
+              <p className="mt-2 text-xs text-slate-500">{composerAttachments.length} file(s) selected</p>
+            )}
           </form>
         </section>
 

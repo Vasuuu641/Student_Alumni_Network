@@ -46,3 +46,20 @@ export class StudyGroup {
         return this.ownerId === userId;
     }
 }
+
+export class StudyGroupPostAttachment {
+  constructor(
+    public readonly id: string,
+    public readonly postId: string,
+    public readonly key: string,
+    public readonly url: string,
+    public readonly mimeType: string,
+    public readonly size: number,
+    public readonly uploadedById: string,
+    public readonly createdAt: Date,
+  ) {}
+
+  isUploadedBy(userId: string): boolean {
+    return this.uploadedById === userId;
+  }
+}
