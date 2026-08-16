@@ -4799,6 +4799,20 @@
     pointer-events: none; height: 0;
   }
 
+  .note-toolbar__image-error {
+  padding: 0.35rem 0.75rem;
+  color: #dc2626;
+  font-size: 0.78rem;
+}
+
+  .note-editor-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.4rem;
+    margin: 0.5rem 0;
+    display: block;
+  }
+
   .note-page-actions {
     display: flex;
     flex-direction: row;

@@ -6,11 +6,14 @@ import {
   Heading1, Heading2, Heading3,
   List, ListOrdered, Quote,
   Undo2, Redo2, Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Link, ZoomIn, ZoomOut,
+  Link, ZoomIn, ZoomOut, Image as ImageIcon, Loader2
 } from 'lucide-react'
+import { uploadNoteImage } from '../../api/notes.api'
+
 
 interface Props {
   editor: Editor | null
+  noteId: string
   onInsertPageBreak?: () => void
 }
 
@@ -31,12 +34,15 @@ const HIGHLIGHT_COLORS = [
   '#90EE90', '#ADD8E6', '#DDA0DD',
 ]
 
-export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
+export function EditorToolbar({ editor, noteId, onInsertPageBreak }: Props) {
   const [openMenu, setOpenMenu] = useState<'file' | 'edit' | 'view' | 'insert' | null>(null)
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [zoom, setZoom] = useState(100)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null)
   const linkInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   if (!editor) return null
 
@@ -87,6 +93,42 @@ export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
     setShowLinkInput(false)
     setLinkUrl('')
   }
+
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || !editor) return
+
+  const validTypes = ['image/jpeg', 'image/png']
+  if (!validTypes.includes(file.type)) {
+    setImageUploadError('Only JPEG and PNG images are allowed.')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    setImageUploadError('Image must be under 5MB.')
+    return
+  }
+
+  // Capture cursor position before the async upload — the selection
+  // could otherwise shift while the request is in flight
+  const insertPos = editor.state.selection.to
+
+  try {
+    setImageUploadError(null)
+    setIsUploadingImage(true)
+    const { url } = await uploadNoteImage(noteId, file)
+
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(insertPos, { type: 'image', attrs: { src: url } })
+      .run()
+  } catch (error) {
+    setImageUploadError(error instanceof Error ? error.message : 'Unable to upload image.')
+  } finally {
+    setIsUploadingImage(false)
+  }
+}
 
   function handleLinkKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') applyLink()
@@ -183,6 +225,7 @@ export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
             { label: 'Blockquote', action: () => editor.chain().focus().toggleBlockquote().run() },
             { label: 'Code block', action: () => editor.chain().focus().toggleCodeBlock().run() },
             { label: 'Link', action: () => setShowLinkInput(true) },
+            { label: 'Image', action: () => imageInputRef.current?.click() },
           ]}
         />
       </div>
@@ -342,6 +385,24 @@ export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
 
         <Divider />
 
+        {/* Image */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          onChange={handleImageSelect}
+          style={{ display: 'none' }}
+        />
+        <ToolbarButton
+          onClick={() => imageInputRef.current?.click()}
+          disabled={isUploadingImage}
+          title="Insert image"
+        >
+          {isUploadingImage ? <Loader2 size={15} className="note-state-spinner" /> : <ImageIcon size={15} />}
+        </ToolbarButton>
+
+        <Divider />
+
         {/* Zoom */}
         <ToolbarButton onClick={() => applyZoom(zoom - 10)} title="Zoom out">
           <ZoomOut size={15} />
@@ -388,6 +449,9 @@ export function EditorToolbar({ editor, onInsertPageBreak }: Props) {
         </div>
       )}
 
+      {imageUploadError && (
+        <div className="note-toolbar__image-error">{imageUploadError}</div>
+      )}
     </div>
   )
 }
