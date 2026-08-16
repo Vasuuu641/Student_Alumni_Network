@@ -163,3 +163,12 @@ export async function restoreVersion(
   const { data } = await api.post<{ success: boolean }>(`/notes/${noteId}/restore/${versionNumber}`)
   return data
 }
+
+//file upload
+export async function uploadNoteImage(noteId: string, file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  const { data } = await api.post<{ url: string }>(`/notes/${noteId}/images`, formData)
+  return data
+}

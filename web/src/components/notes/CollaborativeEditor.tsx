@@ -17,6 +17,7 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextStyle from '@tiptap/extension-text-style'
 import { Extension, Node, mergeAttributes } from '@tiptap/core'
 import { Plus, Trash2 } from 'lucide-react'
+import Image from '@tiptap/extension-image'
 
 //custom font size extension 
 const FontSize = Extension.create({
@@ -468,7 +469,12 @@ export function CollaborativeEditor({
         }),
         FontFamily,
         TextStyle,
-        FontSize
+        FontSize,
+        Image.configure({
+        HTMLAttributes: {
+        class: 'note-editor-image',
+    },
+  }),
       ],
       editable: false, // setEditable effect handles this
       editorProps: {
@@ -730,10 +736,9 @@ export function CollaborativeEditor({
     <div className="note-canvas">
       {canEdit && (
         <div className="note-toolbar">
-          <EditorToolbar editor={editor} onInsertPageBreak={insertPageBreak} />
+          <EditorToolbar editor={editor} noteId={noteId} onInsertPageBreak={insertPageBreak} />
         </div>
       )}
-
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
