@@ -383,7 +383,20 @@ export function OnboardingPage({ navigation, route }: Props) {
             </View>
           </View>
 
-          <View style={{ borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
+          <View
+            style={{
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              backgroundColor: tokens.surface,
+              padding: 16,
+              shadowColor: tokens.primaryStrong,
+              shadowOpacity: 0.08,
+              shadowRadius: 18,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 3,
+            }}
+          >
             <View style={{ marginBottom: 12 }}>
               <Text style={{ color: tokens.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' }}>
                 {`Step ${currentStep} of ${TOTAL_STEPS}`}

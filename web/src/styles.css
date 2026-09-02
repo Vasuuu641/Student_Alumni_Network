@@ -2257,18 +2257,21 @@
     padding: 0.8rem 0.95rem;
     border-radius: 0.75rem;
     font-size: 0.92rem;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface-elevated);
+    color: var(--theme-text);
   }
 
   .status-banner--success {
-    background: #ecfdf3;
-    color: #0d7a48;
-    border: 1px solid #b9efcf;
+    background: color-mix(in srgb, var(--theme-success) 12%, var(--theme-surface) 88%);
+    color: var(--theme-success);
+    border-color: color-mix(in srgb, var(--theme-success) 35%, var(--theme-border) 65%);
   }
 
   .status-banner--error {
-    background: #fff1f2;
-    color: #c22137;
-    border: 1px solid #fecdd3;
+    background: color-mix(in srgb, var(--theme-danger) 12%, var(--theme-surface) 88%);
+    color: var(--theme-danger);
+    border-color: color-mix(in srgb, var(--theme-danger) 35%, var(--theme-border) 65%);
   }
 
   .auth-footer,
@@ -2316,9 +2319,9 @@
     justify-content: center;
     padding: 2rem 1.25rem;
     background:
-      radial-gradient(circle at top left, rgba(79, 114, 245, 0.12), transparent 32%),
-      radial-gradient(circle at top right, rgba(104, 211, 145, 0.12), transparent 28%),
-      linear-gradient(180deg, #f7f9ff 0%, #edf3ff 100%);
+      radial-gradient(circle at top left, color-mix(in srgb, var(--theme-primary) 15%, transparent), transparent 32%),
+      radial-gradient(circle at top right, color-mix(in srgb, var(--theme-success) 12%, transparent), transparent 30%),
+      linear-gradient(180deg, var(--theme-bg) 0%, color-mix(in srgb, var(--theme-surface-elevated) 90%, var(--theme-bg) 10%) 100%);
   }
 
   .dashboard-page {
@@ -3710,9 +3713,9 @@
   .onboarding-card {
     width: 100%;
     background: var(--theme-surface);
-    border-radius: 1rem;
+    border-radius: 1.2rem;
     border: 1px solid var(--theme-border);
-    box-shadow: 0 20px 40px rgba(38, 58, 115, 0.1);
+    box-shadow: var(--theme-shadow);
     padding: 1.3rem 1.25rem 1.4rem;
   }
 
