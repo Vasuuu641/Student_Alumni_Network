@@ -51,7 +51,8 @@ export function LoginPage({ navigation, route }: Props) {
       const response = await loginUser({ email, password });
       await storeTokens(response.accessToken, response.refreshToken);
       await storeUserEmail(email.trim().toLowerCase());
-      navigation.replace(getRoleFromAccessToken(response.accessToken) === 'ADMIN' ? 'AdminLayout' : 'Dashboard');
+      const role = getRoleFromAccessToken(response.accessToken);
+      navigation.replace(role === 'ADMIN' ? 'AdminLayout' : 'Onboarding');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in.');
     } finally {

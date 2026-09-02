@@ -4,6 +4,7 @@ export { GeoHelpBoardPage } from './GeoHelpBoardPage';
 export { LoginPage } from './LoginPage';
 export { ProfilePage } from './ProfilePage';
 export { RegisterPage } from './RegisterPage';
+export { OnboardingPage } from './OnboardingPage';
 export { DiscussionsPage } from './DiscussionsPage';
 export { ThreadDetailPage } from './ThreadDetailPage';
 export { StudyGroupsPage } from './StudyGroupsPage';
