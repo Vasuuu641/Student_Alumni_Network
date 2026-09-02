@@ -5,7 +5,7 @@ export { LoginPage } from './LoginPage';
 export { ProfilePage } from './ProfilePage';
 export { RegisterPage } from './RegisterPage';
 export { OnboardingPage } from './OnboardingPage';
-export { DiscussionsPage } from './DiscussionsPage';
+export { DiscussionsPage } from './ThreadPage';
 export { ThreadDetailPage } from './ThreadDetailPage';
 export { StudyGroupsPage } from './StudyGroupsPage';
 export { StudyGroupDetailPage } from './StudyGroupDetailPage';
