@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
+import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import {
   faArrowLeft,
-  faChevronDown,
+  faImage,
+  faTimesCircle,
   faThumbsDown,
   faThumbsUp,
   faX,
 } from '@fortawesome/free-solid-svg-icons';
+import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   getThread,
@@ -93,6 +95,7 @@ export function ThreadDetailPage({ route, navigation }: Props) {
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editingReplyDraft, setEditingReplyDraft] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [replyAttachments, setReplyAttachments] = useState<{ uri: string; name: string; type: string }[]>([]);
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null);
 
   useEffect(() => {
@@ -181,20 +184,62 @@ export function ThreadDetailPage({ route, navigation }: Props) {
   };
 
   const handlePostReply = async () => {
-    if (!accessToken || !replyDraft.trim()) return;
-    try {
-      setPostingReply(true);
-      setActionError(null);
-      const { reply } = await postReply(accessToken, { threadId, content: replyDraft.trim() });
-      setReplies((prev) => [reply, ...prev]);
-      setReplyDraft('');
-      if (thread) setThread((prev) => (prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev));
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to post reply');
-    } finally {
-      setPostingReply(false);
+  if (!accessToken || (!replyDraft.trim() && replyAttachments.length === 0)) return;
+  try {
+    setPostingReply(true);
+    setActionError(null);
+    const { reply } = await postReply(accessToken, {
+      threadId,
+      content: replyDraft.trim(),
+      attachments: replyAttachments,
+    });
+    setReplies((prev) => [reply, ...prev]);
+    setReplyDraft('');
+    setReplyAttachments([]);
+    if (thread) setThread((prev) => (prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev));
+  } catch (err) {
+    setActionError(err instanceof Error ? err.message : 'Failed to post reply');
+  } finally {
+    setPostingReply(false);
+  }
+};
+
+  const MAX_REPLY_ATTACHMENTS = 5;
+
+  async function handlePickReplyAttachment() {
+    if (replyAttachments.length >= MAX_REPLY_ATTACHMENTS) {
+      setActionError(`You can attach up to ${MAX_REPLY_ATTACHMENTS} files.`);
+      return;
     }
-  };
+
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    setActionError('Permission to access photos is required to attach an image.');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.8,
+  });
+
+  if (result.canceled || !result.assets?.[0]) return;
+
+  const asset = result.assets[0];
+  setActionError(null);
+  setReplyAttachments((prev) => [
+    ...prev,
+    {
+      uri: asset.uri,
+      name: asset.fileName ?? `attachment-${Date.now()}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+    },
+  ]);
+}
+
+function removeReplyAttachment(index: number) {
+  setReplyAttachments((prev) => prev.filter((_, i) => i !== index));
+}
 
   const handleEditReply = async (replyId: string) => {
     if (!accessToken || !editingReplyDraft.trim()) return;
@@ -290,6 +335,28 @@ export function ThreadDetailPage({ route, navigation }: Props) {
           {thread.description && (
             <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: tokens.muted }}>{thread.description}</Text>
           )}
+
+          {thread.attachments && thread.attachments.length > 0 && (
+            <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {thread.attachments.map((attachment) =>
+                attachment.mimeType.startsWith('image/') ? (
+                  <Image
+                    key={attachment.id}
+                    source={{ uri: attachment.url }}
+                    style={{ width: 120, height: 96, borderRadius: 12 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    key={attachment.id}
+                    style={{ borderRadius: 10, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 10, paddingVertical: 8 }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.primary }}>📄 Document</Text>
+                  </View>
+                ),
+              )}
+            </View>
+          )}
           <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <Pressable
               onPress={() => void handleVoteThread('UPVOTE')}
@@ -309,6 +376,7 @@ export function ThreadDetailPage({ route, navigation }: Props) {
           </View>
         </View>
 
+        
         {/* Reply Composer */}
         <View style={{ marginHorizontal: 16, marginTop: 16, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.muted }}>Add a reply</Text>
@@ -322,9 +390,35 @@ export function ThreadDetailPage({ route, navigation }: Props) {
             editable={!postingReply}
             style={{ marginTop: 8, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, padding: 12, fontSize: 14, color: tokens.text, minHeight: 80, textAlignVertical: 'top' }}
           />
+
+          {replyAttachments.length > 0 && (
+            <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {replyAttachments.map((file, index) => (
+                <View key={`${file.uri}-${index}`} style={{ position: 'relative' }}>
+                  <Image source={{ uri: file.uri }} style={{ width: 64, height: 64, borderRadius: 10 }} />
+                  <Pressable
+                    onPress={() => removeReplyAttachment(index)}
+                    style={{ position: 'absolute', top: -6, right: -6, height: 20, width: 20, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: tokens.surface }}
+                  >
+                    <FontAwesomeIcon icon={faTimesCircle as IconProp} size={16} color={tokens.danger} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Pressable
+            onPress={() => void handlePickReplyAttachment()}
+            disabled={postingReply}
+            style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 8 }}
+          >
+            <FontAwesomeIcon icon={faImage as IconProp} size={13} color={tokens.primary} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: tokens.primary }}>Add image</Text>
+          </Pressable>
+
           <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
             <Pressable
-              onPress={() => setReplyDraft('')}
+              onPress={() => { setReplyDraft(''); setReplyAttachments([]); }}
               disabled={postingReply}
               style={{ flex: 1, borderRadius: 8, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingVertical: 8 }}
             >
@@ -332,10 +426,10 @@ export function ThreadDetailPage({ route, navigation }: Props) {
             </Pressable>
             <Pressable
               onPress={() => void handlePostReply()}
-              disabled={postingReply || !replyDraft.trim()}
-              style={{ flex: 1, borderRadius: 8, paddingVertical: 8, backgroundColor: postingReply || !replyDraft.trim() ? tokens.primarySoft : tokens.primary }}
+              disabled={postingReply || (!replyDraft.trim() && replyAttachments.length === 0)}
+              style={{ flex: 1, borderRadius: 8, paddingVertical: 8, backgroundColor: postingReply || (!replyDraft.trim() && replyAttachments.length === 0) ? tokens.primarySoft : tokens.primary }}
             >
-              <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '700', color: postingReply || !replyDraft.trim() ? tokens.primary : '#fff' }}>
+              <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '700', color: postingReply || (!replyDraft.trim() && replyAttachments.length === 0) ? tokens.primary : '#fff' }}>
                 {postingReply ? 'Posting…' : 'Post'}
               </Text>
             </Pressable>
@@ -418,6 +512,28 @@ function ReplyItem({ reply, tokens, isAuthor, onVote, onEdit, onDelete }: { repl
         </View>
       </View>
       <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: tokens.text }}>{reply.content}</Text>
+
+      {reply.attachments && reply.attachments.length > 0 && (
+        <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {reply.attachments.map((attachment) =>
+            attachment.mimeType.startsWith('image/') ? (
+              <Image
+                key={attachment.id}
+                source={{ uri: attachment.url }}
+                style={{ width: 90, height: 72, borderRadius: 10 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                key={attachment.id}
+                style={{ borderRadius: 8, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 8, paddingVertical: 6 }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '600', color: tokens.primary }}>📄 Document</Text>
+              </View>
+            ),
+          )}
+        </View>
+      )}
       <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Pressable
           onPress={() => onVote('UPVOTE')}
