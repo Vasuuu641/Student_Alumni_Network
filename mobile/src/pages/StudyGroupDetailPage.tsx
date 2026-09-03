@@ -9,13 +9,13 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
   faArrowLeft,
   faCircleInfo,
-  faEllipsisVertical,
   faGlobe,
   faLock,
   faPaperPlane,
   faPaperclip,
   faUsers,
   faX,
+  faTimesCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   createStudyGroupPost,
@@ -31,6 +31,8 @@ import {
 import { getValidAccessToken } from '../lib/auth-session';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { useTheme } from '../theme/theme';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StudyGroupDetail'>;
 type TimelineItem =
@@ -152,6 +154,7 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
   const [postingMessage, setPostingMessage] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [composerAttachments, setComposerAttachments] = useState<{ uri: string; name: string; type: string }[]>([]);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -260,21 +263,59 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
   }, [group, activeMembers.length]);
 
   const handlePostMessage = useCallback(async () => {
-    if (!accessToken || !resolvedGroupId || !postDraft.trim()) return;
+    if (!accessToken || !resolvedGroupId || (!postDraft.trim() && composerAttachments.length === 0)) return;
 
     try {
       setPostingMessage(true);
       setActionError(null);
 
-      const newPost = await createStudyGroupPost(accessToken, resolvedGroupId, postDraft.trim());
+      const newPost = await createStudyGroupPost(accessToken, resolvedGroupId, postDraft.trim(), composerAttachments);
       setPosts((currentPosts) => [...currentPosts, newPost]);
       setPostDraft('');
+      setComposerAttachments([]);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to post message.');
     } finally {
       setPostingMessage(false);
     }
-  }, [accessToken, resolvedGroupId, postDraft]);
+  }, [accessToken, resolvedGroupId, postDraft, composerAttachments]);
+
+  const MAX_POST_ATTACHMENTS = 5;
+
+  const handlePickAttachment = useCallback(async () => {
+    if (composerAttachments.length >= MAX_POST_ATTACHMENTS) {
+      setActionError(`You can attach up to ${MAX_POST_ATTACHMENTS} files.`);
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setActionError('Permission to access photos is required to attach an image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setActionError(null);
+    setComposerAttachments((prev) => [
+      ...prev,
+      {
+        uri: asset.uri,
+        name: asset.fileName ?? `attachment-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      },
+    ]);
+  }, [composerAttachments.length]);
+
+const removeComposerAttachment = useCallback((index: number) => {
+  setComposerAttachments((prev) => prev.filter((_, i) => i !== index));
+}, []);
 
   const handleJoinLeave = useCallback(
     async (action: 'join' | 'leave') => {
@@ -498,9 +539,33 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
                           paddingVertical: 10,
                         }}
                       >
-                        <Text style={{ fontSize: 14, lineHeight: 20, color: isCurrentUser ? (isMidnight ? '#d7f6e7' : '#113325') : tokens.text }}>
-                          {post.content}
-                        </Text>
+                        {post.content ? (
+                            <Text style={{ fontSize: 14, lineHeight: 20, color: isCurrentUser ? (isMidnight ? '#d7f6e7' : '#113325') : tokens.text }}>
+                              {post.content}
+                            </Text>
+                          ) : null}
+
+                          {post.attachments && post.attachments.length > 0 && (
+                            <View style={{ marginTop: post.content ? 8 : 0, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {post.attachments.map((attachment) =>
+                                attachment.mimeType.startsWith('image/') ? (
+                                  <Image
+                                    key={attachment.id}
+                                    source={{ uri: attachment.url }}
+                                    style={{ width: 110, height: 88, borderRadius: 10 }}
+                                    resizeMode="cover"
+                                  />
+                                ) : (
+                                  <View
+                                    key={attachment.id}
+                                    style={{ borderRadius: 8, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 8, paddingVertical: 6 }}
+                                  >
+                                    <Text style={{ fontSize: 11, fontWeight: '600', color: tokens.primary }}>📄 Document</Text>
+                                  </View>
+                                ),
+                              )}
+                            </View>
+                          )}
 
                         <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                           {post.status !== 'ACTIVE' && (
@@ -521,37 +586,58 @@ export function StudyGroupDetailPage({ route, navigation }: Props) {
           {/* Composer */}
           <View style={{ borderTopWidth: 1, borderTopColor: tokens.border, backgroundColor: tokens.surface, paddingBottom: Math.max(insets.bottom, 12), paddingHorizontal: 12, paddingTop: 12 }}>
             {isMember ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 8, paddingVertical: 6 }}>
-                <Pressable style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: tokens.surface }}>
-                  <FontAwesomeIcon icon={faPaperclip as IconProp} size={15} color={tokens.primary} style={{ marginTop: 10 }} />
-                </Pressable>
+                  <View>
+                    {composerAttachments.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                        {composerAttachments.map((file, index) => (
+                          <View key={`${file.uri}-${index}`} style={{ position: 'relative' }}>
+                            <Image source={{ uri: file.uri }} style={{ width: 56, height: 56, borderRadius: 10 }} />
+                            <Pressable
+                              onPress={() => removeComposerAttachment(index)}
+                              style={{ position: 'absolute', top: -6, right: -6, height: 18, width: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: tokens.surface }}
+                            >
+                              <FontAwesomeIcon icon={faTimesCircle as IconProp} size={16} color={tokens.danger} />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
+                    )}
 
-                <TextInput
-                  placeholder="Type a message"
-                  value={postDraft}
-                  onChangeText={setPostDraft}
-                  editable={!postingMessage}
-                  multiline
-                  placeholderTextColor={tokens.muted}
-                  style={{ minHeight: 36, flex: 1, fontSize: 14, color: tokens.text, maxHeight: 100, textAlignVertical: 'top' }}
-                />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 8, paddingVertical: 6 }}>
+                      <Pressable
+                        onPress={() => void handlePickAttachment()}
+                        style={{ height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: tokens.surface }}
+                      >
+                        <FontAwesomeIcon icon={faPaperclip as IconProp} size={15} color={tokens.primary} style={{ marginTop: 10 }} />
+                      </Pressable>
 
-                <Pressable
-                  onPress={handlePostMessage}
-                  disabled={!postDraft.trim() || postingMessage}
-                  style={{
-                    height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18,
-                    backgroundColor: postDraft.trim() && !postingMessage ? tokens.primary : tokens.primarySoft
-                  }}
-                >
-                  {postingMessage ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <FontAwesomeIcon icon={faPaperPlane as IconProp} size={14} color="white" style={{ marginTop: 10 }} />
-                  )}
-                </Pressable>
-              </View>
-            ) : (
+                      <TextInput
+                        placeholder="Type a message"
+                        value={postDraft}
+                        onChangeText={setPostDraft}
+                        editable={!postingMessage}
+                        multiline
+                        placeholderTextColor={tokens.muted}
+                        style={{ minHeight: 36, flex: 1, fontSize: 14, color: tokens.text, maxHeight: 100, textAlignVertical: 'top' }}
+                      />
+
+                      <Pressable
+                        onPress={handlePostMessage}
+                        disabled={(!postDraft.trim() && composerAttachments.length === 0) || postingMessage}
+                        style={{
+                          height: 36, width: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18,
+                          backgroundColor: (postDraft.trim() || composerAttachments.length > 0) && !postingMessage ? tokens.primary : tokens.primarySoft
+                        }}
+                      >
+                        {postingMessage ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <FontAwesomeIcon icon={faPaperPlane as IconProp} size={14} color="white" style={{ marginTop: 10 }} />
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
               <View style={{ borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 }}>
                 <Text style={{ textAlign: 'center', fontSize: 13, color: tokens.muted }}>
                   Join the group to post and chat with members.
