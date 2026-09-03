@@ -35,6 +35,7 @@ import {
   useEditorBridge,
   useEditorContent,
   TenTapStartKit,
+  ImageBridge,
 } from '@10play/tentap-editor';
 import {
   ArrowLeft,
@@ -186,7 +187,7 @@ export function NoteScreen() {
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
-    bridgeExtensions: TenTapStartKit,
+    bridgeExtensions: [...TenTapStartKit, ImageBridge],
   });
 
   const htmlContent = useEditorContent(editor, {
@@ -594,10 +595,12 @@ export function NoteScreen() {
         )}
       </View>
 
-      {canEdit && (
+      {canEdit && token && (
         <MobileEditorToolbar
           editor={editor}
           bottomInset={insets.bottom}
+          noteId={noteId}
+          token={token}
         />
       )}
 

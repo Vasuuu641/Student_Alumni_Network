@@ -145,3 +145,22 @@ export async function getRelatedThreads(
 ): Promise<{ threads: RelatedThread[] }> {
   return requestJson(`/notes/${noteId}/related-threads`, { token })
 }
+
+export async function uploadNoteImage(
+  token: string,
+  noteId: string,
+  file: { uri: string; name: string; type: string },
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('image', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as any);
+
+  return requestJson<{ url: string }>(`/notes/${noteId}/images`, {
+    token,
+    method: 'POST',
+    body: formData,
+  });
+}
