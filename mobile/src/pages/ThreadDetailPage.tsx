@@ -137,8 +137,12 @@ export function ThreadDetailPage({ route, navigation }: Props) {
     socket.on('threads:reply-posted', (payload: { threadId: string; reply: ThreadReply }) => {
       if (payload.threadId !== threadId) return;
       if (payload.reply.status === 'DELETED') return;
-      setReplies((prev) => [payload.reply, ...prev]);
-      if (thread) setThread((prev) => (prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev));
+      setReplies((prev) => {
+        if (prev.some((r) => r.id === payload.reply.id)) return prev;
+        const next = [payload.reply, ...prev];
+        if (thread) setThread((prevThread) => (prevThread ? { ...prevThread, replyCount: prevThread.replyCount + 1 } : prevThread));
+        return next;
+      });
     });
     socket.on('threads:reply-voted', (payload: { threadId: string; replyId: string; voteScore: number; upvoteCount: number; downvoteCount: number }) => {
       if (payload.threadId !== threadId) return;
@@ -184,25 +188,25 @@ export function ThreadDetailPage({ route, navigation }: Props) {
   };
 
   const handlePostReply = async () => {
-  if (!accessToken || (!replyDraft.trim() && replyAttachments.length === 0)) return;
-  try {
-    setPostingReply(true);
-    setActionError(null);
-    const { reply } = await postReply(accessToken, {
-      threadId,
-      content: replyDraft.trim(),
-      attachments: replyAttachments,
-    });
-    setReplies((prev) => [reply, ...prev]);
-    setReplyDraft('');
-    setReplyAttachments([]);
-    if (thread) setThread((prev) => (prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev));
-  } catch (err) {
-    setActionError(err instanceof Error ? err.message : 'Failed to post reply');
-  } finally {
-    setPostingReply(false);
-  }
-};
+    if (!accessToken || (!replyDraft.trim() && replyAttachments.length === 0)) return;
+    try {
+      setPostingReply(true);
+      setActionError(null);
+      const { reply } = await postReply(accessToken, {
+        threadId,
+        content: replyDraft.trim(),
+        attachments: replyAttachments,
+      });
+      setReplies((prev) => (prev.some((r) => r.id === reply.id) ? prev : [reply, ...prev]));
+      setReplyDraft('');
+      setReplyAttachments([]);
+      if (thread) setThread((prev) => (prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to post reply');
+    } finally {
+      setPostingReply(false);
+    }
+  };
 
   const MAX_REPLY_ATTACHMENTS = 5;
 
