@@ -29,6 +29,13 @@ export interface StudyGroupMember {
   joinStatus: StudyGroupJoinStatus;
 }
 
+export interface StudyGroupPostAttachment {
+  id: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface StudyGroupPost {
   id: string;
   authorId: string;
@@ -36,6 +43,7 @@ export interface StudyGroupPost {
   status: StudyGroupPostStatus;
   createdAt: string;
   updatedAt: string;
+  attachments?: StudyGroupPostAttachment[];
 }
 
 export interface RecommendedStudyGroup {
@@ -280,11 +288,26 @@ export async function listStudyGroupPosts(token: string, groupId: string): Promi
   return data.map(toStudyGroupPost);
 }
 
-export async function createStudyGroupPost(token: string, groupId: string, content: string): Promise<StudyGroupPost> {
+export async function createStudyGroupPost(
+  token: string,
+  groupId: string,
+  content: string,
+  attachments?: { uri: string; name: string; type: string }[],
+): Promise<StudyGroupPost> {
+  const formData = new FormData();
+  if (content) formData.append('content', content);
+  (attachments ?? []).forEach((file) => {
+    formData.append('attachments', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as any);
+  });
+
   const data = await requestJson<RawStudyGroupPost>(`/study-groups/${groupId}/posts`, {
     token,
     method: 'POST',
-    body: { content },
+    body: formData,
   });
   return toStudyGroupPost(data);
 }

@@ -12,6 +12,7 @@
 
 import React, { useCallback, useState } from 'react'
 import {
+  ActivityIndicator,
   Keyboard,
   Pressable,
   ScrollView,
@@ -41,12 +42,16 @@ import {
   ChevronUp,
   KeyboardOff,
 } from 'lucide-react-native'
+import { Image as ImageIcon } from 'lucide-react-native'
+import * as ImagePicker from 'expo-image-picker'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Props {
   editor: EditorBridge
   bottomInset?: number
+  noteId: string
+  token: string
 }
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
@@ -67,13 +72,14 @@ const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ editor, bottomInset = 0 }: Props) {
+export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ editor, bottomInset = 0, noteId, token }: Props) {
   // Subscribe to live editor state — scoped to this component so the parent
   // NoteScreen does NOT re-render on every keystroke / selection change.
   const editorState = useBridgeState(editor)
 
   const [showFontPicker, setShowFontPicker] = useState(false)
   const [fontSize, setFontSize] = useState(16)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const run = useCallback((fn: () => void) => { fn() }, [])
 
@@ -83,6 +89,35 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
     // Font size requires the fontSize bridge extension which isn't in TenTapStartKit.
     // Local state tracks the selected size for UI feedback only.
   }
+
+  async function handleInsertImage() {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+  if (!permission.granted) return
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.8,
+  })
+
+  if (result.canceled || !result.assets?.[0]) return
+
+  const asset = result.assets[0]
+
+  try {
+    setIsUploadingImage(true)
+    const { uploadNoteImage } = await import('../../api/notes.api')
+    const { url } = await uploadNoteImage(token, noteId, {
+      uri: asset.uri,
+      name: asset.fileName ?? `image-${Date.now()}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+    })
+    ;(editor as any).setImage(url)
+  } catch {
+    // silently fail — could surface a toast here if you have one wired
+  } finally {
+    setIsUploadingImage(false)
+  }
+}
 
   // ── Active state helpers — correct TenTap BridgeState field names ────────
   const isBold       = !!editorState?.isBoldActive
@@ -97,6 +132,7 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
   const headingLevel = editorState?.headingLevel        // HeadingBridge: number|undefined
   const canUndo      = editorState?.canUndo ?? false
   const canRedo      = editorState?.canRedo ?? false
+  
 
   return (
     <View style={{ backgroundColor: TOOLBAR_BG, paddingBottom: bottomInset }}>
@@ -177,6 +213,13 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
           icon={<Minus size={19} color={DEFAULT_FG} />}
         />
       </View>
+
+      {/* Insert image */}
+      <ToolBtn
+        onPress={() => void handleInsertImage()}
+        icon={isUploadingImage ? <ActivityIndicator size="small" color={DEFAULT_FG} /> : <ImageIcon size={19} color={DEFAULT_FG} />}
+        disabled={isUploadingImage}
+      />
 
       {/* ── Row 2: Formatting (horizontally scrollable) ──────────────────── */}
       <ScrollView

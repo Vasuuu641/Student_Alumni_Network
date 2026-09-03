@@ -9,6 +9,13 @@ export type ThreadStatus = 'OPEN' | 'CLOSED' | 'PINNED';
 export type VoteType = 'UPVOTE' | 'DOWNVOTE';
 export type ReplySortBy = 'newest' | 'topVoted';
 
+export interface ThreadAttachment {
+  id: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface ThreadSummary {
   id: string;
   title: string;
@@ -18,6 +25,7 @@ export interface ThreadSummary {
   replyCount: number;
   authorId?: string | null;
   authorName?: string | null;
+  attachments?: ThreadAttachment[];
 }
 
 export interface Thread extends ThreadSummary {
@@ -47,6 +55,7 @@ export interface ThreadReply {
   parentReplyId: string | null;
   createdAt: string;
   updatedAt: string;
+  attachments?: ThreadAttachment[];
 }
 
 export interface ListThreadsResponse {
@@ -84,9 +93,22 @@ export async function createThread(
     title: string;
     description?: string;
     panel: ThreadPanel;
+    attachments?: { uri: string; name: string; type: string }[];
   },
 ): Promise<{ threadId: string }> {
-  return requestJson<{ threadId: string }>('/threads', { token, body: payload, method: 'POST' });
+  const formData = new FormData();
+  formData.append('title', payload.title);
+  if (payload.description) formData.append('description', payload.description);
+  formData.append('panel', payload.panel);
+  (payload.attachments ?? []).forEach((file) => {
+    formData.append('attachments', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as any);
+  });
+
+  return requestJson<{ threadId: string }>('/threads', { token, body: formData, method: 'POST' });
 }
 
 export async function getThread(
@@ -122,14 +144,23 @@ export async function postReply(
     threadId: string;
     content: string;
     parentReplyId?: string;
+    attachments?: { uri: string; name: string; type: string }[];
   }
 ): Promise<{ reply: ThreadReply }> {
+  const formData = new FormData();
+  formData.append('content', payload.content);
+  if (payload.parentReplyId) formData.append('parentReplyId', payload.parentReplyId);
+  (payload.attachments ?? []).forEach((file) => {
+    formData.append('attachments', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as any);
+  });
+
   return requestJson<{ reply: ThreadReply }>(`/threads/${payload.threadId}/replies`, {
     token,
-    body: {
-      content: payload.content,
-      parentReplyId: payload.parentReplyId,
-    },
+    body: formData,
     method: 'POST',
   });
 }

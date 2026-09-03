@@ -10,7 +10,6 @@ type JsonRequestOptions = {
 };
 
 export async function requestJson<T>(path: string, options: JsonRequestOptions = {}): Promise<T> {
-  // Get a fresh/valid token - this will auto-refresh if the current token is expired
   let token = options.token;
   if (!token) {
     token = await getValidAccessToken();
@@ -50,10 +49,18 @@ async function fetchJson(path: string, options: JsonRequestOptions, token?: stri
     headers.Authorization = `Bearer ${token}`;
   }
 
-  let body: string | undefined;
+  let body: string | FormData | undefined;
+
   if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-    body = JSON.stringify(options.body);
+    if (options.body instanceof FormData) {
+      // Let fetch set the correct multipart boundary itself —
+      // manually setting Content-Type here would omit the boundary
+      // and break the upload.
+      body = options.body;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(options.body);
+    }
   }
 
   return fetch(`${API_BASE_URL_VALUE}${path}`, {

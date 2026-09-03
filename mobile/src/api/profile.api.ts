@@ -87,3 +87,30 @@ function normalizeProfile(profile: UserProfileData): UserProfileData {
     interests: profile.interests ?? [],
   };
 }
+
+export async function updateProfilePicture(
+  token: string,
+  role: Exclude<UserRole, 'ADMIN'>,
+  file: { uri: string; name: string; type: string },
+): Promise<UserProfileData> {
+  const pathByRole: Record<Exclude<UserRole, 'ADMIN'>, string> = {
+    STUDENT: '/students/profile',
+    ALUMNI: '/alumni/profile',
+    PROFESSOR: '/professors/profile',
+  };
+
+  const formData = new FormData();
+  formData.append('profilePicture', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as any);
+
+  const profile = await requestJson<UserProfileData>(pathByRole[role], {
+    token,
+    method: 'PUT',
+    body: formData,
+  });
+
+  return normalizeProfile(profile);
+}

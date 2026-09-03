@@ -1,14 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
-import { faX } from '@fortawesome/free-solid-svg-icons';
+import { faImage, faTimesCircle, faX } from '@fortawesome/free-solid-svg-icons';
+import * as ImagePicker from 'expo-image-picker';
 import type { ThreadPanel } from '../../api/threads.api';
 import { createThread, createThreadsSocket } from '../../api/threads.api';
 import SimilarThreadsPanel, { type SimilarThreadItem } from './SimilarThreadsPanel';
 
 const MIN_SIMILARITY_CHARS = 10;
+const MAX_ATTACHMENTS = 5;
+
+type PickedAttachment = { uri: string; name: string; type: string };
 
 export default function CreateDiscussionModal({
   visible,
@@ -27,6 +31,7 @@ export default function CreateDiscussionModal({
   const [description, setDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
 
   const [similarityLoading, setSimilarityLoading] = useState(false);
   const [similarItems, setSimilarItems] = useState<SimilarThreadItem[]>([]);
@@ -62,6 +67,7 @@ export default function CreateDiscussionModal({
       setError(null);
       setSimilarItems([]);
       setSimilarityLoading(false);
+      setAttachments([]);
       return;
     }
 
@@ -81,6 +87,41 @@ export default function CreateDiscussionModal({
     return () => clearTimeout(timer);
   }, [title, description, socket, visible, panel]);
 
+  async function handlePickAttachment() {
+    if (attachments.length >= MAX_ATTACHMENTS) {
+      setError(`You can attach up to ${MAX_ATTACHMENTS} files.`);
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Permission to access photos is required to attach an image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setError(null);
+    setAttachments((prev) => [
+      ...prev,
+      {
+        uri: asset.uri,
+        name: asset.fileName ?? `attachment-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      },
+    ]);
+  }
+
+  function removeAttachment(index: number) {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit() {
     const trimmed = title.trim();
     if (!trimmed) {
@@ -96,9 +137,15 @@ export default function CreateDiscussionModal({
     try {
       setIsCreating(true);
       setError(null);
-      const { threadId } = await createThread(token, { title: trimmed, description: description.trim() || undefined, panel });
+      const { threadId } = await createThread(token, {
+        title: trimmed,
+        description: description.trim() || undefined,
+        panel,
+        attachments,
+      });
       setTitle('');
       setDescription('');
+      setAttachments([]);
       if (onCreated) onCreated(threadId);
       onClose();
     } catch (err) {
@@ -139,13 +186,41 @@ export default function CreateDiscussionModal({
             <TextInput value={description} onChangeText={setDescription} placeholder="Share more details about your topic..." placeholderTextColor="#9ca3af" multiline numberOfLines={5} editable={!isCreating} className="mt-2 rounded-2xl border border-[#dde6f5] bg-white px-4 py-3 text-sm text-[#1f2937]" style={{ minHeight: 120 }} />
           </View>
 
+          <View className="mb-4">
+            <Text className="text-sm font-semibold text-[#6f829f]">Attachments (optional)</Text>
+
+            {attachments.length > 0 ? (
+              <View className="mt-2 flex-row flex-wrap gap-2">
+                {attachments.map((file, index) => (
+                  <View key={`${file.uri}-${index}`} className="relative">
+                    <Image source={{ uri: file.uri }} style={{ width: 72, height: 72, borderRadius: 12 }} />
+                    <Pressable
+                      onPress={() => removeAttachment(index)}
+                      className="absolute -right-2 -top-2 h-6 w-6 items-center justify-center rounded-full bg-white"
+                      style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3 }}
+                    >
+                      <FontAwesomeIcon icon={faTimesCircle as IconProp} size={18} color="#d24f4f" />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={() => void handlePickAttachment()}
+              disabled={isCreating}
+              className="mt-2 flex-row items-center gap-2 self-start rounded-2xl border border-dashed border-[#c7d5f0] bg-[#f8faff] px-4 py-3"
+            >
+              <FontAwesomeIcon icon={faImage as IconProp} size={15} color="#2f64f6" />
+              <Text className="text-sm font-semibold text-[#2f64f6]">Add image</Text>
+            </Pressable>
+          </View>
+
           <View className="mb-6 rounded-2xl bg-[#f0f4ff] p-3">
             <Text className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6a7b98]">Posting to: {panel === 'ACADEMIC' ? 'Academic Discussions' : 'Career Advice'}</Text>
           </View>
 
           <SimilarThreadsPanel items={similarItems} loading={similarityLoading} onSelect={(item) => {
-            // navigate to thread when user selects a suggested similar thread
-            // here we simply close and rely on parent to navigate if provided via onCreated
             onClose();
           }} />
         </ScrollView>

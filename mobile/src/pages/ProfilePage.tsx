@@ -23,11 +23,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MobileBottomNav, type MobileNavTab } from '../components/MobileBottomNav';
 import { clearTokens, getUserEmail } from '../lib/auth-storage';
 import { getValidAccessToken } from '../lib/auth-session';
-import { loadCurrentUserProfile, updateAdminProfile, type CurrentUserProfile } from '../api/profile.api';
+import { loadCurrentUserProfile, updateAdminProfile, updateProfilePicture, type CurrentUserProfile } from '../api/profile.api';
 import { listThreads, type ThreadSummary } from '../api/threads.api';
 import { listUserNotes, type Note } from '../api/notes.api';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { useTheme, useThemePicker } from '../theme/theme';
+
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -49,6 +52,7 @@ export function ProfilePage({ navigation }: Props) {
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminNotice, setAdminNotice] = useState<string | null>(null);
   const [adminError, setAdminError] = useState('');
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,6 +208,47 @@ export function ProfilePage({ navigation }: Props) {
       setAdminError(error instanceof Error ? error.message : 'Unable to save admin profile.');
     } finally {
       setAdminSaving(false);
+    }
+  }
+
+  async function handleChangeProfilePicture() {
+  if (!accessToken || !profileBundle || profileBundle.role === 'ADMIN') return;
+
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    setNotice('Permission to access photos is required to change your profile picture.');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.8,
+  });
+
+  if (result.canceled || !result.assets?.[0]) return;
+
+  const asset = result.assets[0];
+
+  try {
+    setIsUploadingPicture(true);
+
+    const manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [{ resize: { width: 800 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+    );
+
+    const updated = await updateProfilePicture(accessToken, profileBundle.role, {
+      uri: manipulated.uri,
+      name: 'profile.jpg',
+      type: 'image/jpeg',
+    });
+
+      setProfileBundle((prev) => (prev ? { ...prev, profile: updated } : prev));
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to update profile picture.');
+    } finally {
+      setIsUploadingPicture(false);
     }
   }
 
@@ -422,7 +467,11 @@ export function ProfilePage({ navigation }: Props) {
           <View className="overflow-hidden rounded-[28px] border border-[#e3ebf7] bg-white" style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}>
             <View className="h-[124px]" style={{ backgroundColor: tokens.primary }} />
             <View className="-mt-12 px-4 pb-4">
-              <View className="h-[94px] w-[94px] items-center justify-center overflow-hidden rounded-full border-[4px] border-white bg-[#dce8ff] shadow-sm">
+             <Pressable
+                onPress={handleChangeProfilePicture}
+                disabled={isUploadingPicture}
+                className="h-[94px] w-[94px] items-center justify-center overflow-hidden rounded-full border-[4px] border-white bg-[#dce8ff] shadow-sm"
+              >
                 {profilePictureSrc ? (
                   <Image
                     source={{ uri: profilePictureSrc }}
@@ -432,7 +481,12 @@ export function ProfilePage({ navigation }: Props) {
                 ) : (
                   <Text className="text-[24px] font-extrabold text-[#2f64f6]" style={{ color: tokens.primary }}>{getInitials(displayName) || 'JD'}</Text>
                 )}
-              </View>
+                {isUploadingPicture ? (
+                  <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>Uploading…</Text>
+                  </View>
+                ) : null}
+              </Pressable>
 
               <Text className="mt-4 text-[24px] font-extrabold tracking-[-0.04em] text-[#101d36]">{displayName}</Text>
               <View className="mt-2 flex-row flex-wrap items-center gap-2">
