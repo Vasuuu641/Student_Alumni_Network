@@ -1,0 +1,693 @@
+// screens/NoteScreen.tsx
+// Mobile equivalent of src/pages/NotePage.tsx
+//
+// Dependencies:
+//   npx expo install @10play/tentap-editor react-native-webview
+//   npx expo install react-native-safe-area-context
+//   yarn add lucide-react-native
+//   @react-navigation/native + @react-navigation/native-stack
+//
+// Note: @10play/tentap-editor requires an Expo Dev Client build for full
+// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
+//
+// Collaborative cursors are intentionally omitted — TenTap's real-time
+// collab is a paid Pro feature. Autosave + version history covers mobile.
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  AppState,
+  AppStateStatus,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  RichText,
+  useEditorBridge,
+  useEditorContent,
+  TenTapStartKit,
+  ImageBridge,
+} from '@10play/tentap-editor';
+import {
+  ArrowLeft,
+  Archive,
+  ArchiveRestore,
+  BookmarkPlus,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  History,
+  Share2,
+  Sparkles,
+  Users,
+} from 'lucide-react-native';
+
+import { getNote, updateNote, createCheckpoint } from '../api/notes.api';
+import { getValidAccessToken } from '../lib/auth-session';
+import { getRoleFromAccessToken } from '../lib/jwt';
+import type { RootStackParamList } from '../navigation/root-stack';
+import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel';
+import { MobileEditorToolbar } from '../components/notes/MobileEditorToolbar';
+import { useNotePresence } from '../hooks/UseNotesPresence';
+import { useRelatedThreads } from '../hooks/UseRelatedThreads';
+import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel';
+import { MobileSharePanel } from '../components/notes/MobileSharePanel';
+import { useTheme } from '../theme/theme';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>;
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface NoteData {
+  id: string;
+  title: string;
+  content: any;
+  ownerId: string;
+  status: 'ACTIVE' | 'ARCHIVED';
+  role?: string;    // "OWNER" | "EDITOR" | "VIEWER" — returned by the API
+  updatedAt?: string;
+  createdAt?: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function decodeUserId(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function tiptapJsonToHtml(json: any): string {
+  if (!json) return '';
+  if (typeof json === 'string') return json;
+  if (typeof json === 'object' && json.type === 'doc') {
+    return jsonNodeToHtml(json);
+  }
+  return '';
+}
+
+function jsonNodeToHtml(node: any): string {
+  if (!node) return '';
+  if (node.type === 'doc') return (node.content ?? []).map(jsonNodeToHtml).join('');
+  if (node.type === 'paragraph') {
+    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
+    return `<p>${inner || '<br>'}</p>`;
+  }
+  if (node.type === 'heading') {
+    const level = node.attrs?.level ?? 1;
+    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
+    return `<h${level}>${inner}</h${level}>`;
+  }
+  if (node.type === 'bulletList') return `<ul>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ul>`;
+  if (node.type === 'orderedList') return `<ol>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ol>`;
+  if (node.type === 'listItem') return `<li>${(node.content ?? []).map(jsonNodeToHtml).join('')}</li>`;
+  if (node.type === 'blockquote') return `<blockquote>${(node.content ?? []).map(jsonNodeToHtml).join('')}</blockquote>`;
+  if (node.type === 'codeBlock') return `<pre><code>${(node.content ?? []).map(jsonNodeToHtml).join('')}</code></pre>`;
+  if (node.type === 'horizontalRule') return '<hr>';
+  if (node.type === 'text') {
+    let text = node.text ?? '';
+    const marks: string[] = node.marks?.map((m: any) => m.type) ?? [];
+    if (marks.includes('bold')) text = `<strong>${text}</strong>`;
+    if (marks.includes('italic')) text = `<em>${text}</em>`;
+    if (marks.includes('strike')) text = `<s>${text}</s>`;
+    if (marks.includes('code')) text = `<code>${text}</code>`;
+    return text;
+  }
+  return (node.content ?? []).map(jsonNodeToHtml).join('');
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+export function NoteScreen() {
+  const { tokens } = useTheme();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<NoteRoute>();
+  const insets = useSafeAreaInsets();
+  const noteId: string = (route.params as any)?.noteId ?? '';
+
+  const [token, setToken] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    getValidAccessToken().then((t) => {
+      setToken(t);
+      const r = t ? String(getRoleFromAccessToken(t)) : null;
+      setRole(r);
+      setCurrentUserId(t ? decodeUserId(t) : null);
+      setAuthReady(true);
+    });
+  }, []);
+
+  const canAccessNotes = role !== 'ALUMNI';
+
+  const [note, setNote] = useState<NoteData | null>(null);
+  const [loadingNote, setLoadingNote] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [savingCheckpoint, setSavingCheckpoint] = useState(false);
+
+  const [titleDraft, setTitleDraft] = useState('');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const titleInputRef = useRef<TextInput>(null);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string>('');
+  const inFlightRef = useRef(false);
+  const hasPendingRef = useRef(false);
+  const pendingContentRef = useRef<string>('');
+  const autosaveArmedRef = useRef(false);
+  const hasSetInitialContentRef = useRef(false);
+  const [editorReady, setEditorReady] = useState(false);
+
+  const editor = useEditorBridge({
+    autofocus: false,
+    avoidIosKeyboard: true,
+    editable: false,
+    bridgeExtensions: [...TenTapStartKit, ImageBridge],
+  });
+
+  const htmlContent = useEditorContent(editor, {
+    type: 'html',
+    debounceInterval: 500,
+  });
+
+  const canEdit = authReady && canAccessNotes && role !== 'ALUMNI';
+  const isOwner = note ? note.ownerId === currentUserId : false;
+  const isArchived = note?.status === 'ARCHIVED';
+
+  // ─── Presence ──────────────────────────────────────────────────────────────
+  const { onlineCount, othersOnline } = useNotePresence({
+    noteId,
+    userId: currentUserId,
+    enabled: !!note && authReady,
+  });
+
+  // ─── AI Insights ───────────────────────────────────────────────────────────
+  const initialHtml = note ? tiptapJsonToHtml(note.content) : '';
+  const plainTextContent = (htmlContent || initialHtml)
+    .replace(/<[^>]*>/g, '')
+    .trim();
+
+  const {
+    threads: relatedThreads,
+    isLoading: threadsLoading,
+    hasRequested: threadsRequested,
+    canRequestSuggestions,
+    cooldownRemainingMs,
+    requestSuggestions,
+  } = useRelatedThreads({
+    noteId,
+    token,
+    noteContent: plainTextContent,
+    title: note?.title ?? '',
+    contentJson: note?.content ?? null,
+    enabled: showAIInsights,
+  });
+
+  // Derive display role label — prefer API-returned role, fall back to ownership check
+  const noteRoleLabel: string = (() => {
+    const r = note?.role?.toUpperCase();
+    if (r === 'OWNER' || isOwner) return 'Owner';
+    if (r === 'EDITOR' || canEdit) return 'Editor';
+    return 'Viewer';
+  })();
+
+  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+    ? tokens.primarySoft : tokens.surfaceElevated;
+  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
+    ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (!token) navigation.replace('Login', undefined);
+    else if (!canAccessNotes) navigation.replace('Notes', undefined);
+  }, [authReady, token, canAccessNotes, navigation]);
+
+  const fetchNote = useCallback(async () => {
+    if (!authReady || !noteId || !token) {
+      if (authReady) setLoadingNote(false);
+      return;
+    }
+    try {
+      setFetchError(null);
+      const fetchedNote = await getNote(token, noteId);
+      setNote(fetchedNote);
+      setTitleDraft(fetchedNote.title);
+      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null);
+    } catch {
+      setFetchError('Failed to load note');
+    } finally {
+      setLoadingNote(false);
+    }
+  }, [authReady, noteId, token]);
+
+  useEffect(() => { fetchNote(); }, [fetchNote]);
+
+  useEffect(() => {
+    const state = editor.getEditorState() as any;
+    if (state && state.isReady) {
+      setEditorReady(true);
+      return;
+    }
+
+    return editor._subscribeToEditorStateUpdate((updatedState: any) => {
+      if (updatedState && updatedState.isReady) {
+        setEditorReady(true);
+      }
+    });
+  }, [editor]);
+
+  useEffect(() => {
+    if (!note || !editorReady || hasSetInitialContentRef.current) return;
+
+    const htmlSeed = tiptapJsonToHtml(note.content);
+
+    const isContentEmpty = !note.content ||
+      (typeof note.content === 'object' &&
+        Array.isArray(note.content?.content) &&
+        note.content.content.length === 0) ||
+      (typeof note.content === 'string' && note.content.trim() === '');
+
+    editor.setContent(htmlSeed);
+    hasSetInitialContentRef.current = true;
+    setIsEmpty(isContentEmpty);
+    editor.setEditable(canEdit);
+    if (canEdit) autosaveArmedRef.current = true;
+  }, [note, editor, canEdit, editorReady]);
+
+  useEffect(() => {
+    if (!autosaveArmedRef.current) return;
+    if (!htmlContent) return;
+    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+      setIsEmpty(false);
+    }
+    void persistContent(htmlContent);
+  }, [htmlContent, isEmpty]);
+
+  const persistContent = useCallback(async (content: string) => {
+    if (!canEdit || !token || !noteId) return;
+    if (!autosaveArmedRef.current) return;
+    if (content === lastSavedRef.current) return;
+    if (inFlightRef.current) {
+      hasPendingRef.current = true;
+      pendingContentRef.current = content;
+      return;
+    }
+    inFlightRef.current = true;
+    setSaveStatus('saving');
+    try {
+      await updateNote(token, noteId, { content });
+      lastSavedRef.current = content;
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1200);
+    } catch {
+      setSaveStatus('error');
+    } finally {
+      inFlightRef.current = false;
+      if (hasPendingRef.current) {
+        hasPendingRef.current = false;
+        const pending = pendingContentRef.current;
+        pendingContentRef.current = '';
+        await persistContent(pending);
+      }
+    }
+  }, [canEdit, token, noteId]);
+
+  const flushPendingSave = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (autosaveArmedRef.current && token && noteId && canEdit) {
+      try {
+        const latestHtml = await editor.getHTML();
+        await persistContent(latestHtml);
+      } catch {
+        // ignore
+      }
+    }
+  }, [editor, token, noteId, canEdit, persistContent]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        void flushPendingSave();
+      }
+    });
+    return () => sub.remove();
+  }, [flushPendingSave]);
+
+  useEffect(() => {
+    return () => { void flushPendingSave(); };
+  }, [flushPendingSave]);
+
+  function startEditTitle() {
+    if (!isOwner) return;
+    setEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.focus(), 30);
+  }
+
+  async function commitTitle() {
+    setEditingTitle(false);
+    const trimmed = titleDraft.trim() || 'Untitled document';
+    if (trimmed === note?.title || !token) return;
+    try {
+      await updateNote(token, noteId, { title: trimmed });
+      setNote((prev) => prev ? { ...prev, title: trimmed } : prev);
+    } catch {
+      setTitleDraft(note?.title ?? '');
+    }
+  }
+
+  const handleToggleArchive = async () => {
+    if (!token || !note || !isOwner) return;
+    const nextStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
+    try {
+      setArchiving(true);
+      await updateNote(token, noteId, { status: nextStatus });
+      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev);
+    } catch {
+      // silently fail
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleSaveCheckpoint = async () => {
+    if (!token) return;
+    try {
+      setSavingCheckpoint(true);
+      await flushPendingSave();
+      await createCheckpoint(token, noteId);
+    } finally {
+      setSavingCheckpoint(false);
+    }
+  };
+
+  const handleRestored = useCallback(async () => {
+    hasSetInitialContentRef.current = false;
+    autosaveArmedRef.current = false;
+    setShowVersionHistory(false);
+    await fetchNote();
+  }, [fetchNote]);
+
+  const isMidnight = tokens.name === 'midnight';
+
+  if (loadingNote) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
+        <ActivityIndicator size="large" color={tokens.primary} />
+        <Text style={{ fontSize: 15, color: tokens.muted }}>Loading note…</Text>
+      </View>
+    );
+  }
+
+  if (fetchError || !note) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
+        <FileText size={40} color={tokens.muted} strokeWidth={1.3} />
+        <Text style={{ fontSize: 15, color: tokens.muted }}>{fetchError ?? 'Note not found'}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>← Back to notes</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: tokens.surface }}
+      behavior="padding"
+      enabled={Platform.OS === 'ios'}
+      keyboardVerticalOffset={0}
+    >
+      <StatusBar style={isMidnight ? 'light' : 'dark'} />
+
+      {/* Header wrapper */}
+      <View style={{ paddingTop: insets.top, backgroundColor: tokens.surface }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.border, gap: 8, backgroundColor: tokens.surface }}>
+          {/* Back */}
+          <TouchableOpacity
+            style={{ padding: 4 }}
+            onPress={async () => {
+              await flushPendingSave();
+              navigation.navigate('Notes', undefined);
+            }}
+            hitSlop={8}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={20} color={tokens.text} />
+          </TouchableOpacity>
+
+          {/* Title + role */}
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            {editingTitle ? (
+              <TextInput
+                ref={titleInputRef}
+                style={{ fontSize: 16, fontWeight: '700', color: tokens.text, padding: 0, borderBottomWidth: 2, borderBottomColor: tokens.primary }}
+                value={titleDraft}
+                onChangeText={setTitleDraft}
+                onBlur={commitTitle}
+                onSubmitEditing={commitTitle}
+                maxLength={120}
+                returnKeyType="done"
+              />
+            ) : (
+              <Pressable onPress={startEditTitle}>
+                <Text
+                  style={{ fontSize: 16, fontWeight: '700', color: tokens.text }}
+                  numberOfLines={1}
+                >
+                  {note.title || 'Untitled document'}
+                </Text>
+              </Pressable>
+            )}
+            <View style={{ alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: noteRoleBg }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: noteRoleColor }}>
+                {noteRoleLabel}
+              </Text>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} tokens={tokens} />
+            <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
+
+            {canEdit && (
+              <TouchableOpacity
+                style={{ padding: 6, borderRadius: 8 }}
+                onPress={handleSaveCheckpoint}
+                disabled={savingCheckpoint}
+                hitSlop={6}
+                activeOpacity={0.7}
+              >
+                {savingCheckpoint ? (
+                  <ActivityIndicator size="small" color={tokens.primary} />
+                ) : (
+                  <BookmarkPlus size={20} color={tokens.primary} />
+                )}
+              </TouchableOpacity>
+            )}
+
+            {isOwner && (
+              <TouchableOpacity
+                style={{ padding: 6, borderRadius: 8, backgroundColor: isArchived ? tokens.accentSoft : 'transparent' }}
+                onPress={handleToggleArchive}
+                disabled={archiving}
+                hitSlop={6}
+                activeOpacity={0.7}
+              >
+                {archiving ? (
+                  <ActivityIndicator size="small" color={tokens.accent} />
+                ) : isArchived ? (
+                  <ArchiveRestore size={20} color={tokens.accent} />
+                ) : (
+                  <Archive size={20} color={tokens.muted} />
+                )}
+              </TouchableOpacity>
+            )}
+
+            {isOwner && (
+              <TouchableOpacity
+                style={{ padding: 6, borderRadius: 8, backgroundColor: showShare ? tokens.primary : 'transparent' }}
+                onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false); }}
+                hitSlop={6}
+                activeOpacity={0.7}
+              >
+                <Share2 size={20} color={showShare ? '#fff' : tokens.primary} />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={{ padding: 6, borderRadius: 8, backgroundColor: showVersionHistory ? tokens.primary : 'transparent' }}
+              onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false); }}
+              hitSlop={6}
+              activeOpacity={0.7}
+            >
+              <History size={20} color={showVersionHistory ? '#fff' : tokens.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{ padding: 6, borderRadius: 8, backgroundColor: showAIInsights ? tokens.accent : 'transparent' }}
+              onPress={() => { setShowAIInsights(true); setShowVersionHistory(false); setShowShare(false); }}
+              hitSlop={6}
+              activeOpacity={0.7}
+            >
+              <Sparkles size={20} color={showAIInsights ? '#fff' : tokens.accent} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Archive Banner */}
+        {isArchived && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+            <Archive size={13} color={tokens.accent} />
+            <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: tokens.accent }}>
+              This note is archived. Unarchive it to enable editing.
+            </Text>
+            {isOwner && (
+              <TouchableOpacity onPress={handleToggleArchive} activeOpacity={0.7}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.accent }}>Unarchive</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Editor Area */}
+      <View style={{ flex: 1 }}>
+        <RichText editor={editor} style={{ flex: 1 }} />
+        {isEmpty && canEdit && !isArchived && (
+          <View
+            style={{ position: 'absolute', left: 0, right: 0, top: 0, paddingTop: 16, paddingHorizontal: 24 }}
+            pointerEvents="none"
+          >
+            <Text style={{ fontSize: 15, color: tokens.muted }}>
+              Start writing your note…
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {canEdit && token && (
+        <MobileEditorToolbar
+          editor={editor}
+          bottomInset={insets.bottom}
+          noteId={noteId}
+          token={token}
+        />
+      )}
+
+      {/* Modals and Side Panels */}
+      <MobileVersionHistoryPanel
+        noteId={noteId}
+        token={token!}
+        canRestore={canEdit}
+        visible={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        onRestored={handleRestored}
+      />
+
+      {token && (
+        <MobileSharePanel
+          noteId={noteId}
+          token={token}
+          isOwner={isOwner}
+          visible={showShare}
+          onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {token && (
+        <MobileAIInsightsPanel
+          token={token}
+          threads={relatedThreads}
+          isLoading={threadsLoading}
+          hasRequested={threadsRequested}
+          canRequestSuggestions={canRequestSuggestions}
+          cooldownRemainingMs={cooldownRemainingMs}
+          onRequestSuggestions={requestSuggestions}
+          visible={showAIInsights}
+          onClose={() => setShowAIInsights(false)}
+        />
+      )}
+    </KeyboardAvoidingView>
+  );
+}
+
+// ─── Presence Indicator ──────────────────────────────────────────────────────
+
+interface PresenceIndicatorProps {
+  onlineCount: number;
+  othersOnline: number;
+  tokens: any;
+}
+
+function PresenceIndicator({ onlineCount, othersOnline, tokens }: PresenceIndicatorProps) {
+  if (onlineCount === 0) return null;
+
+  const isAlone = othersOnline === 0;
+  const dotColor = isAlone ? tokens.muted : '#22c55e';
+  const label = isAlone
+    ? 'Only you'
+    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: tokens.surfaceElevated, borderWidth: 1, borderColor: tokens.border }}>
+      <View
+        style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: dotColor }}
+      />
+      <Text style={{ fontSize: 10, fontWeight: '600', color: tokens.muted }}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Save Indicator ──────────────────────────────────────────────────────────
+
+function SaveIndicator({ status, tokens, isMidnight }: { status: SaveStatus; tokens: any; isMidnight: boolean }) {
+  if (status === 'idle') return null;
+
+  const colorMap = {
+    saving: { text: tokens.accent, border: tokens.border, bg: tokens.accentSoft, icon: tokens.accent },
+    saved: { text: tokens.success, border: tokens.border, bg: isMidnight ? '#0d2d1a' : '#e9f8ef', icon: tokens.success },
+    error: { text: tokens.danger, border: tokens.border, bg: isMidnight ? '#3a1a1e' : '#ffe8e8', icon: tokens.danger },
+  };
+  const c = colorMap[status];
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: c.border, backgroundColor: c.bg }}>
+      {status === 'saving' && <ActivityIndicator size={10} color={c.icon} />}
+      {status === 'saved' && <CheckCircle2 size={11} color={c.icon} />}
+      {status === 'error' && <AlertCircle size={11} color={c.icon} />}
+      <Text style={{ fontSize: 10, fontWeight: '700', color: c.text }}>
+        {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Failed'}
+      </Text>
+    </View>
+  );
+}

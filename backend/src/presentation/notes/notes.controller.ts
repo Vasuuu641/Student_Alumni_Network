@@ -15,6 +15,8 @@ import {
 } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
+import { Role } from '../../domain/entities/authorized-user.entity';
 
 // Use cases
 import { CreateNoteUseCase } from '../../application/notes/create-note.usecase';
@@ -40,9 +42,20 @@ import { UpdateNoteRequestDto } from './dto/update-note-request.dto';
 import { ShareNoteRequest } from './dto/share-note-request.dto';
 import { UpdateShareRoleRequestDto } from './dto/update-share-role-request.dto';
 
+// File upload
+import { UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import * as multer from 'multer';
+import { UploadNoteImageUseCase } from '../../application/notes/upload-note-image.usecase';
+
 @Controller('notes')
+@Roles(Role.STUDENT, Role.PROFESSOR)
 export class NotesController {
   private readonly logger = new Logger(NotesController.name);
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
+  }
 
   constructor(
     private readonly createNoteUseCase: CreateNoteUseCase,
@@ -59,6 +72,7 @@ export class NotesController {
     private readonly listNoteCollaboratorsUseCase: ListNoteCollaboratorsUseCase,
     @Inject('NotesRealtimePublisher')
     private readonly notesRealtimePublisher: NotesRealtimePublisher,
+    private readonly uploadNoteImageUseCase: UploadNoteImageUseCase,
   ) {}
 
   /**
@@ -80,7 +94,7 @@ export class NotesController {
       return { noteId };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to create note',
+        this.getErrorMessage(error, 'Failed to create note'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -99,7 +113,7 @@ export class NotesController {
       return { notes };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list notes',
+        this.getErrorMessage(error, 'Failed to list notes'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -121,7 +135,7 @@ export class NotesController {
       return { note };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to get note',
+        this.getErrorMessage(error, 'Failed to get note'),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -187,11 +201,46 @@ export class NotesController {
         process.env.NODE_ENV !== 'production'
       ) {
         this.logger.warn(
-          `PATCH /notes/${noteId} failed: ${error?.message ?? 'unknown error'}`,
+          `PATCH /notes/${noteId} failed: ${this.getErrorMessage(error, 'unknown error')}`,
         );
       }
       throw new HttpException(
-        error.message || 'Failed to update note',
+        this.getErrorMessage(error, 'Failed to update note'),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * POST /notes/:id/images
+   * Upload an image for inline embedding in the note editor.
+   * Returns the public URL — the frontend inserts it into contentJson.
+   */
+  @Post(':id/images')
+  @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadImage(
+    @Req() request: any,
+    @Param('id') noteId: string,
+    @UploadedFile() file?: multer.File,
+  ): Promise<{ url: string }> {
+    try {
+      if (!file) {
+        throw new HttpException('No image file provided', HttpStatus.BAD_REQUEST);
+      }
+
+      const userId = request.user.userId;
+      const url = await this.uploadNoteImageUseCase.execute(noteId, userId, {
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      });
+
+      return { url };
+    } catch (error) {
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to upload image'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -220,7 +269,7 @@ export class NotesController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to share note',
+        this.getErrorMessage(error, 'Failed to share note'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -246,7 +295,7 @@ export class NotesController {
       return { collaborators };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list collaborators',
+        this.getErrorMessage(error, 'Failed to list collaborators'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -278,7 +327,7 @@ export class NotesController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to update share permission',
+        this.getErrorMessage(error, 'Failed to update share permission'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -306,7 +355,7 @@ export class NotesController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to remove collaborator',
+        this.getErrorMessage(error, 'Failed to remove collaborator'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -345,7 +394,7 @@ export class NotesController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to create checkpoint',
+        this.getErrorMessage(error, 'Failed to create checkpoint'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -382,7 +431,7 @@ export class NotesController {
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list versions',
+        this.getErrorMessage(error, 'Failed to list versions'),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -423,7 +472,7 @@ export class NotesController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to restore version',
+        this.getErrorMessage(error, 'Failed to restore version'),
         HttpStatus.BAD_REQUEST,
       );
     }

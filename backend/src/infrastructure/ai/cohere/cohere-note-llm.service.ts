@@ -49,59 +49,88 @@ export class CohereNoteLLMService implements NoteLLMService {
 
   // ─── Embed note ───────────────────────────────────────────────────────────
 
+  private readonly activeEmbeddings = new Map<string, Promise<void>>();
+
   async embedNote(noteId: string, title: string, contentJson: unknown): Promise<void> {
-    try {
-      const bodyText = this.extractTextFromTipTap(contentJson);
-      const fullText = `${title}\n\n${bodyText}`.trim();
+    const existing = this.activeEmbeddings.get(noteId);
 
-      if (fullText.length < 20) return;
+    // Create a new promise for this request that chains after the existing one
+    const promise = (async () => {
+      if (existing) {
+        try {
+          await existing;
+        } catch {
+          // ignore errors from previous attempts
+        }
+      }
 
-      const chunks = this.chunkText(fullText);
-      if (chunks.length === 0) return;
+      try {
+        const bodyText = this.extractTextFromTipTap(contentJson);
+        const fullText = `${title}\n\n${bodyText}`.trim();
 
-      // Delete existing chunks and embeddings for this note
-      await this.prisma.noteChunk.deleteMany({ where: { noteId } });
+        if (fullText.length < 20) return;
 
-      // Embed all chunks in one Cohere batch call
-      const response = await this.cohere.embed({
-        texts: chunks,
-        model: 'embed-english-v3.0',
-        inputType: 'search_document',
-        embeddingTypes: ['float'],
-      });
+        const chunks = this.chunkText(fullText);
+        if (chunks.length === 0) return;
 
-      const embeddings = (response.embeddings as any).float as number[][];
-
-      // Store each chunk and its embedding
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = await this.prisma.noteChunk.create({
-          data: {
-            id: this.generateId(),
-            noteId,
-            chunkIndex: i,
-            chunkText: chunks[i],
-          },
+        // Embed all chunks in one Cohere batch call (done outside transaction)
+        const response = await this.cohere.embed({
+          texts: chunks,
+          model: 'embed-english-v3.0',
+          inputType: 'search_document',
+          embeddingTypes: ['float'],
         });
 
-        const vectorLiteral = `[${embeddings[i].join(',')}]`;
-        const now = new Date().toISOString();
+        const embeddings = (response.embeddings as any).float as number[][];
 
-        await this.prisma.$queryRawUnsafe(
-          `
-          INSERT INTO "NoteChunkEmbedding" (id, "chunkId", "noteId", embedding, "createdAt")
-          VALUES (gen_random_uuid(), $1, $2, $3::vector, $4::timestamp)
-          ON CONFLICT ("chunkId") DO UPDATE
-            SET embedding = $3::vector
-          `,
-          chunk.id,
-          noteId,
-          vectorLiteral,
-          now,
-        );
+        // Store each chunk and its embedding in a single database transaction
+        await this.prisma.$transaction(async (tx) => {
+          // Delete existing chunks and embeddings for this note
+          await tx.noteChunk.deleteMany({ where: { noteId } });
+
+          // Store each chunk and its embedding
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = await tx.noteChunk.create({
+              data: {
+                id: this.generateId(),
+                noteId,
+                chunkIndex: i,
+                chunkText: chunks[i],
+              },
+            });
+
+            const vectorLiteral = `[${embeddings[i].join(',')}]`;
+            const now = new Date().toISOString();
+
+            await tx.$queryRawUnsafe(
+              `
+              INSERT INTO "NoteChunkEmbedding" (id, "chunkId", "noteId", embedding, "createdAt")
+              VALUES (gen_random_uuid(), $1, $2, $3::vector, $4::timestamp)
+              ON CONFLICT ("chunkId") DO UPDATE
+                SET embedding = $3::vector
+              `,
+              chunk.id,
+              noteId,
+              vectorLiteral,
+              now,
+            );
+          }
+        });
+      } catch (error: any) {
+        console.error(`Failed to embed note ${noteId}:`, error.message);
+        throw error;
       }
-    } catch (error) {
-      console.error(`Failed to embed note ${noteId}:`, error.message);
-      throw error;
+    })();
+
+    this.activeEmbeddings.set(noteId, promise);
+
+    try {
+      await promise;
+    } finally {
+      // Clean up the map if this is still the active promise
+      if (this.activeEmbeddings.get(noteId) === promise) {
+        this.activeEmbeddings.delete(noteId);
+      }
     }
   }
 
@@ -171,7 +200,7 @@ export class CohereNoteLLMService implements NoteLLMService {
         voteScore: Number(r.voteScore),
         similarityScore: Number(r.similarity),
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to find related threads:', error.message);
       throw error;
     }

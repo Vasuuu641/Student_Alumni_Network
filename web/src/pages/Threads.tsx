@@ -8,6 +8,7 @@ import {
 	Plus,
 	Search,
 	X,
+	Paperclip,
 } from 'lucide-react'
 import {
 	createThread,
@@ -20,6 +21,7 @@ import {
 	type ThreadSortBy,
 } from '../api/threads.api'
 import { getAccessToken, getRoleFromAccessToken, type UserRole } from '../lib/auth'
+import { PlatformTopNav } from '../components/PlatformTopNav'
 
 const MIN_SIMILARITY_CHARS = 10
 
@@ -82,6 +84,9 @@ export function ThreadsPage() {
 
 	const [toast, setToast] = useState<string | null>(null)
 	const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
+
+	const [createAttachments, setCreateAttachments] = useState<File[]>([])
+	const createFileInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (!token) {
@@ -264,11 +269,13 @@ export function ThreadsPage() {
 				title,
 				description: description || undefined,
 				panel: activePanel,
+				attachments: createAttachments,
 			})
 
 			setShowCreateModal(false)
 			setCreateTitle('')
 			setCreateDescription('')
+			setCreateAttachments([])
 			setSimilarThreads([])
 
 			await fetchThreads()
@@ -302,135 +309,136 @@ export function ThreadsPage() {
 		: 'Join conversations across academics and career guidance.'
 
 	return (
-		<main className="threads-page">
-			<header className="threads-header">
-				<div>
-					<h1>Discussions</h1>
-					<p>{pageSubtitle}</p>
-				</div>
-				<div className="threads-header__actions">
-					<button className="threads-secondary-btn" onClick={() => navigate('/dashboard')}>
-						Back to Dashboard
-					</button>
-					<button className="threads-primary-btn" onClick={() => setShowCreateModal(true)}>
-						<Plus size={16} />
-						New Discussion
-					</button>
-				</div>
-			</header>
+		<main className="threads-page-shell">
+			<PlatformTopNav role={role} />
 
-			<section className="threads-tabs">
-				{availablePanels.includes('ACADEMIC') && (
+			<div className="threads-page">
+				<header className="threads-header">
+					<div>
+						<h1>Discussions</h1>
+						<p>{pageSubtitle}</p>
+					</div>
+					<div className="threads-header__actions">
+						<button className="threads-primary-btn" onClick={() => setShowCreateModal(true)}>
+							<Plus size={16} />
+							New Discussion
+						</button>
+					</div>
+				</header>
+
+				<section className="threads-tabs">
+					{availablePanels.includes('ACADEMIC') && (
+						<button
+							className={`threads-tab ${activePanel === 'ACADEMIC' ? 'threads-tab--active' : ''}`}
+							onClick={() => {
+								setActivePanel('ACADEMIC')
+								setPostCreateSuggestions([])
+							}}
+						>
+							<BookOpen size={15} />
+							Academic Discussions
+						</button>
+					)}
 					<button
-						className={`threads-tab ${activePanel === 'ACADEMIC' ? 'threads-tab--active' : ''}`}
+						className={`threads-tab ${activePanel === 'ALUMNI' ? 'threads-tab--active' : ''}`}
 						onClick={() => {
-							setActivePanel('ACADEMIC')
+							setActivePanel('ALUMNI')
 							setPostCreateSuggestions([])
 						}}
 					>
-						<BookOpen size={15} />
-						Academic Discussions
+						<Briefcase size={15} />
+						Career Advice
 					</button>
+				</section>
+
+				<section className="threads-panel-intro">
+					<h2>{PANEL_META[activePanel].title}</h2>
+					<p>{PANEL_META[activePanel].subtitle}</p>
+				</section>
+
+				<section className="threads-toolbar">
+					<div className="threads-search">
+						<Search size={16} />
+						<input
+							value={searchText}
+							onChange={(e) => setSearchText(e.target.value)}
+							placeholder="Search discussions..."
+						/>
+					</div>
+
+					<select
+						value={sortBy}
+						onChange={(e) => setSortBy(e.target.value as ThreadSortBy)}
+						className="threads-sort"
+					>
+						<option value="newest">Newest</option>
+						<option value="mostReplies">Most replies</option>
+						<option value="topVoted">Top voted</option>
+					</select>
+				</section>
+
+				{threadsError && <p className="status-banner status-banner--error">{threadsError}</p>}
+
+				{postCreateSuggestions.length > 0 && (
+					<section className="threads-recommend-banner">
+						<p><strong>You might be interested in these discussions:</strong></p>
+						<div className="threads-recommend-list">
+							{postCreateSuggestions.map((item) => (
+								<button
+									key={item.threadId}
+									type="button"
+									onClick={() => navigate(`/threads/${item.threadId}`)}
+								>
+									<span>{Math.round(item.similarityScore * 100)}%</span>
+									{item.title}
+								</button>
+							))}
+						</div>
+					</section>
 				)}
-				<button
-					className={`threads-tab ${activePanel === 'ALUMNI' ? 'threads-tab--active' : ''}`}
-					onClick={() => {
-						setActivePanel('ALUMNI')
-						setPostCreateSuggestions([])
-					}}
-				>
-					<Briefcase size={15} />
-					Career Advice
-				</button>
-			</section>
 
-			<section className="threads-panel-intro">
-				<h2>{PANEL_META[activePanel].title}</h2>
-				<p>{PANEL_META[activePanel].subtitle}</p>
-			</section>
+				<section className="threads-list-only">
+					<div className="threads-list">
+						<div className="threads-list__meta">
+							{threadsLoading ? 'Loading discussions…' : `${filteredThreads.length} of ${totalThreads} discussions`}
+						</div>
 
-			<section className="threads-toolbar">
-				<div className="threads-search">
-					<Search size={16} />
-					<input
-						value={searchText}
-						onChange={(e) => setSearchText(e.target.value)}
-						placeholder="Search discussions..."
-					/>
-				</div>
+						{!threadsLoading && filteredThreads.length === 0 && (
+							<div className="threads-empty">
+								<MessageCircle size={28} />
+								<p>No discussions found for this panel yet.</p>
+							</div>
+						)}
 
-				<select
-					value={sortBy}
-					onChange={(e) => setSortBy(e.target.value as ThreadSortBy)}
-					className="threads-sort"
-				>
-					<option value="newest">Newest</option>
-					<option value="mostReplies">Most replies</option>
-					<option value="topVoted">Top voted</option>
-				</select>
-			</section>
-
-			{threadsError && <p className="status-banner status-banner--error">{threadsError}</p>}
-
-			{postCreateSuggestions.length > 0 && (
-				<section className="threads-recommend-banner">
-					<p><strong>You might be interested in these discussions:</strong></p>
-					<div className="threads-recommend-list">
-						{postCreateSuggestions.map((item) => (
-							<button
-								key={item.threadId}
-								type="button"
-								onClick={() => navigate(`/threads/${item.threadId}`)}
+						{filteredThreads.map((thread) => (
+							<article
+								key={thread.id}
+								className="thread-card"
 							>
-								<span>{Math.round(item.similarityScore * 100)}%</span>
-								{item.title}
-							</button>
+								<button className="thread-main" onClick={() => navigate(`/threads/${thread.id}`)}>
+									<h3>{thread.title}</h3>
+									{thread.description && <p>{thread.description}</p>}
+									<div className="thread-meta-row">
+										<span>By {thread.authorName ?? thread.authorId.slice(0, 8)}</span>
+										<span>{formatRelativeDate(thread.createdAt)}</span>
+										<span>{thread.replyCount} comments</span>
+										<span>↑ {thread.upvoteCount ?? 0} • ↓ {thread.downvoteCount ?? 0}</span>
+									</div>
+								</button>
+
+								<button
+									type="button"
+									className="thread-open-btn"
+									onClick={() => navigate(`/threads/${thread.id}`)}
+									aria-label="Open discussion"
+								>
+									<ChevronRight size={18} />
+								</button>
+							</article>
 						))}
 					</div>
 				</section>
-			)}
-
-			<section className="threads-list-only">
-				<div className="threads-list">
-					<div className="threads-list__meta">
-						{threadsLoading ? 'Loading discussions…' : `${filteredThreads.length} of ${totalThreads} discussions`}
-					</div>
-
-					{!threadsLoading && filteredThreads.length === 0 && (
-						<div className="threads-empty">
-							<MessageCircle size={28} />
-							<p>No discussions found for this panel yet.</p>
-						</div>
-					)}
-
-					{filteredThreads.map((thread) => (
-						<article
-							key={thread.id}
-							className="thread-card"
-						>
-							<button className="thread-main" onClick={() => navigate(`/threads/${thread.id}`)}>
-								<h3>{thread.title}</h3>
-								{thread.description && <p>{thread.description}</p>}
-								<div className="thread-meta-row">
-									<span>By {thread.authorName ?? thread.authorId.slice(0, 8)}</span>
-									<span>{formatRelativeDate(thread.createdAt)}</span>
-									<span>{thread.replyCount} comments</span>
-									<span>↑ {thread.upvoteCount ?? 0} • ↓ {thread.downvoteCount ?? 0}</span>
-								</div>
-							</button>
-
-							<button
-								type="button"
-								className="thread-open-btn"
-								onClick={() => navigate(`/threads/${thread.id}`)}
-								aria-label="Open discussion"
-							>
-								<ChevronRight size={18} />
-							</button>
-						</article>
-					))}
-				</div>
-			</section>
+			</div>
 
 			{showCreateModal && (
 				<div className="threads-modal-backdrop" onClick={() => setShowCreateModal(false)}>
@@ -463,12 +471,56 @@ export function ThreadsPage() {
 
 							<label>
 								<span>Content</span>
-								<textarea
-									value={createDescription}
-									onChange={(e) => setCreateDescription(e.target.value)}
-									placeholder="Share more details..."
-								/>
+								<div className="thread-composer-field thread-composer-field--create">
+									<textarea
+										value={createDescription}
+										onChange={(e) => setCreateDescription(e.target.value)}
+										placeholder="Share more details..."
+									/>
+									<input
+										ref={createFileInputRef}
+										type="file"
+										accept="image/jpeg,image/png,application/pdf"
+										multiple
+										className="thread-reply-file-input"
+										onChange={(e) => {
+											const files = Array.from(e.target.files ?? []).slice(0, 5)
+											setCreateAttachments(files)
+										}}
+									/>
+									<button
+										type="button"
+										className="thread-attach-btn thread-composer-field__attach"
+										onClick={() => createFileInputRef.current?.click()}
+										aria-label="Attach files"
+										title="Attach image or PDF"
+									>
+										<Paperclip size={16} />
+										{createAttachments.length > 0 && (
+											<span className="thread-attach-count">{createAttachments.length}</span>
+										)}
+									</button>
+								</div>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
 							</label>
+
+							{/* <label>
+								<span>Attachments (optional)</span>
+								<input
+									type="file"
+									accept="image/jpeg,image/png,application/pdf"
+									multiple
+									onChange={(e) => {
+										const files = Array.from(e.target.files ?? []).slice(0, 5)
+										setCreateAttachments(files)
+									}}
+								/>
+								{createAttachments.length > 0 && (
+									<small>{createAttachments.length} file(s) selected</small>
+								)}
+							</label>*/}
 
 							<section className="similarity-panel">
 								<p className="similarity-panel__headline">{similarityHeadline}</p>

@@ -1,20 +1,7 @@
-import axios from 'axios';
 import { getAccessToken } from '../lib/auth';
+import { api } from './http-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken()
-  if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config
-})
 
 export type NoteRole = 'OWNER' | 'EDITOR' | 'VIEWER'
 export type NoteStatus = 'ACTIVE' | 'ARCHIVED'
@@ -174,5 +161,14 @@ export async function restoreVersion(
   versionNumber: number,
 ): Promise<{ success: boolean }> {
   const { data } = await api.post<{ success: boolean }>(`/notes/${noteId}/restore/${versionNumber}`)
+  return data
+}
+
+//file upload
+export async function uploadNoteImage(noteId: string, file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  const { data } = await api.post<{ url: string }>(`/notes/${noteId}/images`, formData)
   return data
 }

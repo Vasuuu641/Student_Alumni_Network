@@ -238,29 +238,44 @@ Basic collaboration feature.
 
 ---
 
-# Week 9 – Real-Time Chat (WebSockets)
+# Week 9 – Geo-Based Help Board
 (April 1 - April 6)
 
 ## Backend
-- Implement ChatGateway
-- Authenticate WebSocket connections via JWT
-- Implement room logic
-- Persist messages
-- Prevent cross-room data leakage
-- Add message retrieval API
+- Geo Resources (Static)
+- Get all resources
+- Get nearby resources (lat, lng, radius)
+- Admin-managed only (study spaces, labs, housing)
+- Geo Events (Dynamic)
+- Create event
+- Delete event
+- Query nearby events
+- Filter by:
+* distance
+* time (upcoming events)
+* Core Logic
+* Implement radius-based filtering (bounding box approach)
+* Ensure proper indexing is used
 
-## Web
-- Chat UI
-- Room list
-- Live message updates
-- Scroll management
+## Web (React)
+- Use a map library:
+- Leaflet or
+- Google Maps API
+- Features
+- Map-based UI (primary interface)
+- Display:
+* GeoResources (pinned locations)
+* GeoEvents (user-created events)
+* Click markers → show details
+* Create event via map interaction
+- Sidebar:
+* List of nearby events/resources
 
-## Mobile
-- Basic chat interface
-- Real-time message updates
-
-## Deliverable
-Stable real-time messaging. If WebSockets break, everything feels amateur.
+## Mobile (React Native)
+- Map screen
+- Location permissions
+- Nearby events/resources view
+- Create event flow
 
 ---
 

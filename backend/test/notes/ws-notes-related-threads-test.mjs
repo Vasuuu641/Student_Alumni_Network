@@ -64,7 +64,7 @@ async function main() {
     // Test 1 — Short content, should return empty
     console.log('Test 1: Short content — should return empty...');
     const p1 = onceWithTimeout(socket, 'notes:related-threads');
-    socket.emit('notes:typing-related-threads', {
+    socket.emit('notes:request-related-threads', {
       noteId: NOTE_ID,
       title: 'Hi',
       contentJson: null,
@@ -79,7 +79,7 @@ async function main() {
     // Test 2 — Unrelated content, should return empty
     console.log('\nTest 2: Unrelated content — should return no results...');
     const p2 = onceWithTimeout(socket, 'notes:related-threads');
-    socket.emit('notes:typing-related-threads', {
+    socket.emit('notes:request-related-threads', {
       noteId: NOTE_ID,
       title: 'My favourite pizza recipes',
       contentJson: {
@@ -100,7 +100,7 @@ async function main() {
     // Test 3 — Related content, should return thread results
     console.log('\nTest 3: Related content — should return thread results...');
     const p3 = onceWithTimeout(socket, 'notes:related-threads');
-    socket.emit('notes:typing-related-threads', {
+    socket.emit('notes:request-related-threads', {
       noteId: NOTE_ID,
       title: 'CS101 Exam Preparation',
       contentJson: {
@@ -121,7 +121,7 @@ async function main() {
     // Test 4 — System Theory content matching existing thread
     console.log('\nTest 4: System Theory content — should match existing thread...');
     const p4 = onceWithTimeout(socket, 'notes:related-threads');
-    socket.emit('notes:typing-related-threads', {
+    socket.emit('notes:request-related-threads', {
       noteId: NOTE_ID,
       title: 'System Theory Revision',
       contentJson: {

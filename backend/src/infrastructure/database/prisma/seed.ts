@@ -67,6 +67,132 @@ const getSeedEntries = (): SeedEntry[] => {
 	return [];
 };
 
+type GeoSpotSeed = {
+	title: string;
+	description: string;
+	city: string;
+	address: string;
+	latitude: number;
+	longitude: number;
+	section: string;
+	category: string;
+};
+
+const PECS_SPOTS: GeoSpotSeed[] = [
+	{
+		title: 'University of Pécs Central Library',
+		description: 'Quiet study areas with power outlets and strong wifi.',
+		city: 'Pecs',
+		address: 'Universitas u., Pécs',
+		latitude: 46.074119,
+		longitude: 18.206556,
+		section: 'OFFICIAL_RESOURCE',
+		category: 'CAMPUS_FACILITY',
+	},
+	{
+		title: 'Széchenyi Square Student Hangout',
+		description: 'Popular city-center meet-up point with cafés nearby.',
+		city: 'Pecs',
+		address: 'Széchenyi tér, Pécs',
+		latitude: 46.072734,
+		longitude: 18.232266,
+		section: 'COMMUNITY_PICK',
+		category: 'SOCIAL_HANGOUT',
+	},
+	{
+		title: 'Árkád Pécs Food Court',
+		description: 'Fast lunch option for students between classes.',
+		city: 'Pecs',
+		address: 'Bajcsy-Zsilinszky u. 11, Pécs',
+		latitude: 46.075347,
+		longitude: 18.227004,
+		section: 'COMMUNITY_PICK',
+		category: 'RESTAURANT',
+	},
+	{
+		title: 'Pécs Bus Station',
+		description: 'Main transport hub with local and regional connections.',
+		city: 'Pecs',
+		address: 'Indóház tér, Pécs',
+		latitude: 46.066905,
+		longitude: 18.228342,
+		section: 'OFFICIAL_RESOURCE',
+		category: 'UNIVERSITY_SERVICE',
+	},
+	{
+		title: 'University Sports Hall',
+		description: 'Indoor sports and fitness activities for students.',
+		city: 'Pecs',
+		address: 'Ifjúság útja, Pécs',
+		latitude: 46.075892,
+		longitude: 18.206848,
+		section: 'COMMUNITY_PICK',
+		category: 'FITNESS_WELLNESS',
+	},
+];
+
+const shouldSeedGeoHelpBoard = (): boolean => {
+	return String(process.env.GEO_HELP_BOARD_SEED ?? '').toLowerCase() === 'true';
+};
+
+async function seedGeoHelpBoardSpots(): Promise<number> {
+	// Attach seeded spots to any existing student/professor, otherwise fall back to admin.
+	const creator = await prisma.user.findFirst({
+		where: { role: { in: [Role.STUDENT, Role.PROFESSOR, Role.ADMIN] } },
+		orderBy: { createdAt: 'asc' },
+	});
+
+	if (!creator) {
+		console.log('No existing user found; skipping geo help board seed.');
+		return 0;
+	}
+
+	for (const spot of PECS_SPOTS) {
+		const existing = await prisma.geoHelpSpot.findFirst({
+			where: {
+				title: spot.title,
+				city: spot.city,
+			},
+			select: { id: true },
+		});
+
+		if (existing) {
+			await prisma.geoHelpSpot.update({
+				where: { id: existing.id },
+				data: {
+					description: spot.description,
+					address: spot.address,
+					latitude: spot.latitude,
+					longitude: spot.longitude,
+					section: spot.section,
+					category: spot.category,
+					isActive: true,
+					reviewStatus: 'VERIFIED',
+				} as any,
+			});
+			continue;
+		}
+
+		await prisma.geoHelpSpot.create({
+			data: {
+				title: spot.title,
+				description: spot.description,
+				city: spot.city,
+				address: spot.address,
+				latitude: spot.latitude,
+				longitude: spot.longitude,
+				section: spot.section,
+				category: spot.category,
+				createdById: creator.id,
+				isActive: true,
+				reviewStatus: 'VERIFIED',
+			} as any,
+		});
+	}
+
+	return PECS_SPOTS.length;
+}
+
 async function main() {
 	const entries = getSeedEntries();
 	if (entries.length === 0) {
@@ -87,6 +213,11 @@ async function main() {
 	}
 
 	console.log(`Seeded ${entries.length} authorized user(s).`);
+
+	if (shouldSeedGeoHelpBoard()) {
+		const seededSpots = await seedGeoHelpBoardSpots();
+		console.log(`Seeded ${seededSpots} geo help board spot(s) for Pecs.`);
+	}
 }
 
 main()

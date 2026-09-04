@@ -33,6 +33,23 @@ model User {
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
   replyVotes      ThreadReplyVote[]
+  studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
+  studyGroupMemberships StudyGroupMember[]
+  studyGroupPosts       StudyGroupPost[]      @relation("StudyGroupPostAuthor")
+  studyGroupSessions    StudyGroupSession[]   @relation("StudyGroupSessionCreator")
+  studyGroupInvitesSent StudyGroupInvite[]    @relation("StudyGroupInviteSender")
+  studyGroupInvitesReceived StudyGroupInvite[] @relation("StudyGroupInviteRecipient")
+  studyGroupJoinRequests StudyGroupJoinRequest[] @relation("StudyGroupJoinRequestUser")
+  studyGroupAuditEvents StudyGroupAuditEvent[] @relation("StudyGroupAuditActor")
+  studyGroupArchives    StudyGroupUserArchive[]
+  geoHelpSpotsCreated GeoHelpSpot[] @relation("GeoHelpSpotCreator")
+  geoHelpSpotVisits   GeoHelpSpotVisit[]
+  geoHelpSpotsReviewed GeoHelpSpot[] @relation("GeoHelpSpotReviewer")
+  notifications       Notification[] @relation("NotificationRecipient")
+  notificationPreference NotificationPreference? @relation("NotificationPreferenceUser")
+  interestProfile     UserInterestProfile?
+  threadAttachmentsUploaded ThreadAttachment[] @relation("ThreadAttachmentUploader")
+  groupPostAttachmentsUploaded StudyGroupPostAttachment[] @relation("GroupPostAttachmentUploader")
 }
 
 model Student {
@@ -189,6 +206,164 @@ model RevokedToken {
   @@index([expiresAt])
 }
 
+// Notifications feature
+
+enum NotificationType {
+  THREAD_REPLY
+  THREAD_ACTIVITY
+  GEO_HELP_ACTIVITY
+  STUDY_GROUP_ACTIVITY
+  NOTE_ACTIVITY
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
+model Notification {
+  id           String             @id @default(uuid())
+  userId       String
+  type         NotificationType
+  title        String             @db.VarChar(255)
+  body         String
+  entityType   String
+  entityId     String
+  sourceModule String
+  actionUrl    String?
+  score        Float              @default(0)
+  dedupeKey    String?
+  metadataJson Json?
+  isRead       Boolean            @default(false)
+  readAt       DateTime?
+  dismissedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  recipient    User               @relation("NotificationRecipient", fields: [userId], references: [id])
+  deliveries   NotificationDelivery[]
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, dismissedAt, createdAt])
+  @@index([dedupeKey])
+  @@index([type, createdAt])
+}
+
+model NotificationDelivery {
+  id              String                    @id @default(uuid())
+  notificationId  String
+  channel         NotificationChannel
+  status          NotificationDeliveryStatus @default(DELIVERED)
+  sentAt          DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  notification    Notification              @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([channel, status])
+}
+
+model NotificationPreference {
+  userId       String   @id
+  inAppEnabled Boolean  @default(true)
+  emailEnabled Boolean  @default(false)
+  pushEnabled  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation("NotificationPreferenceUser", fields: [userId], references: [id])
+}
+
+// Interest signals & AI-powered personalization
+
+enum InterestSignalType {
+  THREAD_VIEW
+  THREAD_OPEN
+  THREAD_REPLY
+  THREAD_LIKE
+  THREAD_SAVE
+  GEO_VIEW
+  GEO_VISIT
+  GEO_SAVE
+  CATEGORY_BROWSE
+  PANEL_FOCUS
+}
+
+model UserInterestProfile {
+  userId              String   @id
+  academicWeight      Float    @default(0.5)
+  alumniWeight        Float    @default(0.5)
+  careerWeight        Float    @default(0.3)
+  housingWeight       Float    @default(0.3)
+  shoppingWeight      Float    @default(0.2)
+  internshipWeight    Float    @default(0.3)
+  lastUpdatedAt       DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signals UserInterestSignal[]
+
+  @@index([lastUpdatedAt])
+}
+
+model UserInterestSignal {
+  id                String             @id @default(uuid())
+  userId            String
+  type              InterestSignalType
+  entityType        String
+  entityId          String
+  sourcePanel       String?
+  sourceModule      String
+  strength          Float              @default(1.0)
+  metadataJson      Json?
+  createdAt         DateTime           @default(now())
+
+  profile UserInterestProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([type, userId])
+}
+
+model NotificationCandidate {
+  id                String     @id @default(uuid())
+  notificationId    String?
+  userId            String
+  type              NotificationType
+  title             String     @db.VarChar(255)
+  body              String
+  entityType        String
+  entityId          String
+  sourceModule      String
+  actionUrl         String?
+  dedupeKey         String?
+  metadataJson      Json?
+  rawScore          Float      @default(0)
+  aiScore           Float?
+  finalScore        Float      @default(0)
+  scoringReason     String?
+  isEligible        Boolean    @default(false)
+  rejectionReason   String?
+  createdAt         DateTime   @default(now())
+  expiresAt         DateTime
+
+  @@index([userId, isEligible, createdAt])
+  @@index([expiresAt])
+}
+
 // Threads feature
 
 enum ThreadPanel {
@@ -233,6 +408,7 @@ model Thread {
   votes           ThreadVote[]
   threadEmbedding ThreadEmbedding?
   linkedNotes     NoteThreadLink[]
+  attachments     ThreadAttachment[]
 
   @@index([panel, status, createdAt])
   @@index([authorId])
@@ -258,6 +434,7 @@ model ThreadReply {
   parentReply  ThreadReply?      @relation("ReplyHierarchy", fields: [parentReplyId], references: [id])
   childReplies ThreadReply[]     @relation("ReplyHierarchy")
   votes        ThreadReplyVote[]
+  attachments  ThreadAttachment[]
 
   @@index([threadId, createdAt])
   @@index([threadId, voteScore])
@@ -345,4 +522,290 @@ model NoteChunkEmbedding {
 
   @@index([chunkId])
   @@index([noteId])
+}
+
+//Study-groups formation
+
+enum studyGroupsVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum studyGroupStatus {
+  ACTIVE
+  ARCHIVE
+  DELETED
+}
+
+enum studyGroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum studyGroupJoinStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+  PENDING
+}
+
+enum studyGroupPostStatus {
+  ACTIVE
+  EDITED
+  DELETED
+}
+
+model StudyGroup {
+  id             String               @id @default(uuid())
+  name           String
+  description    String
+  visibility     studyGroupsVisibility
+  status         studyGroupStatus
+  topicTags      String[]             @default([])
+  maxMembers     Int?
+  ownerId        String
+  memberCount    Int                  @default(1)
+  messageCount   Int                  @default(0)
+  lastActivityAt DateTime             @default(now())
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  owner       User                  @relation("StudyGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     StudyGroupMember[]
+  posts       StudyGroupPost[]
+  sessions    StudyGroupSession[]
+  invites     StudyGroupInvite[]
+  auditEvents StudyGroupAuditEvent[]
+  userArchives     StudyGroupUserArchive[]
+  joinRequests     StudyGroupJoinRequest[] @relation("JoinRequests")
+  recommendedGroups String[] @default([]) // For AI recommendations
+
+  @@index([status, visibility, lastActivityAt])
+  @@index([ownerId])
+}
+
+model StudyGroupUserArchive {
+  id         String   @id @default(uuid())
+  groupId    String
+  userId     String
+  archivedAt DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId, archivedAt])
+}
+
+model StudyGroupMember {
+  groupId    String
+  userId     String
+  role       studyGroupMemberRole @default(MEMBER)
+  joinStatus studyGroupJoinStatus @default(ACTIVE)
+  joinedAt   DateTime             @default(now())
+  leftAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, joinStatus])
+  @@index([groupId, role])
+}
+
+model StudyGroupPost {
+  id         String               @id @default(uuid())
+  groupId    String
+  authorId   String
+  content    String
+  status     studyGroupPostStatus @default(ACTIVE)
+  editedAt   DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User       @relation("StudyGroupPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments StudyGroupPostAttachment[]
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+}
+
+model StudyGroupSession {
+  id          String   @id @default(uuid())
+  groupId     String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  mode        String
+  location    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator User       @relation("StudyGroupSessionCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([groupId, startsAt])
+  @@index([createdBy])
+}
+
+model StudyGroupInvite {
+  id            String   @id @default(uuid())
+  groupId       String
+  invitedUserId String
+  invitedBy     String
+  token         String   @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User       @relation("StudyGroupInviteSender", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User       @relation("StudyGroupInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, expiresAt])
+  @@index([invitedUserId])
+}
+
+model StudyGroupAuditEvent {
+  id           String   @id @default(uuid())
+  groupId      String
+  actorId      String?
+  action       String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User?      @relation("StudyGroupAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@index([actorId])
+}
+
+// Geo-based help board
+
+enum GeoHelpSpotCategory {
+  UNIVERSITY_SERVICE
+  ACADEMIC_DEPARTMENT
+  ADMIN_OFFICE
+  STUDENT_SUPPORT
+  CAMPUS_FACILITY
+  RESTAURANT
+  CAFE
+  STUDY_SPOT
+  SOCIAL_HANGOUT
+  FITNESS_WELLNESS
+  SHOPPING
+  OTHER
+}
+
+enum GeoHelpSpotSection {
+  OFFICIAL_RESOURCE
+  COMMUNITY_PICK
+}
+
+enum GeoHelpSpotReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model GeoHelpSpot {
+  id          String              @id @default(uuid())
+  title       String
+  description String?
+  city        String
+  address     String?
+  latitude    Decimal             @db.Decimal(9, 6)
+  longitude   Decimal             @db.Decimal(9, 6)
+  section     GeoHelpSpotSection  @default(COMMUNITY_PICK)
+  category    GeoHelpSpotCategory @default(OTHER)
+  createdById String
+  isActive    Boolean             @default(true)
+  reviewStatus GeoHelpSpotReviewStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  visitCount  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  createdBy User               @relation("GeoHelpSpotCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("GeoHelpSpotReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  visits    GeoHelpSpotVisit[]
+
+  @@index([city, section, category, reviewStatus])
+  @@index([city, section, visitCount, reviewStatus])
+  @@index([latitude, longitude])
+  @@index([createdById])
+  @@index([reviewedById, reviewedAt])
+}
+
+model GeoHelpSpotVisit {
+  id        String   @id @default(uuid())
+  spotId    String
+  userId    String
+  visitedAt DateTime @default(now())
+
+  spot GeoHelpSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, visitedAt])
+  @@index([userId, visitedAt])
+  @@unique([spotId, userId])
+}
+
+model StudyGroupJoinRequest {
+  id            String   @id @default(uuid())
+  groupId       String
+  userId        String
+  status        String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt     DateTime @default(now())
+
+  group StudyGroup @relation("JoinRequests", fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation("StudyGroupJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([userId])
+}
+
+model ThreadAttachment {
+  id           String       @id @default(uuid())
+  threadId     String?
+  replyId      String?
+  key          String
+  url          String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  thread     Thread?      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reply      ThreadReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  uploadedBy User         @relation("ThreadAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([replyId])
+  @@index([uploadedById])
+}
+
+model StudyGroupPostAttachment {
+  id           String   @id @default(uuid())
+  postId       String
+  key          String
+  url          String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  post       StudyGroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation("GroupPostAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([uploadedById])
 }

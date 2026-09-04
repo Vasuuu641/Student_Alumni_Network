@@ -17,7 +17,7 @@ interface RoomState {
   initialPresence: PresenceUser[]
 }
 
-export function useNoteRoom(noteId: string) {
+export function useNoteRoom(noteId: string, enabled = true) {
   const [state, setState] = useState<RoomState>({
     status: 'connecting',
     role: null,
@@ -27,7 +27,7 @@ export function useNoteRoom(noteId: string) {
   })
 
   useEffect(() => {
-    if (!noteId) return
+    if (!noteId || !enabled) return
 
     setState({
       status: 'connecting',
@@ -150,7 +150,7 @@ export function useNoteRoom(noteId: string) {
       // preventing a ghost join after the component unmounts
       socket.off('connect')
     }
-  }, [noteId])
+  }, [enabled, noteId])
 
   return state
 }

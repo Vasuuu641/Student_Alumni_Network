@@ -1,16 +1,23 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import type { ThreadRepository } from 'src/domain/repositories/thread.repository';
+import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
 import { Thread } from 'src/domain/entities/thread.entity';
+import { ThreadAttachment } from 'src/domain/entities/threadAttachment.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
 import { Role } from 'src/domain/entities/authorized-user.entity';
+
+export interface ThreadWithAttachments extends Thread {
+  attachments: ThreadAttachment[];
+}
 
 @Injectable()
 export class GetThreadUseCase {
   constructor(
     @Inject('ThreadRepository') private readonly threadRepository: ThreadRepository,
+    @Inject('ThreadAttachmentRepository') private readonly threadAttachmentRepository: ThreadAttachmentRepository,
   ) {}
 
-  async execute(threadId: string, userRole: Role): Promise<Thread> {
+  async execute(threadId: string, userRole: Role): Promise<ThreadWithAttachments> {
     const thread = await this.threadRepository.findById(threadId);
 
     if (!thread) {
@@ -21,6 +28,8 @@ export class GetThreadUseCase {
 
     await this.threadRepository.incrementViewCount(threadId);
 
-    return thread;
+    const attachments = await this.threadAttachmentRepository.findByThreadId(threadId);
+
+    return Object.assign(thread, { attachments });
   }
 }

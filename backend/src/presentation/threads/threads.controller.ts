@@ -12,9 +12,14 @@ import {
   HttpStatus,
   Logger,
   Inject,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import * as multer from 'multer';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
+import {getErrorMessage, getErrorStatus} from '../../shared/utils/getErrorMessage';
 
 import { CreateThreadUseCase } from '../../application/threads/create-thread.usecase';
 import { GetThreadUseCase } from '../../application/threads/get-thread.usecase';
@@ -84,24 +89,35 @@ export class ThreadsController {
    */
   @Post()
   @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FilesInterceptor('attachments', 5, { limits: { fileSize: 10 * 1024 * 1024 } })) // Limit to 5 files, each max 10MB
   async createThread(
     @Req() request: any,
     @Body() body: CreateThreadRequestDto,
+    @UploadedFiles() uploadedFiles?: multer.File[],
   ): Promise<{ threadId: string }> {
     try {
       const { userId, role } = request.user;
+
+      const attachments = (uploadedFiles ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
+
       const threadId = await this.createThreadUseCase.execute(
         userId,
         role,
         body.title,
         body.description ?? null,
         body.panel,
+        attachments,
       );
       return { threadId };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to create thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to create thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -135,8 +151,8 @@ export class ThreadsController {
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to list threads',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to list threads',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -160,8 +176,8 @@ export class ThreadsController {
       return { thread: threadWithVote };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to get thread',
-        error.status || HttpStatus.NOT_FOUND,
+        getErrorMessage(error) || 'Failed to get thread',
+        getErrorStatus(error) || HttpStatus.NOT_FOUND,
       );
     }
   }
@@ -188,8 +204,8 @@ export class ThreadsController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to update thread status',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to update thread status',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -215,8 +231,8 @@ export class ThreadsController {
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to delete thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to delete thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -227,18 +243,27 @@ export class ThreadsController {
    */
   @Post(':id/replies')
   @UseGuards(JwtStrategy, RolesGuard)
+  @UseInterceptors(FilesInterceptor('attachments', 5, { limits: { fileSize: 10 * 1024 * 1024 } })) // Limit to 5 files, each max 10MB
   async postReply(
     @Req() request: any,
     @Param('id') threadId: string,
     @Body() body: PostReplyRequestDto,
+    @UploadedFiles() uploadedFiles?: multer.File[],
   ) {
     try {
       const { userId } = request.user;
+      const attachments = (uploadedFiles ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
       const reply = await this.postReplyUseCase.execute(
         threadId,
         userId,
-        body.content,
+        body.content ?? null,
         body.parentReplyId ?? null,
+        attachments,
       );
 
       const [replyWithAuthor] = await this.withReplyAuthorNames([reply]);
@@ -249,8 +274,8 @@ export class ThreadsController {
 
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to post reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to post reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -285,8 +310,8 @@ async listReplies(
     };
   } catch (error) {
     throw new HttpException(
-      error.message || 'Failed to list replies',
-      error.status || HttpStatus.BAD_REQUEST,
+      getErrorMessage(error) || 'Failed to list replies',
+      getErrorStatus(error) || HttpStatus.BAD_REQUEST,
     );
   }
 }
@@ -310,8 +335,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to edit reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to edit reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -334,8 +359,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to delete reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to delete reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -366,8 +391,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to vote on thread',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to vote on thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -399,8 +424,8 @@ async listReplies(
       return { success: true };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to vote on reply',
-        error.status || HttpStatus.BAD_REQUEST,
+        getErrorMessage(error) || 'Failed to vote on reply',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
       );
     }
   }

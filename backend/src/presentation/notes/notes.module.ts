@@ -14,6 +14,7 @@ import { ListNoteVersionsUseCase } from '../../application/notes/list-note-versi
 import { RestoreNoteVersionsUseCase } from '../../application/notes/restore-note-versions.usecase';
 import { ListUserNotesUseCase } from '../../application/notes/list-user-notes.usecase';
 import { ListNoteCollaboratorsUseCase } from '../../application/notes/list-note-collaborators.usecase';
+import { UploadNoteImageUseCase } from '../../application/notes/upload-note-image.usecase';
 
 // Repositories
 import { PrismaNoteRepository } from '../../infrastructure/repositories/prisma-note.repository';
@@ -54,6 +55,7 @@ import { CohereNoteLLMService } from '../../infrastructure/ai/cohere/cohere-note
     RestoreNoteVersionsUseCase,
     ListUserNotesUseCase,
     ListNoteCollaboratorsUseCase,
+    UploadNoteImageUseCase,
 
     // Repository Implementations
     PrismaNoteRepository,
@@ -106,6 +108,7 @@ import { CohereNoteLLMService } from '../../infrastructure/ai/cohere/cohere-note
     RestoreNoteVersionsUseCase,
     ListUserNotesUseCase,
     ListNoteCollaboratorsUseCase,
+    UploadNoteImageUseCase,
   ],
 })
 export class NotesModule {}

@@ -1,22 +1,8 @@
-import axios from 'axios'
 import { io, type Socket } from 'socket.io-client'
-import { getAccessToken } from '../lib/auth'
+import { api } from './http-client'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 const NORMALIZED_API_BASE = API_BASE_URL.replace(/\/$/, '')
-
-const api = axios.create({
-	baseURL: NORMALIZED_API_BASE,
-})
-
-api.interceptors.request.use((config) => {
-	const token = getAccessToken()
-	if (token) {
-		config.headers = config.headers ?? {}
-		config.headers.Authorization = `Bearer ${token}`
-	}
-	return config
-})
 
 export type ThreadPanel = 'ACADEMIC' | 'ALUMNI'
 export type ThreadStatus = 'OPEN' | 'CLOSED' | 'PINNED'
@@ -41,6 +27,14 @@ export interface Thread {
 	voteScore: number
 	createdAt: string
 	updatedAt: string
+	attachments?: ThreadAttachment[]
+}
+
+export interface ThreadAttachment {
+	id: string
+	url: string
+	mimeType: string
+	size: number
 }
 
 export interface ThreadReply {
@@ -58,6 +52,7 @@ export interface ThreadReply {
 	parentReplyId: string | null
 	createdAt: string
 	updatedAt: string
+	attachments?: ThreadAttachment[]
 }
 
 export interface SimilarThread {
@@ -95,8 +90,17 @@ export async function createThread(payload: {
 	title: string
 	description?: string
 	panel: ThreadPanel
+	attachments?: File[]
 }): Promise<{ threadId: string }> {
-	const { data } = await api.post<{ threadId: string }>('/threads', payload)
+	const formData = new FormData()
+	formData.append('title', payload.title)
+	if (payload.description) formData.append('description', payload.description)
+	formData.append('panel', payload.panel)
+	;(payload.attachments ?? []).forEach((file) => {
+		formData.append('attachments', file)
+	})
+
+	const { data } = await api.post<{ threadId: string }>('/threads', formData)
 	return data
 }
 
@@ -137,12 +141,16 @@ export async function postReply(payload: {
 	threadId: string
 	content: string
 	parentReplyId?: string
+	attachments?: File[]
 }): Promise<{ reply: ThreadReply }> {
-	const { data } = await api.post<{ reply: ThreadReply }>(`/threads/${payload.threadId}/replies`, {
-		content: payload.content,
-		parentReplyId: payload.parentReplyId,
+	const formData = new FormData()
+	formData.append('content', payload.content)
+	if (payload.parentReplyId) formData.append('parentReplyId', payload.parentReplyId)
+	;(payload.attachments ?? []).forEach((file) => {
+		formData.append('attachments', file)
 	})
 
+	const { data } = await api.post<{ reply: ThreadReply }>(`/threads/${payload.threadId}/replies`, formData)
 	return data
 }
 

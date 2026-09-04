@@ -1,9 +1,9 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class PostReplyRequestDto {
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content!: string;
 
   @IsString()
   @IsOptional()

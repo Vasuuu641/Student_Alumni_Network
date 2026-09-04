@@ -30,7 +30,7 @@ export class ThreadsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, ThreadsRealtimePublisher
 {
   @WebSocketServer()
-  server: Namespace;
+  server!: Namespace;
 
   private readonly logger = new Logger(ThreadsGateway.name);
   private socketRooms = new Map<string, Set<string>>();
@@ -162,7 +162,7 @@ export class ThreadsGateway
         this.logger.log(
         `Similarity search: user=${session.userId} query="${data.query.trim()}" results=${results.length}`,
         );
-    } catch (error) {
+    } catch (error: any) {
         this.logger.error(`Similarity search failed: ${error.message}`);
         // Don't emit error to client — just return empty results silently
         socket.emit('threads:similarity-results', { results: [] });

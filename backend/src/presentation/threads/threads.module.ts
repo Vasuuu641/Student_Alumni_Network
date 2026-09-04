@@ -13,17 +13,19 @@ import { UpdateThreadStatusUseCase } from '../../application/threads/update-thre
 import { ListRepliesUseCase } from '../../application/threads/list-replies.usecase';
 
 import { PrismaThreadRepository } from '../../infrastructure/repositories/prisma-thread.repository';
-import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/thread-reply.repository';
-import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/thread-vote.repository';
+import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/prisma-thread-reply.repository';
+import { PrismaThreadVoteRepository } from '../../infrastructure/repositories/prisma-thread-vote.repository';
+import { PrismaThreadAttachmentRepository } from '../../infrastructure/repositories/prisma-thread-attachment.repository';
 
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
 import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
 
 import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-thread-llm.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [ThreadsController],
   providers: [
     // Use cases
@@ -42,6 +44,7 @@ import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-th
     PrismaThreadRepository,
     PrismaThreadReplyRepository,
     PrismaThreadVoteRepository,
+    PrismaThreadAttachmentRepository,
 
     // LLM service
     CohereThreadLLMService,
@@ -51,6 +54,7 @@ import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-th
     { provide: 'ThreadRepository', useClass: PrismaThreadRepository },
     { provide: 'ThreadReplyRepository', useClass: PrismaThreadReplyRepository },
     { provide: 'ThreadVoteRepository', useClass: PrismaThreadVoteRepository },
+    { provide: 'ThreadAttachmentRepository', useClass: PrismaThreadAttachmentRepository },
     { provide: 'ThreadLLMService', useClass: CohereThreadLLMService },
 
     // Gateway + realtime publisher
