@@ -19,18 +19,16 @@ export class PrismaAuthorizedUserRepository implements AuthorizedUserRepository 
         );
     }
 
-    async create(data: Partial<AuthorizedUser>): Promise<AuthorizedUser> {
+    async create(user: AuthorizedUser): Promise<AuthorizedUser> {
         const result = await this.prisma.authorizedUser.create({
             data: {
-                email: data.email instanceof Email ? data.email.getValue() : (data.email as unknown as string),
-                role: data.role as any,
-                isUsed: data.isUsed ?? false,
-                createdAt: data.createdAt,
-                updatedAt: data.updatedAt,
+            email: user.email.getValue(),
+            role: user.role,
+            isUsed: user.isUsed,
             },
         });
         return this.mapToEntity(result);
-    }
+        }
 
     async findById(id: string): Promise<AuthorizedUser | null> {
         const result = await this.prisma.authorizedUser.findUnique({
