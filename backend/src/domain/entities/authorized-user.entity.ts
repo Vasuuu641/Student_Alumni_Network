@@ -1,11 +1,5 @@
 import {Email} from "../value-objects/email.vo";
-
-export enum Role {
-  STUDENT = 'STUDENT',
-  ALUMNI = 'ALUMNI',
-  PROFESSOR = 'PROFESSOR',
-  ADMIN = 'ADMIN',
-}
+import { Role } from '../entities/role.enum';
 
 export class AuthorizedUser {
   constructor(
