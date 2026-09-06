@@ -10,12 +10,18 @@ import { getRoleFromAccessToken } from '../lib/auth';
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const registeredEmail = (location.state as { registeredEmail?: string } | null)?.registeredEmail ?? '';
-  const [email, setEmail] = useState(registeredEmail);
+  const state = location.state as { registeredEmail?: string; passwordResetEmail?: string } | null;
+  const registeredEmail = state?.registeredEmail ?? '';
+  const passwordResetEmail = state?.passwordResetEmail ?? '';
+  const [email, setEmail] = useState(registeredEmail || passwordResetEmail);
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState(
-    registeredEmail ? 'Account created successfully. Please sign in.' : '',
+    registeredEmail
+      ? 'Account created successfully. Please sign in.'
+      : passwordResetEmail
+      ? 'Password reset successfully. Please sign in.'
+      : '',
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canSubmit = email.trim().length > 0 && password.trim().length >= 6;
@@ -126,4 +132,3 @@ export function LoginPage() {
     </main>
   );
 }
-

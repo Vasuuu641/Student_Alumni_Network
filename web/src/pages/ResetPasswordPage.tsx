@@ -27,7 +27,7 @@ export function ResetPasswordPage() {
 
     try {
       await resetPassword({ email, otp, newPassword });
-      navigate('/login', { state: { registeredEmail: email } });
+      navigate('/login', { state: { passwordResetEmail: email } });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to reset password.');
     } finally {
