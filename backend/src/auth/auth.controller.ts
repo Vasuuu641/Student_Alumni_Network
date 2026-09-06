@@ -9,6 +9,7 @@ import { Roles } from './roles.decorator';
 import { Role } from '../domain/entities/role.enum';
 import { UpdateMeRequestDto } from './dto/update-me-request.dto';
 import { ResetPasswordRequestDto } from './dto/reset-password-request.dto';
+import { ForgotPasswordRequestDto } from './dto/forgot-password-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -73,6 +74,17 @@ export class AuthController {
       if (error.status === 401 || error.message?.includes('Invalid')) {
         throw new BadRequestException('Invalid or expired refresh token');
       }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /** Always returns 204 regardless of whether the email exists, to prevent account enumeration. */
+  @Post('forgot-password')
+  @HttpCode(204)
+  async forgotPassword(@Body() request: ForgotPasswordRequestDto) {
+    try {
+      await this.authService.requestPasswordReset(request.email);
+    } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
