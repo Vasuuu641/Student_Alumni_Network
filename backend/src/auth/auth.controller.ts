@@ -6,7 +6,7 @@ import { RefreshTokenRequestDto } from './dto/refresh-token-request.dto';
 import { JwtStrategy } from './jwt.strategy';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
-import { Role } from '../domain/entities/user.entity';
+import { Role } from '../domain/entities/role.enum';
 import { UpdateMeRequestDto } from './dto/update-me-request.dto';
 
 @Controller('auth')

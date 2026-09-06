@@ -17,7 +17,6 @@ import { Role } from '../../domain/entities/role.enum';
 export interface RegisterUserRequest {
   email: string;
   password: string;
-  role: Role;
   firstName: string;
   lastName: string;
 }
