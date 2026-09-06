@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma/prisma.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { User } from '../../domain/entities/user.entity';
 import { Email } from '../../domain/value-objects/email.vo';
-import { Role } from '../../domain/entities/user.entity';
+import { Role } from '../../domain/entities/role.enum';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {

@@ -3,20 +3,20 @@ import { IsEmail, IsNotEmpty, IsString, MinLength, MaxLength} from 'class-valida
 export class RegisterRequestDto {
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @IsString()
   @IsNotEmpty()
   @MinLength(6)
-  password: string;
+  password!: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  firstName: string;
+  firstName!: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  lastName: string;
+  lastName!: string;
 }

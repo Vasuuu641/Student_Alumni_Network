@@ -43,6 +43,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get geoHelpSpotVisit() { return this.client.geoHelpSpotVisit; }
   get threadAttachment() { return (this.client as any).threadAttachment; }
   get studyGroupPostAttachment() { return (this.client as any).studyGroupPostAttachment; }
+  get passwordResetOtp() { return this.client.passwordResetOtp; }
   
   // add other models you have here...
 

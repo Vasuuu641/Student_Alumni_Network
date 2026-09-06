@@ -20,7 +20,7 @@ import type { NoteRepository } from 'src/domain/repositories/note.repository';
 import type { NoteCollaboratorRepository } from 'src/domain/repositories/note-collaborator.repository';
 import type { UserRepository } from 'src/domain/repositories/user.repository';
 import { NotePermissionRole } from 'src/domain/entities/note.entity';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 
 import type { NoteLLMService } from 'src/domain/services/note-llm-service';
 

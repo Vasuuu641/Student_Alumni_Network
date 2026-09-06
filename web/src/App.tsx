@@ -16,6 +16,9 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminGeoModerationPage } from './pages/admin/AdminGeoModerationPage';
 import { AdminThreadsModerationPage } from './pages/admin/AdminThreadsModerationPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+
 
 export default function App() {
   return (
@@ -41,6 +44,8 @@ export default function App() {
         <Route path="threads-moderation" element={<AdminThreadsModerationPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
     </Routes>
   );
 }

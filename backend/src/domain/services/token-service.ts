@@ -1,4 +1,4 @@
-import { Role } from '../entities/authorized-user.entity';
+import { Role } from '../entities/role.enum';
 
 export interface AuthPayload {
   userId: string;

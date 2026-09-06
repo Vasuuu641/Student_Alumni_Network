@@ -16,7 +16,7 @@ import {
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
-import { Role } from '../../domain/entities/authorized-user.entity';
+import { Role } from '../../domain/entities/role.enum';
 
 // Use cases
 import { CreateNoteUseCase } from '../../application/notes/create-note.usecase';

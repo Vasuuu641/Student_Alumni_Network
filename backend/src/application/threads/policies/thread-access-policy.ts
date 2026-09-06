@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 import { ThreadPanel } from 'src/domain/entities/thread.entity';
 
 export class ThreadAccessPolicy {

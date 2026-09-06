@@ -8,12 +8,15 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { RegisterUserUseCase } from '../application/auth/register-user.usecase';
 import { LoginUserUseCase } from '../application/auth/login-user.usecase';
 import { LogoutUserUseCase } from '../application/auth/logout-user.usecase';
+import { RequestPasswordResetUseCase } from '../application/auth/request-password-reset.usecase';
+import { ResetPasswordUseCase } from 'src/application/auth/reset-password-usecase';
 import { User } from '../domain/entities/user.entity';
 import type { TokenService } from '../domain/services/token-service';
 import type { UserRepository } from '../domain/repositories/user.repository';
 import type { RevokedTokenRepository } from '../domain/repositories/revoked-token.repository';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
+import { ResendEmailService } from 'src/infrastructure/services/email/resend-email.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +24,8 @@ export class AuthService {
     private registerUserUseCase: RegisterUserUseCase,
     private loginUserUseCase: LoginUserUseCase,
     private logoutUserUseCase: LogoutUserUseCase,
+    private requestPasswordResetUseCase: RequestPasswordResetUseCase,
+    private resetPasswordUseCase: ResetPasswordUseCase,
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
     @Inject('TokenService')
@@ -105,6 +110,14 @@ export class AuthService {
 
     const updatedUser = await this.userRepository.update(user);
     return this.toProfileResponse(updatedUser);
+  }
+
+   async requestPasswordReset(email: string): Promise<void> {
+    await this.requestPasswordResetUseCase.execute(email);
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<void> {
+    await this.resetPasswordUseCase.execute(email, otp, newPassword);
   }
 
   private issueTokens(userId: string, role: any) {

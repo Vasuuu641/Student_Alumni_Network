@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { AuthorizedUserRepository } from '../../domain/repositories/authorized-user.repository';
-import { AuthorizedUser, Role } from '../../domain/entities/authorized-user.entity';
+import { AuthorizedUser} from '../../domain/entities/authorized-user.entity';
+import { Role } from '../../domain/entities/role.enum';
 import { Email } from '../../domain/value-objects/email.vo';
 
 export interface CreateAuthorizedUserRequest {

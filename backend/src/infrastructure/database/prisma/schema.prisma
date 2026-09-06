@@ -809,3 +809,15 @@ model StudyGroupPostAttachment {
   @@index([postId])
   @@index([uploadedById])
 }
+
+model PasswordResetOtp {
+  id        String   @id @default(uuid())
+  email     String
+  codeHash  String   @map("code_hash")
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now())
+
+  @@index([email, consumed, expiresAt])
+}

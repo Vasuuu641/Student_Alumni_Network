@@ -4,7 +4,7 @@ import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAtt
 import { Thread } from 'src/domain/entities/thread.entity';
 import { ThreadAttachment } from 'src/domain/entities/threadAttachment.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 
 export interface ThreadWithAttachments extends Thread {
   attachments: ThreadAttachment[];
