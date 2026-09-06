@@ -12,11 +12,12 @@ import { Email } from '../../domain/value-objects/email.vo';
 import { Student } from '../../domain/entities/student.entity';
 import { Alumni } from '../../domain/entities/alumni.entity';
 import { Professor } from '../../domain/entities/professor.entity';
-import { Role } from '../../domain/entities/user.entity';
+import { Role } from '../../domain/entities/role.enum';
 
 export interface RegisterUserRequest {
   email: string;
   password: string;
+  role: Role;
   firstName: string;
   lastName: string;
 }

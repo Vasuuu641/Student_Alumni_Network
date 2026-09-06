@@ -17,9 +17,11 @@ import { PrismaRevokedTokenRepository } from '../infrastructure/repositories/pri
 import { BcryptPasswordHasher } from '../infrastructure/security/bcrypt-password-hasher';
 import { JwtTokenService } from '../infrastructure/security/jwt-token-service';
 import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
+import { ResetPasswordUseCase } from 'src/application/auth/reset-password-usecase';
+import { ResendEmailService } from 'src/infrastructure/services/email/resend-email.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule],   
   controllers: [AuthController],
   providers: [
     PrismaUserRepository,
@@ -34,6 +36,7 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
     RegisterUserUseCase,
     LoginUserUseCase,
     LogoutUserUseCase,
+    ResetPasswordUseCase,
     { provide: 'UserRepository', useClass: PrismaUserRepository },
     { provide: 'AuthorizedUserRepository', useClass: PrismaAuthorizedUserRepository },
     { provide: 'StudentRepository', useClass: PrismaStudentRepository },
@@ -41,6 +44,7 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
     { provide: 'ProfessorRepository', useClass: PrismaProfessorRepository },
     { provide: 'RevokedTokenRepository', useClass: PrismaRevokedTokenRepository },
     { provide: 'PasswordHasher', useClass: BcryptPasswordHasher },
+    { provide: 'EmailService', useClass: ResendEmailService },
     {
       provide: 'TokenService',
       useFactory: () => {
