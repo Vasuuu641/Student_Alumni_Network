@@ -8,6 +8,7 @@ import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { Role } from '../domain/entities/role.enum';
 import { UpdateMeRequestDto } from './dto/update-me-request.dto';
+import { ResetPasswordRequestDto } from './dto/reset-password-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -71,6 +72,19 @@ export class AuthController {
     } catch (error: any) {
       if (error.status === 401 || error.message?.includes('Invalid')) {
         throw new BadRequestException('Invalid or expired refresh token');
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() request: ResetPasswordRequestDto) {
+    try {
+      await this.authService.resetPassword(request.email, request.otp, request.newPassword);
+      return { message: 'Password reset successful' };
+    } catch (error: any) {
+      if (error.message?.includes('Invalid or expired OTP')) {
+        throw new BadRequestException('Invalid or expired OTP');
       }
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
