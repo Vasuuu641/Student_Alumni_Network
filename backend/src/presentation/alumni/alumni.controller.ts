@@ -18,7 +18,7 @@ import { UpdateAlumniProfileUseCase } from '../../application/alumni/update-alum
 import { Roles } from '../../auth/roles.decorator';
 import { RolesGuard } from '../../auth/roles.guard';
 import { JwtStrategy } from '../../auth/jwt.strategy';
-import { Role } from '../../domain/entities/user.entity';
+import { Role } from '../../domain/entities/role.enum';
 import { AlumniProfileResponse } from './dto/alumni-profile-response.dto';
 import { UpdateAlumniProfileRequest } from './dto/update-alumni-profile.dto';
 

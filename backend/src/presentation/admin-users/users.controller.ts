@@ -9,7 +9,7 @@ import { UpdateAuthorizedUserUseCase } from '../../application/users/update-auth
 import { Roles } from '../../auth/roles.decorator';
 import { RolesGuard } from '../../auth/roles.guard';
 import { JwtStrategy } from '../../auth/jwt.strategy';
-import { Role } from '../../domain/entities/authorized-user.entity';
+import { Role } from '../../domain/entities/role.enum';
 
 @Controller('admin/users')
 export class UsersController {

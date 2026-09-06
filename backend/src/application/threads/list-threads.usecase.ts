@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import type { ThreadRepository, ThreadSortBy } from 'src/domain/repositories/thread.repository';
 import { Thread, ThreadPanel } from 'src/domain/entities/thread.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 
 export interface ListThreadsInput {
   panel: ThreadPanel;

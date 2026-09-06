@@ -18,7 +18,7 @@ import {
   import { Roles } from '../../auth/roles.decorator';
   import { RolesGuard } from '../../auth/roles.guard';
   import { JwtStrategy } from 'src/auth/jwt.strategy';
-  import { Role } from 'src/domain/entities/user.entity';
+  import { Role } from 'src/domain/entities/role.enum';
   import { StudentProfileResponse } from './dto/student-profile-response.dto';
   import { UpdateStudentProfileRequest } from './dto/update-student-profile.dto';
 

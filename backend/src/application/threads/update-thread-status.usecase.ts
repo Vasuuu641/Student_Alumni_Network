@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import type { ThreadRepository } from 'src/domain/repositories/thread.repository';
 import { Thread, ThreadStatus } from 'src/domain/entities/thread.entity';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 
 @Injectable()
 export class UpdateThreadStatusUseCase {

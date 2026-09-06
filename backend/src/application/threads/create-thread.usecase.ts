@@ -5,7 +5,7 @@ import type {FileStorageService, FileUploadRequest} from 'src/domain/services/fi
 import {THREAD_ATTACHMENT_UPLOAD_OPTIONS} from 'src/shared/constants/upload_limits';
 import { ThreadPanel, ThreadStatus } from 'src/domain/entities/thread.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 import type { ThreadLLMService } from 'src/domain/services/thread-llm.service';
 import { MentorClusteringService } from 'src/infrastructure/ai/cohere/mentor-clustering.service';
 import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';

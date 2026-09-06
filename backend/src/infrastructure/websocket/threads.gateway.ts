@@ -15,7 +15,7 @@ import { ThreadsRealtimePublisher, type VoteBroadcastPayload } from 'src/domain/
 import { ThreadReply } from 'src/domain/entities/thread.entity';
 import type { ThreadLLMService } from 'src/domain/services/thread-llm.service';
 import { ThreadPanel } from 'src/domain/entities/thread.entity';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 
 interface SocketSession {
   userId: string;

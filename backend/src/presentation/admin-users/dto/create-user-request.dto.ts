@@ -1,10 +1,10 @@
 import { IsEmail, IsEnum } from 'class-validator';
-import { Role } from '../../../domain/entities/authorized-user.entity';
+import { Role } from '../../../domain/entities/role.enum';
 
 export class CreateUserRequestDto {
 	@IsEmail()
-	email: string;
+	email!: string;
 
 	@IsEnum(Role)
-	role: Role;
+	role!: Role;
 }

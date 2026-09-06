@@ -1,6 +1,6 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/repositories/thread.repository';
-import { Role } from 'src/domain/entities/authorized-user.entity';
+import { Role } from 'src/domain/entities/role.enum';
 import { ReplyStatus } from 'src/domain/entities/thread.entity';
 
 @Injectable()
