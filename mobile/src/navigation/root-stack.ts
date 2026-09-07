@@ -2,6 +2,8 @@ export type RootStackParamList = {
   Home: undefined;
   Login: { registeredEmail?: string } | undefined;
   Register: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email?: string } | undefined;
   Dashboard: undefined;
   Onboarding: { step?: number; mode?: 'edit' } | undefined;
   GeoHelpBoard: undefined;

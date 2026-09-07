@@ -25,6 +25,21 @@ export interface RegisterResponse {
   role: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
+
 export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -108,4 +123,37 @@ function getErrorMessage(data: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+export async function requestPasswordReset(payload: ForgotPasswordRequest): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const data = await readJsonSafely(response);
+    throw new Error(getErrorMessage(data, 'Unable to send reset code.'));
+  }
+}
+
+export async function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, 'Unable to reset password.'));
+  }
+
+  return data as ResetPasswordResponse;
 }
