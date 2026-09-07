@@ -2,6 +2,8 @@ export { HomePage } from './HomePage';
 export { DashboardPage } from './DashboardPage';
 export { GeoHelpBoardPage } from './GeoHelpBoardPage';
 export { LoginPage } from './LoginPage';
+export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { ResetPasswordPage } from './ResetPasswordPage';
 export { ProfilePage } from './ProfilePage';
 export { RegisterPage } from './RegisterPage';
 export { OnboardingPage } from './OnboardingPage';

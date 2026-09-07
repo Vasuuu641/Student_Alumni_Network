@@ -15,51 +15,33 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faBridge } from '@fortawesome/free-solid-svg-icons';
 import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { loginUser } from '../api/auth.api';
-import { storeTokens, storeUserEmail } from '../lib/auth-storage';
-import { getRoleFromAccessToken } from '../lib/jwt';
+import { requestPasswordReset } from '../api/auth.api';
 import type { RootStackParamList } from '../navigation/root-stack';
-import { useTheme, useThemePicker } from '../theme/theme';
+import { useTheme } from '../theme/theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
 
-export function LoginPage({ navigation, route }: Props) {
+export function ForgotPasswordPage({ navigation }: Props) {
   const { tokens } = useTheme();
-  const { openThemePicker } = useThemePicker();
-  const [email, setEmail] = useState(route.params?.registeredEmail ?? '');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState(
-        route.params?.registeredEmail
-      ? 'Account created successfully. Please sign in.'
-      : route.params?.passwordResetEmail
-      ? 'Password reset successfully. Please sign in.'
-      : '',
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = useMemo(
-    () => email.trim().length > 0 && password.trim().length >= 6,
-    [email, password],
-  );
+  const canSubmit = useMemo(() => email.trim().length > 0, [email]);
 
-  async function handleSignIn() {
+  async function handleSubmit() {
     if (!canSubmit || isSubmitting) {
       return;
     }
 
     setErrorMessage('');
-    setSuccessMessage('');
     setIsSubmitting(true);
 
     try {
-      const response = await loginUser({ email, password });
-      await storeTokens(response.accessToken, response.refreshToken);
-      await storeUserEmail(email.trim().toLowerCase());
-      const role = getRoleFromAccessToken(response.accessToken);
-      navigation.replace(role === 'ADMIN' ? 'AdminLayout' : 'Onboarding');
+      await requestPasswordReset({ email });
+      navigation.replace('ResetPassword', { email });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in.');
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to send reset code.');
     } finally {
       setIsSubmitting(false);
     }
@@ -71,10 +53,10 @@ export function LoginPage({ navigation, route }: Props) {
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate('Home');
+          navigation.navigate('Login');
         }
       } catch (e) {
-        navigation.navigate('Home');
+        navigation.navigate('Login');
       }
       return true;
     };
@@ -116,32 +98,24 @@ export function LoginPage({ navigation, route }: Props) {
           <Pressable
             onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('Home');
+              else navigation.navigate('Login');
             }}
             style={{ alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6 }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primaryStrong }}>← Back</Text>
           </Pressable>
 
-          <Pressable onPress={openThemePicker} style={{ marginTop: 8, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2, color: tokens.primary }}>Theme</Text>
-          </Pressable>
-
           <View style={{ marginTop: 16, alignItems: 'center' }}>
             <View style={{ height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: tokens.primary }}>
               <FontAwesomeIcon icon={faBridge as IconProp} size={24} color="#ffffff" />
             </View>
-            <Text style={{ marginTop: 12, fontSize: 30, fontWeight: '800', color: tokens.text }}>Welcome back</Text>
-            <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 14, color: tokens.muted }}>Sign in to continue to UniBridge</Text>
+            <Text style={{ marginTop: 12, fontSize: 30, fontWeight: '800', color: tokens.text }}>Forgot your password?</Text>
+            <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 14, color: tokens.muted }}>
+              Enter your email and we'll send you a reset code
+            </Text>
           </View>
 
           <View style={{ marginTop: 24, borderRadius: 24, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, padding: 16 }}>
-            {successMessage ? (
-              <Text style={{ marginBottom: 12, borderRadius: 12, backgroundColor: tokens.name === 'midnight' ? '#0d2e1e' : '#e9f8ef', paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: '500', color: tokens.success }}>
-                {successMessage}
-              </Text>
-            ) : null}
-
             {errorMessage ? (
               <Text style={{ marginBottom: 12, borderRadius: 12, backgroundColor: tokens.name === 'midnight' ? '#3a1a1e' : '#ffecef', paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: '500', color: tokens.danger }}>
                 {errorMessage}
@@ -160,23 +134,11 @@ export function LoginPage({ navigation, route }: Props) {
               placeholderTextColor={tokens.muted}
             />
 
-            <Text style={labelStyle}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              autoCapitalize="none"
-              autoComplete="current-password"
-              secureTextEntry
-              style={inputStyle}
-              placeholderTextColor={tokens.muted}
-            />
-
             <Pressable
-              onPress={handleSignIn}
+              onPress={handleSubmit}
               disabled={!canSubmit || isSubmitting}
               style={{
-                marginTop: 20,
+                marginTop: 12,
                 minHeight: 48,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -186,19 +148,15 @@ export function LoginPage({ navigation, route }: Props) {
               }}
             >
               <Text style={{ fontSize: 15, fontWeight: '700', color: !canSubmit || isSubmitting ? tokens.primary : '#fff' }}>
-                {isSubmitting ? 'Signing in...' : 'Sign in'}
+                {isSubmitting ? 'Sending...' : 'Send reset code'}
               </Text>
-            </Pressable>
-
-            <Pressable style={{ marginTop: 12, alignSelf: 'flex-start' }} onPress={() => navigation.navigate('ForgotPassword')}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>Forgot your password?</Text>
             </Pressable>
           </View>
 
           <View style={{ marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 14, color: tokens.muted }}>Don't have an account? </Text>
-            <Pressable onPress={() => navigation.replace('Register')}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.primary }}>Create one</Text>
+            <Text style={{ fontSize: 14, color: tokens.muted }}>Remembered your password? </Text>
+            <Pressable onPress={() => navigation.replace('Login')}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: tokens.primary }}>Sign in</Text>
             </Pressable>
           </View>
         </ScrollView>
