@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
-import { DashboardPage, DiscussionsPage, GeoHelpBoardPage, HomePage, LoginPage, ProfilePage, RegisterPage, ThreadDetailPage, StudyGroupsPage, StudyGroupDetailPage, AdminLayout, NotesListScreen, NoteScreen, OnboardingPage } from './src/pages';
+import { DashboardPage, DiscussionsPage, GeoHelpBoardPage, HomePage, LoginPage, ProfilePage, RegisterPage, ThreadDetailPage, StudyGroupsPage, StudyGroupDetailPage, AdminLayout, NotesListScreen, NoteScreen, OnboardingPage, ForgotPasswordPage, ResetPasswordPage} from './src/pages';
 import type { RootStackParamList } from './src/navigation/root-stack';
 import { ThemeProvider } from './src/theme/theme';
 
@@ -30,6 +30,8 @@ export default function App() {
               <Stack.Screen name="Home" component={HomePage} />
               <Stack.Screen name="Login" component={LoginPage} />
               <Stack.Screen name="Register" component={RegisterPage} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordPage} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordPage} />
               <Stack.Screen name="Dashboard" component={DashboardPage} />
               <Stack.Screen name="Onboarding" component={OnboardingPage} />
               <Stack.Screen name="GeoHelpBoard" component={GeoHelpBoardPage} />
