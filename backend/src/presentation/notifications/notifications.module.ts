@@ -25,6 +25,7 @@ import { PersonalizedNotificationFanoutService } from '../../infrastructure/serv
 import { InProcessJobQueueService } from '../../infrastructure/queue/in-process-job-queue.service';
 import { PersonalizedNotificationWorkerService } from '../../infrastructure/queue/personalized-notification-worker.service';
 import { JobProcessorService } from '../../infrastructure/queue/job-processor.service';
+import { NotificationsGateway } from '../../infrastructure/websocket/notifications.gateway';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -48,7 +49,11 @@ import { JobProcessorService } from '../../infrastructure/queue/job-processor.se
     NotificationEligibilityService,
     MentorClusteringService,
     PersonalizedNotificationFanoutService,
-    // job queue and worker
+    NotificationsGateway,
+    {
+      provide: 'NotificationsRealtimePublisher',
+      useExisting: NotificationsGateway,
+    },
     {
       provide: 'JobQueue',
       useClass: InProcessJobQueueService,
@@ -88,6 +93,7 @@ import { JobProcessorService } from '../../infrastructure/queue/job-processor.se
     NotificationEligibilityService,
     MentorClusteringService,
     PersonalizedNotificationFanoutService,
+    NotificationsGateway,
     'UserInterestProfileRepository',
     'UserInterestSignalRepository',
     'AlumniRepository',
