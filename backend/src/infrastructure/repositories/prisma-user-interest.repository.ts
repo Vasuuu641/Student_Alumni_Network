@@ -18,6 +18,21 @@ export class PrismaUserInterestProfileRepository
 {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findEligibleForPanel(
+    panel: 'ACADEMIC' | 'ALUMNI',
+    minWeight: number,
+  ): Promise<UserInterestProfile[]> {
+    const records = await this.prisma.userInterestProfile.findMany({
+      where:
+        panel === 'ACADEMIC'
+          ? { academicWeight: { gte: minWeight } }
+          : { alumniWeight: { gte: minWeight } },
+      orderBy: { lastUpdatedAt: 'desc' },
+    });
+
+    return records.map((record) => this.toDomain(record));
+  }
+
   async findByUserId(userId: string): Promise<UserInterestProfile | null> {
     const record = await this.prisma.userInterestProfile.findUnique({
       where: { userId },
@@ -62,7 +77,13 @@ export class PrismaUserInterestProfileRepository
 
   async incrementWeight(
     userId: string,
-    weightKey: string,
+    weightKey:
+      | 'academicWeight'
+      | 'alumniWeight'
+      | 'careerWeight'
+      | 'housingWeight'
+      | 'shoppingWeight'
+      | 'internshipWeight',
     delta: number,
   ): Promise<void> {
     const existing = await this.prisma.userInterestProfile.findUnique({
@@ -74,7 +95,7 @@ export class PrismaUserInterestProfileRepository
     }
 
     const updatedData: any = { lastUpdatedAt: new Date() };
-    const currentWeight = (existing as any)[weightKey] ?? 0;
+    const currentWeight = existing[weightKey] ?? 0;
     updatedData[weightKey] = Math.max(0, Math.min(1, currentWeight + delta));
 
     await this.prisma.userInterestProfile.update({
