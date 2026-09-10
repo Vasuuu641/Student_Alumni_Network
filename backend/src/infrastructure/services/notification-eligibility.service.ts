@@ -1,4 +1,6 @@
+// notification-eligibility.service.ts
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { NotificationAIScoringService } from './notification-ai-scoring.service';
 import type {
   UserInterestProfileRepository,
@@ -22,7 +24,6 @@ export interface NotificationEligibilityResult {
 export class NotificationEligibilityService {
   private readonly logger = new Logger(NotificationEligibilityService.name);
   private readonly SCORE_THRESHOLD = 0.6;
-  private readonly DEDUP_WINDOW_HOURS = 4;
 
   constructor(
     @Inject('UserInterestProfileRepository')
@@ -32,12 +33,9 @@ export class NotificationEligibilityService {
     private readonly aiScoring: NotificationAIScoringService,
   ) {}
 
-  /**
-   * Check if a notification should be delivered to a user.
-   * Uses AI scoring + past behavior signals + eligibility rules.
-   */
   async checkEligibility(
     userId: string,
+    entityType: string,
     entityId: string,
     notificationTitle: string,
     notificationBody: string,
@@ -47,12 +45,11 @@ export class NotificationEligibilityService {
     try {
       const signals = await this.signalRepository.findByEntityAndUser(
         userId,
-        'THREAD',
+        entityType,
         entityId,
       );
 
-      const profile =
-        await this.interestProfileRepository.findByUserId(userId);
+      const profile = await this.interestProfileRepository.findByUserId(userId);
 
       if (!profile) {
         return {
@@ -64,14 +61,13 @@ export class NotificationEligibilityService {
         };
       }
 
-      const { score: aiScore, reason: scoringReason } =
-        await this.aiScoring.scoreNotification(
-          userId,
-          notificationTitle,
-          notificationBody,
-          threadTitle,
-          threadPanel,
-        );
+      const { score: aiScore, reason: scoringReason } = await this.aiScoring.scoreNotification(
+        userId,
+        notificationTitle,
+        notificationBody,
+        threadTitle,
+        threadPanel,
+      );
 
       const rawScore = this.computeSignalScore(signals, profile, threadPanel);
       const finalScore = (aiScore + rawScore) / 2;
@@ -94,10 +90,7 @@ export class NotificationEligibilityService {
         reason: `Score ${finalScore.toFixed(2)} passes. AI: ${scoringReason}`,
       };
     } catch (error) {
-      this.logger.error(
-        `Eligibility check failed for user ${userId}: ${this.formatError(error)}`,
-      );
-
+      this.logger.error(`Eligibility check failed for user ${userId}: ${this.formatError(error)}`);
       return {
         passed: false,
         aiScore: 0,
@@ -108,9 +101,6 @@ export class NotificationEligibilityService {
     }
   }
 
-  /**
-   * Capture a user interest signal (e.g., thread view, reply, like).
-   */
   async captureSignal(
     userId: string,
     type: InterestSignalType,
@@ -123,7 +113,7 @@ export class NotificationEligibilityService {
 
     return this.signalRepository.create(
       new UserInterestSignal(
-        Math.random().toString(36).substring(2, 11),
+        randomUUID(),
         userId,
         type,
         entityType,
@@ -137,9 +127,6 @@ export class NotificationEligibilityService {
     );
   }
 
-  /**
-   * Compute raw signal-based relevance score.
-   */
   private computeSignalScore(
     signals: UserInterestSignal[],
     profile: UserInterestProfile,
@@ -153,9 +140,6 @@ export class NotificationEligibilityService {
     return signalScore * 0.7 + panelBonus * 0.3;
   }
 
-  /**
-   * Determine signal strength based on type.
-   */
   private getSignalStrength(type: InterestSignalType): number {
     const strengths: Record<InterestSignalType, number> = {
       [InterestSignalType.THREAD_REPLY]: 1.0,

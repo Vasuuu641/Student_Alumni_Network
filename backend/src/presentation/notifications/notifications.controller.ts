@@ -43,6 +43,9 @@ export class NotificationsController {
       const unreadCount = await this.getUnreadNotificationCountUseCase.execute(userId);
       return { unreadCount };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to get unread notification count'),
         HttpStatus.BAD_REQUEST,
@@ -58,6 +61,9 @@ export class NotificationsController {
       const preferences = await this.getNotificationPreferencesUseCase.execute(userId);
       return { preferences };
     } catch (error) {
+      if(error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to load notification preferences'),
         HttpStatus.BAD_REQUEST,
@@ -73,6 +79,9 @@ export class NotificationsController {
       const preferences = await this.updateNotificationPreferencesUseCase.execute(userId, body);
       return { preferences };
     } catch (error) {
+      if(error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to update notification preferences'),
         HttpStatus.BAD_REQUEST,
@@ -92,6 +101,9 @@ export class NotificationsController {
       });
       return result;
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to list notifications'),
         HttpStatus.BAD_REQUEST,
@@ -107,6 +119,9 @@ export class NotificationsController {
       const notification = await this.markNotificationReadUseCase.execute(notificationId, userId);
       return { notification };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to mark notification as read'),
         HttpStatus.BAD_REQUEST,
@@ -122,6 +137,9 @@ export class NotificationsController {
       const result = await this.markAllNotificationsReadUseCase.execute(userId);
       return result;
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to mark notifications as read'),
         HttpStatus.BAD_REQUEST,
@@ -137,6 +155,9 @@ export class NotificationsController {
       const notification = await this.dismissNotificationUseCase.execute(notificationId, userId);
       return { notification };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         this.formatError(error, 'Failed to dismiss notification'),
         HttpStatus.BAD_REQUEST,

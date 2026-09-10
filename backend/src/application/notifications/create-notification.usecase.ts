@@ -5,6 +5,8 @@ import {
   NotificationType,
 } from 'src/domain/entities/notification.entity';
 import type { NotificationRepository } from 'src/domain/repositories/notification.repository';
+import type { NotificationsRealtimePublisher } from 'src/domain/services/notifications-realtime-publisher';
+import { randomUUID } from 'crypto';
 
 export interface CreateNotificationRequest {
   userId: string;
@@ -26,13 +28,15 @@ export class CreateNotificationUseCase {
   constructor(
     @Inject('NotificationRepository')
     private readonly notificationRepository: NotificationRepository,
+    @Inject('NotificationsRealtimePublisher')
+    private readonly realtime: NotificationsRealtimePublisher,
   ) {}
 
   async execute(request: CreateNotificationRequest): Promise<Notification> {
     const now = new Date();
 
     const notification = new Notification(
-      this.generateUniqueId(),
+      randomUUID(),
       request.userId,
       request.type,
       request.title,
@@ -55,9 +59,5 @@ export class CreateNotificationUseCase {
       notification,
       request.deliveryChannels ?? [NotificationChannel.IN_APP],
     );
-  }
-
-  private generateUniqueId(): string {
-    return Math.random().toString(36).substring(2, 11);
   }
 }
