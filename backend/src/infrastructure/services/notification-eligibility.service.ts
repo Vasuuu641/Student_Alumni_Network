@@ -101,6 +101,13 @@ export class NotificationEligibilityService {
     }
   }
 
+  /**
+   * Capture a user interest signal (e.g., thread view, reply, like).
+   * Lazily creates a default interest profile first if the user doesn't
+   * have one yet — covers new signups and pre-existing users alike,
+   * regardless of role (student/alumni/professor), since UserInterestSignal
+   * has an FK into UserInterestProfile and can't be written without one.
+   */
   async captureSignal(
     userId: string,
     type: InterestSignalType,
@@ -110,6 +117,15 @@ export class NotificationEligibilityService {
     sourceModule?: string,
   ): Promise<UserInterestSignal> {
     const strength = this.getSignalStrength(type);
+
+    const existingProfile = await this.interestProfileRepository.findByUserId(userId);
+    if (!existingProfile) {
+      const now = new Date();
+      // Defaults match the Prisma schema's @default values for UserInterestProfile.
+      await this.interestProfileRepository.upsert(
+        new UserInterestProfile(userId, 0.5, 0.5, 0.3, 0.3, 0.2, 0.3, now, now, now),
+      );
+    }
 
     return this.signalRepository.create(
       new UserInterestSignal(
