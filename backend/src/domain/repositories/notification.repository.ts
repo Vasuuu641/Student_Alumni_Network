@@ -1,16 +1,17 @@
+// src/domain/repositories/notification.repository.ts
 import { Notification, NotificationChannel, NotificationPreference } from '../entities/notification.entity';
 
 export interface NotificationRepository {
-  create(notification: Notification, deliveryChannels?: NotificationChannel[]): Promise<Notification>;
+  create(notification: Notification, deliveryChannels?: NotificationChannel[]): Promise<Notification | null>;
   findById(id: string, userId: string): Promise<Notification | null>;
   findByUserId(
     userId: string,
     options: { skip: number; take: number; unreadOnly?: boolean },
   ): Promise<{ notifications: Notification[]; total: number }>;
   countUnread(userId: string): Promise<number>;
-  markAsRead(id: string, userId: string): Promise<Notification>;
+  markAsRead(id: string, userId: string): Promise<Notification | null>;
   markAllAsRead(userId: string): Promise<number>;
-  dismiss(id: string, userId: string): Promise<Notification>;
+  dismiss(id: string, userId: string): Promise<Notification | null>;
 }
 
 export interface NotificationPreferenceRepository {

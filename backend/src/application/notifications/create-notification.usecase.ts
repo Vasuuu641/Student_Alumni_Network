@@ -1,3 +1,4 @@
+// create-notification.usecase.ts
 import { Inject, Injectable } from '@nestjs/common';
 import {
   Notification,
@@ -32,7 +33,7 @@ export class CreateNotificationUseCase {
     private readonly realtime: NotificationsRealtimePublisher,
   ) {}
 
-  async execute(request: CreateNotificationRequest): Promise<Notification> {
+  async execute(request: CreateNotificationRequest): Promise<Notification | null> {
     const now = new Date();
 
     const notification = new Notification(
@@ -55,9 +56,23 @@ export class CreateNotificationUseCase {
       now,
     );
 
-    return this.notificationRepository.create(
+    const created = await this.notificationRepository.create(
       notification,
       request.deliveryChannels ?? [NotificationChannel.IN_APP],
     );
+
+    if (!created) {
+      return null; // duplicate dedupeKey — nothing to push, nothing to return
+    }
+
+    try {
+      this.realtime.pushNewNotification(created.userId, created);
+      const unreadCount = await this.notificationRepository.countUnread(created.userId);
+      this.realtime.pushUnreadCount(created.userId, unreadCount);
+    } catch {
+      // never let a socket failure break notification persistence
+    }
+
+    return created;
   }
 }

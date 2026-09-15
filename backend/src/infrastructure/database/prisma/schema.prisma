@@ -252,6 +252,7 @@ model Notification {
   recipient    User               @relation("NotificationRecipient", fields: [userId], references: [id])
   deliveries   NotificationDelivery[]
 
+  @@unique([userId, dedupeKey])
   @@index([userId, isRead, createdAt])
   @@index([userId, dismissedAt, createdAt])
   @@index([dedupeKey])
