@@ -55,8 +55,8 @@ export class GeoHelpBoardController {
     }
   }
 
-  @Get('spots/popular')
-  async listPopular(@Query() query: ListPopularGeoHelpSpotsQueryDto) {
+    @Get('spots/popular')
+  async listPopular(@Req() request: any, @Query() query: ListPopularGeoHelpSpotsQueryDto) {
     try {
       return await this.listPopularGeoHelpSpotsUseCase.execute({
         city: query.city,
@@ -64,6 +64,7 @@ export class GeoHelpBoardController {
         category: query.category as any,
         limit: query.limit,
         page: query.page,
+        userId: request.user?.userId,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);
@@ -71,7 +72,7 @@ export class GeoHelpBoardController {
   }
 
   @Get('spots/nearby')
-  async listNearby(@Query() query: ListNearbyGeoHelpSpotsQueryDto) {
+  async listNearby(@Req() request: any, @Query() query: ListNearbyGeoHelpSpotsQueryDto) {
     try {
       return await this.listNearbyGeoHelpSpotsUseCase.execute({
         latitude: query.latitude,
@@ -82,6 +83,7 @@ export class GeoHelpBoardController {
         category: query.category as any,
         limit: query.limit,
         page: query.page,
+        userId: request.user?.userId,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);
@@ -148,8 +150,7 @@ export class GeoHelpBoardController {
     }
   }
 
-  @Patch('spots/:spotId/review')
-  @Patch('spots/:spotId/verification')
+  @Patch(['spots/:spotId/review', 'spots/:spotId/verification'])
   @Roles('ADMIN')
   @UseGuards(RateLimitGuard)
   @RateLimit({ maxRequests: 30, windowMs: 60_000 })

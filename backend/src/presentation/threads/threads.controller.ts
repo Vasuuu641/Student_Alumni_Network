@@ -169,7 +169,7 @@ export class ThreadsController {
   ) {
     try {
       const { role, userId } = request.user;
-      const thread = await this.getThreadUseCase.execute(threadId, role);
+      const thread = await this.getThreadUseCase.execute(threadId, role, userId);
       const [threadWithAuthor] = await this.withThreadAuthorNames([thread]);
       const [threadWithVoteCounts] = await this.withThreadVoteCounts([threadWithAuthor]);
       const [threadWithVote] = await this.withThreadViewerVotes([threadWithVoteCounts], userId);
