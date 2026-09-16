@@ -1,4 +1,3 @@
-// src/domain/repositories/notification.repository.ts
 import { Notification, NotificationChannel, NotificationPreference } from '../entities/notification.entity';
 
 export interface NotificationRepository {
@@ -12,6 +11,17 @@ export interface NotificationRepository {
   markAsRead(id: string, userId: string): Promise<Notification | null>;
   markAllAsRead(userId: string): Promise<number>;
   dismiss(id: string, userId: string): Promise<Notification | null>;
+  findActiveByDedupeKey(userId: string, dedupeKey: string): Promise<Notification | null>;
+  updateContent(
+    id: string,
+    updates: {
+      title?: string;
+      body?: string;
+      score?: number;
+      metadataJson?: Record<string, unknown> | null;
+      markUnread?: boolean;
+    },
+  ): Promise<Notification>;
 }
 
 export interface NotificationPreferenceRepository {

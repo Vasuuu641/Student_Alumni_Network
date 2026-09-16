@@ -118,7 +118,37 @@ async dismiss(id: string, userId: string): Promise<Notification | null> {
     return result.count;
   }
 
-  
+    async findActiveByDedupeKey(userId: string, dedupeKey: string): Promise<Notification | null> {
+    const record = await this.prisma.notification.findFirst({
+      where: { userId, dedupeKey, dismissedAt: null },
+    });
+
+    return record ? this.toDomain(record) : null;
+  }
+
+  async updateContent(
+    id: string,
+    updates: {
+      title?: string;
+      body?: string;
+      score?: number;
+      metadataJson?: Record<string, unknown> | null;
+      markUnread?: boolean;
+    },
+  ): Promise<Notification> {
+    const record = await this.prisma.notification.update({
+      where: { id },
+      data: {
+        ...(updates.title !== undefined ? { title: updates.title } : {}),
+        ...(updates.body !== undefined ? { body: updates.body } : {}),
+        ...(updates.score !== undefined ? { score: updates.score } : {}),
+        ...(updates.metadataJson !== undefined ? { metadataJson: updates.metadataJson as any } : {}),
+        ...(updates.markUnread ? { isRead: false, readAt: null } : {}),
+      },
+    });
+
+    return this.toDomain(record);
+  }
 
   private toDomain(record: any): Notification {
     return new Notification(

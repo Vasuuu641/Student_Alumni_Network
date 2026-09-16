@@ -1,8 +1,9 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type { ThreadRepository, ThreadReplyRepository } from 'src/domain/repositories/thread.repository';
-import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
-import type {FileStorageService, FileUploadRequest} from 'src/domain/services/file-storage';
-import {THREAD_ATTACHMENT_UPLOAD_OPTIONS} from 'src/shared/constants/upload_limits';
+import type { ThreadAttachmentRepository } from 'src/domain/repositories/threadAttachment.repository';
+import type { FileStorageService, FileUploadRequest } from 'src/domain/services/file-storage';
+import { THREAD_ATTACHMENT_UPLOAD_OPTIONS } from 'src/shared/constants/upload_limits';
 import { ThreadReply, ReplyStatus } from 'src/domain/entities/thread.entity';
 import { CreateNotificationUseCase } from '../notifications/create-notification.usecase';
 import { NotificationType } from 'src/domain/entities/notification.entity';
@@ -34,12 +35,11 @@ export class PostReplyUseCase {
     parentReplyId: string | null,
     attachments: FileUploadRequest[] = [],
   ): Promise<ThreadReply> {
-    const thread = await this.threadRepository.findById(threadId);
-
     if (!content?.trim() && !attachments?.length) {
-    throw new BadRequestException('Reply must include text or at least one attachment');
+      throw new BadRequestException('Reply must include text or at least one attachment');
     }
 
+    const thread = await this.threadRepository.findById(threadId);
 
     if (!thread) {
       throw new NotFoundException(`Thread ${threadId} not found`);
@@ -52,7 +52,7 @@ export class PostReplyUseCase {
     const now = new Date();
 
     const reply = await this.replyRepository.create({
-      id: this.generateUniqueId(),
+      id: randomUUID(),
       threadId,
       content,
       authorId: userId,
@@ -90,53 +90,62 @@ export class PostReplyUseCase {
         }),
       );
     }
+
     await this.threadRepository.incrementReplyCount(threadId);
 
-    if (thread.authorId !== userId) {
-      // Capture reply signal for the replier
-      await this.eligibilityService.captureSignal(
-        userId,
-        InterestSignalType.THREAD_REPLY,
-        'THREAD',
-        thread.id,
-        thread.panel,
-        'threads',
-      ).catch((error) => {
+    // Always capture the replier's own interest signal — even for a
+    // self-reply — since this is about their profile, not about who
+    // gets notified. Notifications below stay self-exclusion-gated.
+    await this.eligibilityService
+      .captureSignal(userId, InterestSignalType.THREAD_REPLY, 'THREAD', thread.id, thread.panel, 'threads')
+      .catch((error) => {
         console.error(`Failed to capture reply signal: ${error?.message ?? error}`);
       });
 
-      await this.createNotificationUseCase.execute({
-        userId: thread.authorId,
-        type: NotificationType.THREAD_REPLY,
-        title: `New reply on ${thread.title}`,
-        body: 'A discussion you started has a new reply.',
-        entityType: 'THREAD',
-        entityId: thread.id,
-        sourceModule: 'threads',
-        actionUrl: `/threads/${thread.id}`,
-        score: 1,
-        dedupeKey: `thread-reply:${thread.id}:${reply.id}`,
-        metadataJson: {
-          threadId: thread.id,
-          replyId: reply.id,
-          actorId: userId,
-          reason: 'thread reply activity',
-        },
-      }).catch((error) => {
-        console.error(`Failed to create thread reply notification for ${thread.id}:`, error?.message ?? error);
-      });
-
-      if (thread.panel === ThreadPanel.ALUMNI) {
-        const mentorMatches = await this.mentorClusteringService.findRelevantMentors({
-          title: thread.title,
-          description: content,
-          panel: thread.panel,
-          limit: 3,
-          excludeUserIds: [userId],
-        }).catch((error) => {
-          console.error(`Mentor clustering failed for thread ${thread.id}: ${error?.message ?? error}`);
-          return [];
+    if (thread.authorId !== userId) {
+      await this.createNotificationUseCase
+        .execute({
+          userId: thread.authorId,
+          type: NotificationType.THREAD_REPLY,
+          title: `New reply on ${thread.title}`,
+          body: 'A discussion you started has a new reply.',
+          entityType: 'THREAD',
+          entityId: thread.id,
+          sourceModule: 'threads',
+          actionUrl: `/threads/${thread.id}`,
+          score: 1,
+          // No reply.id here — stable per thread+recipient, so repeat
+          // replies within the collapse window update this same
+          // notification instead of spamming a new one each time.
+          dedupeKey: `thread-reply:${thread.id}:${thread.authorId}`,
+          collapsible: true,
+          collapseWindowMinutes: 240,
+          collapsedTitle: `${thread.title} is getting active`,
+          collapsedBody: 'Your thread is gaining more activity — check out the latest replies.',
+          metadataJson: {
+            threadId: thread.id,
+            replyId: reply.id,
+            actorId: userId,
+            reason: 'thread reply activity',
+          },
+        })
+        .catch((error) => {
+          console.error(`Failed to create thread reply notification for ${thread.id}:`, error?.message ?? error);
         });
+
+              if (thread.panel === ThreadPanel.ALUMNI) {
+        const mentorMatches = await this.mentorClusteringService
+          .findRelevantMentors({
+            title: thread.title,
+            description: content,
+            panel: thread.panel,
+            limit: 3,
+            excludeUserIds: [userId],
+          })
+          .catch((error) => {
+            console.error(`Mentor clustering failed for thread ${thread.id}: ${error?.message ?? error}`);
+            return [];
+          });
 
         await Promise.all(
           mentorMatches.map((match) =>
@@ -151,7 +160,14 @@ export class PostReplyUseCase {
                 sourceModule: 'mentor-clustering',
                 actionUrl: `/threads/${thread.id}`,
                 score: match.score,
-                dedupeKey: `mentor-thread-reply:${thread.id}:${reply.id}:${match.userId}`,
+                // No reply.id — stable per thread+mentor, so repeat
+                // replies in the same thread collapse into one
+                // notification instead of one per reply.
+                dedupeKey: `mentor-thread:${thread.id}:${match.userId}`,
+                collapsible: true,
+                collapseWindowMinutes: 240,
+                collapsedTitle: `${thread.title} is getting active`,
+                collapsedBody: `This alumni discussion matching your expertise is gaining more replies.`,
                 metadataJson: {
                   matchReason: match.reason,
                   matchedSignals: match.matchedSignals,
@@ -159,20 +175,14 @@ export class PostReplyUseCase {
                 },
               })
               .catch((error) => {
-                console.error(
-                  `Failed to create mentor notification for reply ${reply.id}:`,
-                  error?.message ?? error,
-                );
+                console.error(`Failed to create mentor notification for reply ${reply.id}:`, error?.message ?? error);
               }),
           ),
         );
       }
+
     }
 
     return Object.assign(reply, { attachments: createdAttachments });
-  }
-
-  private generateUniqueId(): string {
-    return Math.random().toString(36).substring(2, 11);
   }
 }
