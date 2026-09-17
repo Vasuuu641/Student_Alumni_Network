@@ -339,32 +339,6 @@ model UserInterestSignal {
   @@index([type, userId])
 }
 
-model NotificationCandidate {
-  id                String     @id @default(uuid())
-  notificationId    String?
-  userId            String
-  type              NotificationType
-  title             String     @db.VarChar(255)
-  body              String
-  entityType        String
-  entityId          String
-  sourceModule      String
-  actionUrl         String?
-  dedupeKey         String?
-  metadataJson      Json?
-  rawScore          Float      @default(0)
-  aiScore           Float?
-  finalScore        Float      @default(0)
-  scoringReason     String?
-  isEligible        Boolean    @default(false)
-  rejectionReason   String?
-  createdAt         DateTime   @default(now())
-  expiresAt         DateTime
-
-  @@index([userId, isEligible, createdAt])
-  @@index([expiresAt])
-}
-
 // Threads feature
 
 enum ThreadPanel {

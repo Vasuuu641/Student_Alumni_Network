@@ -2,7 +2,6 @@ import {
   UserInterestProfile,
   UserInterestSignal,
   InterestSignalType,
-  NotificationCandidate,
 } from '../entities/user-interest.entity';
 
 export interface UserInterestProfileRepository {
@@ -33,23 +32,5 @@ export interface UserInterestSignalRepository {
   ): Promise<UserInterestSignal[]>;
 }
 
-export interface NotificationCandidateRepository {
-  create(candidate: NotificationCandidate): Promise<NotificationCandidate>;
-  findPending(
-    userId: string,
-    limit: number,
-  ): Promise<NotificationCandidate[]>;
-  updateScore(
-    candidateId: string,
-    aiScore: number,
-    finalScore: number,
-    isEligible: boolean,
-    reason: string | null,
-  ): Promise<NotificationCandidate>;
-  markAsProcessed(
-    candidateId: string,
-    notificationId: string,
-  ): Promise<void>;
-}
 
 

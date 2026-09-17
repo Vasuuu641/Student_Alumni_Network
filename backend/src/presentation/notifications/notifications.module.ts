@@ -16,7 +16,6 @@ import { PrismaAlumniRepository } from '../../infrastructure/repositories/prisma
 import {
   PrismaUserInterestProfileRepository,
   PrismaUserInterestSignalRepository,
-  PrismaNotificationCandidateRepository,
 } from '../../infrastructure/repositories/prisma-user-interest.repository';
 import { NotificationAIScoringService } from '../../infrastructure/services/notification-ai-scoring.service';
 import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
@@ -44,7 +43,6 @@ import { NotificationsGateway } from '../../infrastructure/websocket/notificatio
     PrismaAlumniRepository,
     PrismaUserInterestProfileRepository,
     PrismaUserInterestSignalRepository,
-    PrismaNotificationCandidateRepository,
     NotificationAIScoringService,
     NotificationEligibilityService,
     MentorClusteringService,
@@ -82,10 +80,6 @@ import { NotificationsGateway } from '../../infrastructure/websocket/notificatio
     {
       provide: 'UserInterestSignalRepository',
       useClass: PrismaUserInterestSignalRepository,
-    },
-    {
-      provide: 'NotificationCandidateRepository',
-      useClass: PrismaNotificationCandidateRepository,
     },
   ],
   exports: [
