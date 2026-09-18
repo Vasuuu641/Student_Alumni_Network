@@ -70,14 +70,13 @@ export class CreateGeoHelpSpotUseCase {
     await this.personalizedNotificationFanoutService.notifyRelevantUsers({
       type: NotificationType.GEO_HELP_ACTIVITY,
       title: `New place added: ${created.title}`,
-      body: [created.description, created.city, created.category]
-        .filter(Boolean)
-        .join(' '),
+      body: [created.description, created.city, created.category].filter(Boolean).join(' '),
       entityType: 'GEO_HELP_SPOT',
       entityId: created.id,
       sourceModule: 'geo-help-board',
       actionUrl: '/geo-help-board',
       excludeUserIds: [request.createdById],
+      geoCategory: created.category, // new
       metadataJson: {
         category: created.category,
         section: created.section,

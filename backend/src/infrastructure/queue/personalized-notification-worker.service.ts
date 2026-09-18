@@ -27,7 +27,6 @@ export class PersonalizedNotificationWorkerService {
     const filtered = arr.filter((t) => now - t < window);
 
     if (filtered.length === 0) {
-      // avoid leaking one Map entry per distinct user ever notified
       this.perUserTimestamps.delete(userId);
     } else {
       this.perUserTimestamps.set(userId, filtered);
@@ -43,7 +42,12 @@ export class PersonalizedNotificationWorkerService {
   }
 
   async process(request: PersonalizedNotificationFanoutRequest): Promise<number> {
-    const profiles = await this.interestProfileRepo.findAll();
+    const profiles = request.threadPanel
+      ? await this.interestProfileRepo.findEligibleForPanel(request.threadPanel, 0.2)
+      : request.geoCategory
+        ? await this.interestProfileRepo.findEligibleForGeoCategory(request.geoCategory, 0.2)
+        : await this.interestProfileRepo.findAll();
+
     const excluded = new Set(request.excludeUserIds ?? []);
     const safeLimit = Math.max(1, request.limit ?? 5);
 
@@ -59,6 +63,7 @@ export class PersonalizedNotificationWorkerService {
             request.body,
             request.threadTitle,
             request.threadPanel,
+            request.geoCategory,
           );
 
           return { userId: profile.userId, result };
@@ -77,8 +82,6 @@ export class PersonalizedNotificationWorkerService {
 
       const { userId, result } = settled.value;
 
-      // request.minScore, if provided, can only raise the bar above the
-      // eligibility service's own threshold — never lower it.
       const meetsOverride =
         request.minScore === undefined || result.finalScore >= request.minScore;
 
@@ -102,7 +105,7 @@ export class PersonalizedNotificationWorkerService {
         continue;
       }
 
-      await this.createNotificationUseCase.execute({
+      const result = await this.createNotificationUseCase.execute({
         userId: recipient.userId,
         type: request.type,
         title: request.title,
@@ -121,8 +124,10 @@ export class PersonalizedNotificationWorkerService {
         deliveryChannels: request.deliveryChannels ?? [NotificationChannel.IN_APP],
       });
 
-      this.record(recipient.userId);
-      created++;
+      if (result) {
+        this.record(recipient.userId);
+        created++;
+      }
     }
 
     return created;

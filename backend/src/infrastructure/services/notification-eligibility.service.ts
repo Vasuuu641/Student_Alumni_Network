@@ -1,4 +1,3 @@
-// notification-eligibility.service.ts
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { NotificationAIScoringService } from './notification-ai-scoring.service';
@@ -11,6 +10,7 @@ import {
   UserInterestSignal,
   UserInterestProfile,
 } from 'src/domain/entities/user-interest.entity';
+import { GeoHelpSpotCategory } from 'src/domain/entities/geo-help-spot.entity';
 
 export interface NotificationEligibilityResult {
   passed: boolean;
@@ -41,6 +41,7 @@ export class NotificationEligibilityService {
     notificationBody: string,
     threadTitle?: string,
     threadPanel?: 'ACADEMIC' | 'ALUMNI',
+    geoCategory?: GeoHelpSpotCategory,
   ): Promise<NotificationEligibilityResult> {
     try {
       const signals = await this.signalRepository.findByEntityAndUser(
@@ -69,7 +70,7 @@ export class NotificationEligibilityService {
         threadPanel,
       );
 
-      const rawScore = this.computeSignalScore(signals, profile, threadPanel);
+      const rawScore = this.computeSignalScore(signals, profile, threadPanel, geoCategory);
       const finalScore = (aiScore + rawScore) / 2;
 
       if (finalScore < this.SCORE_THRESHOLD) {
@@ -101,13 +102,6 @@ export class NotificationEligibilityService {
     }
   }
 
-  /**
-   * Capture a user interest signal (e.g., thread view, reply, like).
-   * Lazily creates a default interest profile first if the user doesn't
-   * have one yet — covers new signups and pre-existing users alike,
-   * regardless of role (student/alumni/professor), since UserInterestSignal
-   * has an FK into UserInterestProfile and can't be written without one.
-   */
   async captureSignal(
     userId: string,
     type: InterestSignalType,
@@ -121,9 +115,8 @@ export class NotificationEligibilityService {
     const existingProfile = await this.interestProfileRepository.findByUserId(userId);
     if (!existingProfile) {
       const now = new Date();
-      // Defaults match the Prisma schema's @default values for UserInterestProfile.
       await this.interestProfileRepository.upsert(
-        new UserInterestProfile(userId, 0.5, 0.5, 0.3, 0.3, 0.2, 0.3, now, now, now),
+        new UserInterestProfile(userId, 0.5, 0.5, 0.3, 0.3, 0.2, 0.3, 0.4, 0.4, 0.4, 0.3, now, now, now),
       );
     }
 
@@ -147,13 +140,20 @@ export class NotificationEligibilityService {
     signals: UserInterestSignal[],
     profile: UserInterestProfile,
     threadPanel?: 'ACADEMIC' | 'ALUMNI',
+    geoCategory?: GeoHelpSpotCategory,
   ): number {
     if (signals.length === 0) return 0.3;
 
     const signalScore = Math.min(1, signals.reduce((sum, s) => sum + s.strength * 0.15, 0));
-    const panelBonus = threadPanel ? profile.getWeightForPanel(threadPanel) : 0.5;
 
-    return signalScore * 0.7 + panelBonus * 0.3;
+    let categoryBonus = 0.5;
+    if (threadPanel) {
+      categoryBonus = profile.getWeightForPanel(threadPanel);
+    } else if (geoCategory) {
+      categoryBonus = profile.getWeightForGeoCategory(geoCategory) ?? 0.5;
+    }
+
+    return signalScore * 0.7 + categoryBonus * 0.3;
   }
 
   private getSignalStrength(type: InterestSignalType): number {

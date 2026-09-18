@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { NotificationChannel, NotificationType } from 'src/domain/entities/notification.entity';
 import type { JobQueue, Job } from '../queue/job.interface';
 import { PersonalizedNotificationWorkerService } from '../queue/personalized-notification-worker.service';
+import { GeoHelpSpotCategory } from 'src/domain/entities/geo-help-spot.entity';
 
 export interface PersonalizedNotificationFanoutRequest {
   type: NotificationType;
@@ -17,6 +18,7 @@ export interface PersonalizedNotificationFanoutRequest {
   excludeUserIds?: string[];
   threadTitle?: string;
   threadPanel?: 'ACADEMIC' | 'ALUMNI';
+  geoCategory?: GeoHelpSpotCategory;
   limit?: number;
   minScore?: number;
 }

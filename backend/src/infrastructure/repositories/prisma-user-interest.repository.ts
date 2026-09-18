@@ -9,27 +9,60 @@ import type {
   UserInterestProfileRepository,
   UserInterestSignalRepository,
 } from 'src/domain/repositories/user-interest.repository';
+import { GeoHelpSpotCategory } from 'src/domain/entities/geo-help-spot.entity';
+
 
 @Injectable()
 export class PrismaUserInterestProfileRepository
   implements UserInterestProfileRepository
 {
   constructor(private readonly prisma: PrismaService) {}
-
   async findEligibleForPanel(
     panel: 'ACADEMIC' | 'ALUMNI',
     minWeight: number,
   ): Promise<UserInterestProfile[]> {
+    const column = panel === 'ACADEMIC' ? 'academicWeight' : 'alumniWeight';
+
     const records = await this.prisma.userInterestProfile.findMany({
-      where:
-        panel === 'ACADEMIC'
-          ? { academicWeight: { gte: minWeight } }
-          : { alumniWeight: { gte: minWeight } },
+      where: { [column]: { gte: minWeight } },
       orderBy: { lastUpdatedAt: 'desc' },
     });
 
     return records.map((record) => this.toDomain(record));
   }
+
+  async findEligibleForGeoCategory(
+  category: GeoHelpSpotCategory,
+  minWeight: number,
+): Promise<UserInterestProfile[]> {
+  const columnMap: Partial<Record<GeoHelpSpotCategory, string>> = {
+    [GeoHelpSpotCategory.UNIVERSITY_SERVICE]: 'campusServicesWeight',
+    [GeoHelpSpotCategory.ACADEMIC_DEPARTMENT]: 'campusServicesWeight',
+    [GeoHelpSpotCategory.ADMIN_OFFICE]: 'campusServicesWeight',
+    [GeoHelpSpotCategory.STUDENT_SUPPORT]: 'campusServicesWeight',
+    [GeoHelpSpotCategory.RESTAURANT]: 'foodWeight',
+    [GeoHelpSpotCategory.CAFE]: 'foodWeight',
+    [GeoHelpSpotCategory.STUDY_SPOT]: 'studyWeight',
+    [GeoHelpSpotCategory.CAMPUS_FACILITY]: 'studyWeight',
+    [GeoHelpSpotCategory.SOCIAL_HANGOUT]: 'socialWeight',
+    [GeoHelpSpotCategory.FITNESS_WELLNESS]: 'socialWeight',
+    [GeoHelpSpotCategory.SHOPPING]: 'shoppingWeight',
+  };
+
+  const column = columnMap[category];
+  if (!column) {
+    // OTHER, or any future category with no mapping — no cheap pre-filter possible
+    return this.prisma.userInterestProfile.findMany({ orderBy: { lastUpdatedAt: 'desc' } })
+      .then((records) => records.map((r) => this.toDomain(r)));
+  }
+
+  const records = await this.prisma.userInterestProfile.findMany({
+    where: { [column]: { gte: minWeight } },
+    orderBy: { lastUpdatedAt: 'desc' },
+  });
+
+  return records.map((record) => this.toDomain(record));
+}
 
   async findByUserId(userId: string): Promise<UserInterestProfile | null> {
     const record = await this.prisma.userInterestProfile.findUnique({
@@ -47,31 +80,39 @@ export class PrismaUserInterestProfileRepository
   }
 
   async upsert(profile: UserInterestProfile): Promise<UserInterestProfile> {
-    const record = await this.prisma.userInterestProfile.upsert({
-      where: { userId: profile.userId },
-      create: {
-        userId: profile.userId,
-        academicWeight: profile.academicWeight,
-        alumniWeight: profile.alumniWeight,
-        careerWeight: profile.careerWeight,
-        housingWeight: profile.housingWeight,
-        shoppingWeight: profile.shoppingWeight,
-        internshipWeight: profile.internshipWeight,
-        lastUpdatedAt: new Date(),
-      },
-      update: {
-        academicWeight: profile.academicWeight,
-        alumniWeight: profile.alumniWeight,
-        careerWeight: profile.careerWeight,
-        housingWeight: profile.housingWeight,
-        shoppingWeight: profile.shoppingWeight,
-        internshipWeight: profile.internshipWeight,
-        lastUpdatedAt: new Date(),
-      },
-    });
+  const record = await this.prisma.userInterestProfile.upsert({
+    where: { userId: profile.userId },
+    create: {
+      userId: profile.userId,
+      academicWeight: profile.academicWeight,
+      alumniWeight: profile.alumniWeight,
+      careerWeight: profile.careerWeight,
+      housingWeight: profile.housingWeight,
+      shoppingWeight: profile.shoppingWeight,
+      internshipWeight: profile.internshipWeight,
+      campusServicesWeight: profile.campusServicesWeight,
+      foodWeight: profile.foodWeight,
+      studyWeight: profile.studyWeight,
+      socialWeight: profile.socialWeight,
+      lastUpdatedAt: new Date(),
+    },
+    update: {
+      academicWeight: profile.academicWeight,
+      alumniWeight: profile.alumniWeight,
+      careerWeight: profile.careerWeight,
+      housingWeight: profile.housingWeight,
+      shoppingWeight: profile.shoppingWeight,
+      internshipWeight: profile.internshipWeight,
+      campusServicesWeight: profile.campusServicesWeight,
+      foodWeight: profile.foodWeight,
+      studyWeight: profile.studyWeight,
+      socialWeight: profile.socialWeight,
+      lastUpdatedAt: new Date(),
+    },
+  });
 
-    return this.toDomain(record);
-  }
+  return this.toDomain(record);
+}
 
   async incrementWeight(
     userId: string,
@@ -81,7 +122,11 @@ export class PrismaUserInterestProfileRepository
       | 'careerWeight'
       | 'housingWeight'
       | 'shoppingWeight'
-      | 'internshipWeight',
+      | 'internshipWeight'
+      | 'campusServicesWeight'
+      | 'foodWeight'
+      | 'studyWeight'
+      | 'socialWeight',
     delta: number,
   ): Promise<void> {
     const existing = await this.prisma.userInterestProfile.findUnique({
@@ -102,20 +147,25 @@ export class PrismaUserInterestProfileRepository
     });
   }
 
-  private toDomain(record: any): UserInterestProfile {
-    return new UserInterestProfile(
-      record.userId,
-      record.academicWeight,
-      record.alumniWeight,
-      record.careerWeight,
-      record.housingWeight,
-      record.shoppingWeight,
-      record.internshipWeight,
-      record.lastUpdatedAt,
-      record.createdAt,
-      record.updatedAt,
-    );
-  }
+  // PrismaUserInterestProfileRepository
+private toDomain(record: any): UserInterestProfile {
+  return new UserInterestProfile(
+    record.userId,
+    record.academicWeight,
+    record.alumniWeight,
+    record.careerWeight,
+    record.housingWeight,
+    record.shoppingWeight,
+    record.internshipWeight,
+    record.campusServicesWeight,
+    record.foodWeight,
+    record.studyWeight,
+    record.socialWeight,
+    record.lastUpdatedAt,
+    record.createdAt,
+    record.updatedAt,
+  );
+}
 }
 
 @Injectable()
