@@ -32,6 +32,7 @@ model User {
   threadsAuthored Thread[]           @relation("ThreadAuthor")
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
+  notificationMutes NotificationMute[]
   replyVotes      ThreadReplyVote[]
   studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
   studyGroupMemberships StudyGroupMember[]
@@ -799,4 +800,25 @@ model PasswordResetOtp {
   createdAt DateTime @default(now())
 
   @@index([email, consumed, expiresAt])
+}
+
+enum NotificationMuteScope {
+  ENTITY
+  CATEGORY
+}
+
+model NotificationMute {
+  id           String                @id @default(uuid())
+  userId       String
+  scope        NotificationMuteScope
+  entityType   String?
+  entityId     String?
+  category     String?
+  sourceModule String
+  createdAt    DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entityType, entityId])
+  @@index([userId, sourceModule, category])
 }

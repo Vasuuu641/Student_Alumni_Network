@@ -10,8 +10,13 @@ import { MarkAllNotificationsReadUseCase } from '../../application/notifications
 import { DismissNotificationUseCase } from '../../application/notifications/dismiss-notification.usecase';
 import { GetNotificationPreferencesUseCase } from '../../application/notifications/get-notification-preferences.usecase';
 import { UpdateNotificationPreferencesUseCase } from '../../application/notifications/update-notification-preferences.usecase';
+import { MuteNotificationSourceUseCase } from '../../application/notifications/mute-notification-source.usecase';
+import { MuteNotificationCategoryUseCase } from '../../application/notifications/mute-notification-category.usecase';
+import { UnmuteNotificationUseCase } from '../../application/notifications/unmute-notification.usecase';
+import { ListNotificationMutesUseCase } from '../../application/notifications/list-notification-mute.usecase';
 import { PrismaNotificationRepository } from '../../infrastructure/repositories/prisma-notification.repository';
 import { PrismaNotificationPreferenceRepository } from '../../infrastructure/repositories/prisma-notification-preference.repository';
+import { PrismaNotificationMuteRepository } from '../../infrastructure/repositories/prisma-notification-mute.repository';
 import { PrismaAlumniRepository } from '../../infrastructure/repositories/prisma-alumni.repository';
 import {
   PrismaUserInterestProfileRepository,
@@ -38,8 +43,13 @@ import { NotificationsGateway } from '../../infrastructure/websocket/notificatio
     DismissNotificationUseCase,
     GetNotificationPreferencesUseCase,
     UpdateNotificationPreferencesUseCase,
+    MuteNotificationSourceUseCase,
+    MuteNotificationCategoryUseCase,
+    UnmuteNotificationUseCase,
+    ListNotificationMutesUseCase,
     PrismaNotificationRepository,
     PrismaNotificationPreferenceRepository,
+    PrismaNotificationMuteRepository,
     PrismaAlumniRepository,
     PrismaUserInterestProfileRepository,
     PrismaUserInterestSignalRepository,
@@ -68,6 +78,10 @@ import { NotificationsGateway } from '../../infrastructure/websocket/notificatio
     {
       provide: 'NotificationPreferenceRepository',
       useClass: PrismaNotificationPreferenceRepository,
+    },
+    {
+      provide: 'NotificationMuteRepository',
+      useClass: PrismaNotificationMuteRepository,
     },
     {
       provide: 'AlumniRepository',

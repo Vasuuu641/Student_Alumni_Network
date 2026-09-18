@@ -5,8 +5,10 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Logger,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -22,9 +24,15 @@ import { GetNotificationPreferencesUseCase } from 'src/application/notifications
 import { UpdateNotificationPreferencesUseCase } from 'src/application/notifications/update-notification-preferences.usecase';
 import { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
+import { MuteNotificationSourceUseCase } from 'src/application/notifications/mute-notification-source.usecase';
+import { MuteNotificationCategoryUseCase } from 'src/application/notifications/mute-notification-category.usecase';
+import { ListNotificationMutesUseCase } from 'src/application/notifications/list-notification-mute.usecase';
+import { UnmuteNotificationUseCase } from 'src/application/notifications/unmute-notification.usecase';
 
 @Controller('notifications')
 export class NotificationsController {
+  private readonly logger = new Logger(NotificationsController.name);
+
   constructor(
     private readonly listNotificationsUseCase: ListNotificationsUseCase,
     private readonly getUnreadNotificationCountUseCase: GetUnreadNotificationCountUseCase,
@@ -33,6 +41,10 @@ export class NotificationsController {
     private readonly dismissNotificationUseCase: DismissNotificationUseCase,
     private readonly getNotificationPreferencesUseCase: GetNotificationPreferencesUseCase,
     private readonly updateNotificationPreferencesUseCase: UpdateNotificationPreferencesUseCase,
+    private readonly muteNotificationSourceUseCase: MuteNotificationSourceUseCase,
+    private readonly muteNotificationCategoryUseCase: MuteNotificationCategoryUseCase,
+    private readonly listNotificationMutesUseCase: ListNotificationMutesUseCase,
+    private readonly unmuteNotificationUseCase: UnmuteNotificationUseCase,
   ) {}
 
   @Get('unread-count')
@@ -61,7 +73,7 @@ export class NotificationsController {
       const preferences = await this.getNotificationPreferencesUseCase.execute(userId);
       return { preferences };
     } catch (error) {
-      if(error instanceof HttpException) {
+      if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException(
@@ -79,7 +91,7 @@ export class NotificationsController {
       const preferences = await this.updateNotificationPreferencesUseCase.execute(userId, body);
       return { preferences };
     } catch (error) {
-      if(error instanceof HttpException) {
+      if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException(
@@ -162,6 +174,74 @@ export class NotificationsController {
         this.formatError(error, 'Failed to dismiss notification'),
         HttpStatus.BAD_REQUEST,
       );
+    }
+  }
+
+  @Post(':id/mute-source')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async muteSource(@Req() request: any, @Param('id') notificationId: string) {
+    try {
+      const userId = request.user.userId;
+      const mute = await this.muteNotificationSourceUseCase.execute(notificationId, userId);
+      return { mute };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`muteSource failed: ${this.formatError(error, 'unknown error')}`);
+      throw new HttpException('Failed to mute notification source', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('mute-category')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async muteCategory(@Req() request: any, @Body() body: { sourceModule: string; category: string }) {
+    try {
+      const userId = request.user.userId;
+      const mute = await this.muteNotificationCategoryUseCase.execute({
+        userId,
+        sourceModule: body.sourceModule,
+        category: body.category,
+      });
+      return { mute };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`muteCategory failed: ${this.formatError(error, 'unknown error')}`);
+      throw new HttpException('Failed to mute category', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('mutes')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async listMutes(@Req() request: any) {
+    try {
+      const userId = request.user.userId;
+      const mutes = await this.listNotificationMutesUseCase.execute(userId);
+      return { mutes };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`listMutes failed: ${this.formatError(error, 'unknown error')}`);
+      throw new HttpException('Failed to list mutes', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Patch('mutes/:muteId')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async unmute(@Req() request: any, @Param('muteId') muteId: string) {
+    try {
+      const userId = request.user.userId;
+      await this.unmuteNotificationUseCase.execute(muteId, userId);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`unmute failed: ${this.formatError(error, 'unknown error')}`);
+      throw new HttpException('Failed to unmute', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

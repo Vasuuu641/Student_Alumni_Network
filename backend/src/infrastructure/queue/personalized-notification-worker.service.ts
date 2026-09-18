@@ -61,6 +61,7 @@ export class PersonalizedNotificationWorkerService {
             request.entityId,
             request.title,
             request.body,
+            request.sourceModule,
             request.threadTitle,
             request.threadPanel,
             request.geoCategory,
