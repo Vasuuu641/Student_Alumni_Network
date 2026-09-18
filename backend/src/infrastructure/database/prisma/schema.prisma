@@ -310,6 +310,10 @@ model UserInterestProfile {
   housingWeight       Float    @default(0.3)
   shoppingWeight      Float    @default(0.2)
   internshipWeight    Float    @default(0.3)
+  campusServicesWeight Float   @default(0.4)
+  foodWeight          Float    @default(0.4)
+  studyWeight         Float    @default(0.4)
+  socialWeight        Float    @default(0.3)
   lastUpdatedAt       DateTime @default(now())
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
