@@ -33,6 +33,7 @@ model User {
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
   notificationMutes NotificationMute[]
+  savedItems SavedItem[]
   replyVotes      ThreadReplyVote[]
   studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
   studyGroupMemberships StudyGroupMember[]
@@ -821,4 +822,17 @@ model NotificationMute {
 
   @@index([userId, entityType, entityId])
   @@index([userId, sourceModule, category])
+}
+
+model SavedItem {
+  id         String   @id @default(uuid())
+  userId     String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, entityType])
 }
