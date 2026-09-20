@@ -242,3 +242,37 @@ export async function deactivateGeoHelpSpot(spotId: string): Promise<GeoHelpSpot
     throw new Error(toApiErrorMessage(error, 'Failed to delete the location.'));
   }
 }
+
+export interface SavedItem {
+  id: string;
+  userId: string;
+  entityType: string;
+  entityId: string;
+  createdAt: string;
+}
+
+export async function saveGeoHelpSpot(spotId: string): Promise<SavedItem> {
+  try {
+    const { data } = await api.post<{ saved: SavedItem }>(`/geo-help-board/spots/${spotId}/save`);
+    return data.saved;
+  } catch (error) {
+    throw new Error(toApiErrorMessage(error, 'Failed to save the location.'));
+  }
+}
+
+export async function unsaveGeoHelpSpot(spotId: string): Promise<void> {
+  try {
+    await api.delete(`/geo-help-board/spots/${spotId}/save`);
+  } catch (error) {
+    throw new Error(toApiErrorMessage(error, 'Failed to unsave the location.'));
+  }
+}
+
+export async function listSavedGeoHelpSpots(): Promise<GeoHelpSpot[]> {
+  try {
+    const { data } = await api.get<RawGeoHelpSpot[]>('/geo-help-board/spots/saved');
+    return data.map(toGeoHelpSpot);
+  } catch (error) {
+    throw new Error(toApiErrorMessage(error, 'Failed to load saved locations.'));
+  }
+}
