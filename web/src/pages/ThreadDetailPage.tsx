@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2, Paperclip } from 'lucide-react'
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, PencilLine, Reply, Send, Trash2, Paperclip, Bookmark, BookmarkCheck } from 'lucide-react'
 import {
   createThreadsSocket,
   deleteReply,
   editReply,
   getThread,
   listReplies,
+  listSavedThreads,
   postReply,
+  saveThread,
+  unsaveThread,
   updateThreadStatus,
   voteReply,
   voteThread,
@@ -104,6 +107,8 @@ export function ThreadDetailPage() {
   const [collapsedReplyIds, setCollapsedReplyIds] = useState<Set<string>>(new Set())
   const [isThreadCollapsed, setIsThreadCollapsed] = useState(false)
   const [replyAttachments, setReplyAttachments] = useState<File[]>([])
+  const [isSaved, setIsSaved] = useState(false)
+  const [savingThread, setSavingThread] = useState(false)
   const replyFileInputRef = useRef<HTMLInputElement>(null)
 
   const socketRef = useRef<ReturnType<typeof createThreadsSocket> | null>(null)
@@ -147,19 +152,21 @@ export function ThreadDetailPage() {
     }
   }, [])
 
-  const loadThread = useCallback(async () => {
+    const loadThread = useCallback(async () => {
     if (!threadId) return
 
     try {
       setError(null)
       setLoading(true)
-      const [{ thread: loadedThread }, { replies: loadedReplies }] = await Promise.all([
+      const [{ thread: loadedThread }, { replies: loadedReplies }, savedResult] = await Promise.all([
         getThread(threadId),
         listReplies({ threadId, sortBy: 'newest', take: 100 }),
+        listSavedThreads().catch(() => ({ threads: [] })),
       ])
 
       setThread(loadedThread)
       setReplies(loadedReplies.filter((reply) => reply.status !== 'DELETED'))
+      setIsSaved(savedResult.threads.some((saved) => saved.id === threadId))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load discussion')
     } finally {
@@ -386,6 +393,28 @@ export function ThreadDetailPage() {
       setThread((prev) => (prev ? { ...prev, status: nextStatus } : prev))
     } finally {
       setUpdatingThreadStatus(false)
+    }
+  }
+
+  async function handleToggleSaveThread() {
+    if (!threadId) return
+
+    const wasSaved = isSaved
+
+    try {
+      setSavingThread(true)
+      setIsSaved(!wasSaved)
+
+      if (wasSaved) {
+        await unsaveThread(threadId)
+      } else {
+        await saveThread(threadId)
+      }
+    } catch (err) {
+      setIsSaved(wasSaved)
+      setActionError(getErrorMessage(err, wasSaved ? 'Failed to unsave discussion.' : 'Failed to save discussion.'))
+    } finally {
+      setSavingThread(false)
     }
   }
 
@@ -770,6 +799,18 @@ export function ThreadDetailPage() {
                     <span>{thread.replyCount} comments</span>
                     <span>Status: {thread.status.toLowerCase()}</span>
                   </div>
+
+                  <div className="thread-owner-actions">
+                    <button
+                      type="button"
+                      className="threads-secondary-btn"
+                      onClick={() => void handleToggleSaveThread()}
+                      disabled={savingThread}
+                    >
+                      {isSaved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+                      {isSaved ? 'Saved' : 'Save'}
+                    </button>
+                    </div>
 
                   {isThreadAuthor && (
                     <div className="thread-owner-actions">

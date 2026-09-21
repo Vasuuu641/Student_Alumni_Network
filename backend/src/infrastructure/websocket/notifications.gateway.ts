@@ -31,7 +31,7 @@ export class NotificationsGateway
   server!: Namespace;
 
   private readonly logger = new Logger(NotificationsGateway.name);
-  
+
   constructor(
     @Inject('TokenService') private readonly tokenService: TokenService,
   ) {}
@@ -66,14 +66,22 @@ export class NotificationsGateway
     const roomKey = this.roomFor(userId);
     this.server.to(roomKey).emit('notifications:new', {
       id: notification.id,
+      userId: notification.userId,
       type: notification.type,
       title: notification.title,
       body: notification.body,
       entityType: notification.entityType,
       entityId: notification.entityId,
-      actionUrl: notification.actionUrl,
+      sourceModule: notification.sourceModule,
       score: notification.score,
+      isRead: notification.isRead,
+      readAt: notification.readAt,
+      dismissedAt: notification.dismissedAt,
+      actionUrl: notification.actionUrl,
+      dedupeKey: notification.dedupeKey,
+      metadataJson: notification.metadataJson,
       createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
     });
     this.logger.log(`New notification broadcast: user ${userId} notification ${notification.id}`);
   }

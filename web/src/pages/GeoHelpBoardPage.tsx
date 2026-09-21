@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Search,
   X,
+  Bookmark, 
+  BookmarkCheck
 } from 'lucide-react';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import Button from '../components/Button';
@@ -23,7 +25,10 @@ import {
   deactivateGeoHelpSpot,
   listNearbyGeoHelpSpots,
   listPopularGeoHelpSpots,
+  listSavedGeoHelpSpots,
   recordGeoHelpSpotVisit,
+  saveGeoHelpSpot,
+  unsaveGeoHelpSpot,
   type GeoHelpSpot,
   type GeoHelpSpotCategory,
   type GeoHelpSpotReviewStatus,
@@ -656,6 +661,7 @@ export function GeoHelpBoardPage() {
   const [locationAccuracyM, setLocationAccuracyM] = useState<number | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [point, setPoint] = useState<Point>({
+  
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
   });
@@ -680,6 +686,8 @@ export function GeoHelpBoardPage() {
   const [suggestDescription, setSuggestDescription] = useState('');
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
   const [routeDirections, setRouteDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [savedSpotIds, setSavedSpotIds] = useState<Set<string>>(new Set());
+  const [workingSaveSpotId, setWorkingSaveSpotId] = useState<string | null>(null);
 
   const visitedOnOpenRef = useRef<Set<string>>(new Set());
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -773,6 +781,19 @@ export function GeoHelpBoardPage() {
     }
 
     let cancelled = false;
+
+    async function loadSavedIds() {
+      try {
+        const saved = await listSavedGeoHelpSpots();
+        if (!cancelled) {
+          setSavedSpotIds(new Set(saved.map((spot) => spot.id)));
+        }
+      } catch {
+        // non-critical — save buttons just default to unsaved state
+      }
+    }
+
+    void loadSavedIds();
 
     async function loadSpots() {
       try {
@@ -1156,6 +1177,42 @@ export function GeoHelpBoardPage() {
       }
     } finally {
       setWorkingSpotId(null);
+    }
+  }
+
+    async function handleToggleSaveSpot(spotId: string) {
+    const wasSaved = savedSpotIds.has(spotId);
+
+    try {
+      setWorkingSaveSpotId(spotId);
+      setSavedSpotIds((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) {
+          next.delete(spotId);
+        } else {
+          next.add(spotId);
+        }
+        return next;
+      });
+
+      if (wasSaved) {
+        await unsaveGeoHelpSpot(spotId);
+      } else {
+        await saveGeoHelpSpot(spotId);
+      }
+    } catch (error) {
+      setSavedSpotIds((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) {
+          next.add(spotId);
+        } else {
+          next.delete(spotId);
+        }
+        return next;
+      });
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to update saved status.');
+    } finally {
+      setWorkingSaveSpotId(null);
     }
   }
 
@@ -1725,6 +1782,24 @@ export function GeoHelpBoardPage() {
                       >
                         View details
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleSaveSpot(spot.id)}
+                        disabled={workingSaveSpotId === spot.id}
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+                        aria-label={savedSpotIds.has(spot.id) ? 'Unsave' : 'Save'}
+                      >
+                        {savedSpotIds.has(spot.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.open(buildDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude }), '_blank');
+                        }}
+                        className="flex-1 rounded-lg bg-[var(--theme-action-primary)] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -1816,6 +1891,17 @@ export function GeoHelpBoardPage() {
               >
                 Get directions <ExternalLink size={13} />
               </a>
+
+              <button
+                type="button"
+                onClick={() => void handleToggleSaveSpot(selectedSpot.id)}
+                disabled={workingSaveSpotId === selectedSpot.id}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {savedSpotIds.has(selectedSpot.id) ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+                {savedSpotIds.has(selectedSpot.id) ? 'Saved' : 'Save'}
+              </button>
+              
               <button
                 type="button"
                 onClick={() => {
