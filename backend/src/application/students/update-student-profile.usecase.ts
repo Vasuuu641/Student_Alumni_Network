@@ -151,7 +151,7 @@ export class UpdateStudentProfileUseCase {
     };
   }
 
-  private async syncInterestProfile(student: Student): Promise<void> {
+    private async syncInterestProfile(student: Student): Promise<void> {
     const academicWeight = Math.min(1, 0.7 + (student.faculty ? 0.1 : 0));
     const alumniWeight = 0.3;
     const careerWeight = Math.min(1, 0.35 + (student.jobTitle || student.company ? 0.2 : 0));
@@ -168,6 +168,10 @@ export class UpdateStudentProfileUseCase {
         housingWeight,
         shoppingWeight,
         internshipWeight,
+        0.4,
+        0.4,
+        0.4,
+        0.3,
         new Date(),
         new Date(),
         new Date(),

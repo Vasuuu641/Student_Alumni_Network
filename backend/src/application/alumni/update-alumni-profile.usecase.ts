@@ -177,7 +177,7 @@ export class UpdateAlumniProfileUseCase {
     };
   }
 
-  private async syncInterestProfile(alumni: Alumni): Promise<void> {
+    private async syncInterestProfile(alumni: Alumni): Promise<void> {
     const academicWeight = 0.25;
     const alumniWeight = 0.8;
     const careerWeight = Math.min(1, 0.6 + (alumni.company || alumni.jobTitle ? 0.15 : 0));
@@ -194,12 +194,17 @@ export class UpdateAlumniProfileUseCase {
         housingWeight,
         shoppingWeight,
         internshipWeight,
+        0.4, // campusServicesWeight
+        0.4, // foodWeight
+        0.4, // studyWeight
+        0.3, // socialWeight
         new Date(),
         new Date(),
         new Date(),
       ),
     );
-  }
+  };
 }
+
 
 
