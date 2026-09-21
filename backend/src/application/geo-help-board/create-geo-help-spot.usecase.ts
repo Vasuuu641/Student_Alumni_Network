@@ -84,7 +84,7 @@ export class CreateGeoHelpSpotUseCase {
       },
       dedupeKeyPrefix: 'geo-spot-new',
       limit: 5,
-      minScore: 0.45,
+      minScore: 0.2,
     });
 
     return created;
