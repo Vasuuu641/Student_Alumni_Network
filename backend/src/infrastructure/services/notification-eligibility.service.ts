@@ -24,7 +24,7 @@ export interface NotificationEligibilityResult {
 @Injectable()
 export class NotificationEligibilityService {
   private readonly logger = new Logger(NotificationEligibilityService.name);
-  private readonly SCORE_THRESHOLD = 0.6;
+  private readonly SCORE_THRESHOLD = 0.2;
 
   constructor(
     @Inject('UserInterestProfileRepository')
@@ -53,6 +53,7 @@ async checkEligibility(
     // source should never cost a Cohere call. Entity mute takes precedence:
     // it's the more specific, more recently expressed preference.
     const isEntityMuted = await this.muteRepository.isEntityMuted(userId, entityType, entityId);
+    
     if (isEntityMuted) {
       return {
         passed: false,
@@ -84,6 +85,8 @@ async checkEligibility(
     const signals = await this.signalRepository.findByEntityAndUser(userId, entityType, entityId);
     const profile = await this.interestProfileRepository.findByUserId(userId);
 
+    this.logger.debug(`checkEligibility reached for user ${userId} (profile found: ${!!profile})`);
+
     if (!profile) {
       return {
         passed: false,
@@ -104,6 +107,10 @@ async checkEligibility(
 
     const rawScore = this.computeSignalScore(signals, profile, threadPanel, geoCategory);
     const finalScore = (aiScore + rawScore) / 2;
+
+    this.logger.debug(
+      `Eligibility for user ${userId}: aiScore=${aiScore.toFixed(3)}, rawScore=${rawScore.toFixed(3)}, finalScore=${finalScore.toFixed(3)}, threshold=${this.SCORE_THRESHOLD}`,
+    );
 
     if (finalScore < this.SCORE_THRESHOLD) {
       return {

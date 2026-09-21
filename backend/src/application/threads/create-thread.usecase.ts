@@ -144,7 +144,7 @@ export class CreateThreadUseCase {
         },
         dedupeKeyPrefix: 'thread-interest',
         limit: 5,
-        minScore: 0.45,
+        minScore: 0.2,
       });
     }
 

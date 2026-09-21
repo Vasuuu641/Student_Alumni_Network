@@ -1795,10 +1795,11 @@ export function GeoHelpBoardPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          window.open(buildDirectionsUrl(point, { latitude: spot.latitude, longitude: spot.longitude }), '_blank');
+                          window.open(buildGoogleMapUrl({ latitude: spot.latitude, longitude: spot.longitude }), '_blank');
                         }}
                         className="flex-1 rounded-lg bg-[var(--theme-action-primary)] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--theme-action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-70"
                       >
+                        View on maps
                       </button>
                       <button
                         type="button"

@@ -87,7 +87,6 @@ export function DashboardPage() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
   const [workingNotificationId, setWorkingNotificationId] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const notificationsSocketRef = useRef<Socket | null>(null);
@@ -253,7 +252,7 @@ export function DashboardPage() {
   }, [isAdmin, role, token]);
 
   useEffect(() => {
-    if (!isNotificationsOpen || notificationsLoaded || !token || !role || isAdmin) {
+    if (!isNotificationsOpen || !token || !role || isAdmin) {
       return;
     }
 
@@ -269,7 +268,6 @@ export function DashboardPage() {
         if (!cancelled) {
           setNotifications(notificationsResponse.notifications);
           setUnreadNotificationCount(unreadCountResponse.unreadCount);
-          setNotificationsLoaded(true);
         }
       } catch {
         if (!cancelled) {
@@ -287,7 +285,7 @@ export function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isNotificationsOpen, notificationsLoaded, role, token]);
+  }, [isAdmin, isNotificationsOpen, role, token]);
 
   useEffect(() => {
     if (!placeholderNotice) {
@@ -520,15 +518,27 @@ export function DashboardPage() {
                   <h2>Notifications</h2>
                   <p>{unreadNotificationCount} unread</p>
                 </div>
-                <button
-                  type="button"
-                  className="dashboard-v2__notifications-action"
-                  onClick={handleMarkAllNotificationsRead}
-                  disabled={notificationsLoading || notifications.length === 0}
-                >
-                  <CheckCheck size={14} />
-                  Mark all read
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="dashboard-v2__notifications-action"
+                    onClick={handleMarkAllNotificationsRead}
+                    disabled={notificationsLoading || notifications.length === 0}
+                  >
+                    <CheckCheck size={14} />
+                    Mark all read
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-v2__notifications-see-all"
+                    onClick={() => {
+                      setIsNotificationsOpen(false);
+                      navigate('/notifications');
+                    }}
+                  >
+                    See all notifications
+                  </button>
+                </div>
               </div>
 
               <div className="dashboard-v2__notifications-list">
@@ -542,17 +552,6 @@ export function DashboardPage() {
                       key={notification.id}
                       className={notification.isRead ? 'dashboard-v2__notification-item dashboard-v2__notification-item--read' : 'dashboard-v2__notification-item'}
                     >
-                      <button
-                        type="button"
-                        className="dashboard-v2__notifications-see-all"
-                        onClick={() => {
-                          setIsNotificationsOpen(false);
-                          navigate('/notifications');
-                        }}
-                      >
-                        See all notifications
-                      </button>
-                      
                       <button
                         type="button"
                         className="dashboard-v2__notification-open"

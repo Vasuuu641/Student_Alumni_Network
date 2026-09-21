@@ -25,8 +25,43 @@ export class PrismaNotificationRepository implements NotificationRepository {
       }
     }
 
+    const uniqueChannels = Array.from(new Set(deliveryChannels.length > 0 ? deliveryChannels : [NotificationChannel.IN_APP]));
+
     const created = await this.prisma.$transaction(async (tx) => {
-      // ...unchanged...
+      const record = await tx.notification.create({
+        data: {
+          id: notification.id,
+          userId: notification.userId,
+          type: notification.type,
+          title: notification.title,
+          body: notification.body,
+          entityType: notification.entityType,
+          entityId: notification.entityId,
+          sourceModule: notification.sourceModule,
+          actionUrl: notification.actionUrl,
+          score: notification.score,
+          dedupeKey: notification.dedupeKey,
+          metadataJson: notification.metadataJson as any,
+          isRead: notification.isRead,
+          readAt: notification.readAt,
+          dismissedAt: notification.dismissedAt,
+          createdAt: notification.createdAt,
+          updatedAt: notification.updatedAt,
+        },
+      });
+
+      if (uniqueChannels.length > 0) {
+        await tx.notificationDelivery.createMany({
+          data: uniqueChannels.map((channel) => ({
+            notificationId: record.id,
+            channel,
+            status: NotificationDeliveryStatus.DELIVERED,
+            sentAt: new Date(),
+          })),
+        });
+      }
+
+      return record;
     });
 
     return this.toDomain(created);
