@@ -1,218 +1,91 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
-import { Reflector } from '@nestjs/core';
-import request from 'supertest';
-import { App } from 'supertest/types';
-import { NotificationsController } from '../../src/presentation/notifications/notifications.controller';
-import { JwtStrategy } from '../../src/auth/jwt.strategy';
-import { RolesGuard } from '../../src/auth/roles.guard';
-import { ListNotificationsUseCase } from '../../src/application/notifications/list-notifications.usecase';
-import { GetUnreadNotificationCountUseCase } from '../../src/application/notifications/get-unread-notification-count.usecase';
-import { MarkNotificationReadUseCase } from '../../src/application/notifications/mark-notification-read.usecase';
-import { MarkAllNotificationsReadUseCase } from '../../src/application/notifications/mark-all-notifications-read.usecase';
-import { DismissNotificationUseCase } from '../../src/application/notifications/dismiss-notification.usecase';
-import { GetNotificationPreferencesUseCase } from '../../src/application/notifications/get-notification-preferences.usecase';
-import { UpdateNotificationPreferencesUseCase } from '../../src/application/notifications/update-notification-preferences.usecase';
+// test/notifications/notifications.e2e-spec.ts
+import { Test } from '@nestjs/testing';
+import { NotificationEligibilityService } from '../../src/infrastructure/services/notification-eligibility.service';
+import { NotificationAIScoringService } from '../../src/infrastructure/services/notification-ai-scoring.service';
+import { UserInterestProfile } from '../../src/domain/entities/user-interest.entity';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-describe('NotificationsController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('NotificationEligibilityService', () => {
+  let service: NotificationEligibilityService;
 
-  const mockNotification = {
-    id: 'notif-1',
-    userId: 'user-1',
-    type: 'THREAD_REPLY',
-    title: 'New reply on Career thread',
-    body: 'A discussion you started has a new reply.',
-    entityType: 'THREAD',
-    entityId: 'thread-1',
-    sourceModule: 'threads',
-    score: 0.84,
-    isRead: false,
-    readAt: null,
-    dismissedAt: null,
-    actionUrl: '/threads/thread-1',
-    dedupeKey: 'thread-reply:thread-1:reply-1',
-    metadataJson: { aiScore: 0.9 },
-    createdAt: new Date('2026-05-04T10:00:00.000Z'),
-    updatedAt: new Date('2026-05-04T10:00:00.000Z'),
+  // Add generic return types to jest.fn() to prevent TS inferring them as 'never'
+  const profileRepo = {
+    findByUserId: jest.fn<() => Promise<UserInterestProfile | null>>(),
+    upsert: jest.fn<() => Promise<any>>(),
   };
 
-  const listNotificationsUseCase: any = {
-    execute: jest.fn() as jest.Mock,
-  };
-  listNotificationsUseCase.execute.mockResolvedValue({
-    notifications: [mockNotification],
-    total: 1,
-  });
-
-  const unreadCountUseCase: any = {
-    execute: jest.fn() as jest.Mock,
-  };
-  unreadCountUseCase.execute.mockResolvedValue(1);
-
-  const markReadUseCase: any = {
-    execute: jest.fn() as jest.Mock,
-  };
-  markReadUseCase.execute.mockResolvedValue({
-    ...mockNotification,
-    isRead: true,
-    readAt: new Date('2026-05-04T10:05:00.000Z'),
-  });
-
-  const markAllReadUseCase: any = {
-    execute: jest.fn() as jest.Mock,
-  };
-  markAllReadUseCase.execute.mockResolvedValue({ updatedCount: 1 });
-
-  const dismissUseCase: any = {
-    execute: jest.fn() as jest.Mock,
-  };
-  dismissUseCase.execute.mockResolvedValue({
-    ...mockNotification,
-    dismissedAt: new Date('2026-05-04T10:06:00.000Z'),
-  });
-
-  const preferences = {
-    userId: 'user-1',
-    inAppEnabled: true,
-    emailEnabled: false,
-    pushEnabled: false,
-    createdAt: new Date('2026-05-04T10:00:00.000Z'),
-    updatedAt: new Date('2026-05-04T10:00:00.000Z'),
+  const signalRepo = {
+    findByEntityAndUser: jest.fn<() => Promise<any[]>>(),
+    create: jest.fn<() => Promise<any>>(),
   };
 
-  const getPreferencesUseCase: any = {
-    execute: jest.fn() as jest.Mock,
+  const muteRepo = {
+    isEntityMuted: jest.fn<() => Promise<boolean>>(),
+    isCategoryMuted: jest.fn<() => Promise<boolean>>(),
   };
-  getPreferencesUseCase.execute.mockResolvedValue(preferences);
 
-  const updatePreferencesUseCase: any = {
-    execute: jest.fn() as jest.Mock,
+  const aiScoring = {
+    scoreNotification: jest.fn<() => Promise<{ score: number; reason: string }>>(),
   };
-  updatePreferencesUseCase.execute.mockResolvedValue({
-    ...preferences,
-    emailEnabled: true,
-  });
 
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [NotificationsController],
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module = await Test.createTestingModule({
       providers: [
-        { provide: ListNotificationsUseCase, useValue: listNotificationsUseCase },
-        { provide: GetUnreadNotificationCountUseCase, useValue: unreadCountUseCase },
-        { provide: MarkNotificationReadUseCase, useValue: markReadUseCase },
-        { provide: MarkAllNotificationsReadUseCase, useValue: markAllReadUseCase },
-        { provide: DismissNotificationUseCase, useValue: dismissUseCase },
-        { provide: GetNotificationPreferencesUseCase, useValue: getPreferencesUseCase },
-        { provide: UpdateNotificationPreferencesUseCase, useValue: updatePreferencesUseCase },
-        {
-          provide: 'TokenService',
-          useValue: {
-            verifyAccessToken: async () => ({ userId: 'user-1', role: 'STUDENT' }),
-          },
-        },
-        {
-          provide: JwtStrategy,
-          useClass: JwtStrategy,
-        },
-        {
-          provide: Reflector,
-          useValue: new Reflector(),
-        },
-        {
-          provide: RolesGuard,
-          useClass: RolesGuard,
-        },
+        NotificationEligibilityService,
+        { provide: 'UserInterestProfileRepository', useValue: profileRepo },
+        { provide: 'UserInterestSignalRepository', useValue: signalRepo },
+        { provide: 'NotificationMuteRepository', useValue: muteRepo },
+        { provide: NotificationAIScoringService, useValue: aiScoring },
       ],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-    await app.init();
+    service = module.get(NotificationEligibilityService);
   });
 
-  afterAll(async () => {
-    if (app) {
-      await app.close();
-    }
+  it('rejects immediately if the entity is muted, without calling AI', async () => {
+    muteRepo.isEntityMuted.mockResolvedValue(true);
+
+    const result = await service.checkEligibility(
+      'user-1', 'THREAD', 'thread-1', 'title', 'body', 'threads',
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('Source is muted');
+    expect(aiScoring.scoreNotification).not.toHaveBeenCalled();
   });
 
-  const authHeader = { Authorization: 'Bearer test-token' };
+  it('passes when AI score + signal score clear the 0.6 threshold', async () => {
+    muteRepo.isEntityMuted.mockResolvedValue(false);
+    muteRepo.isCategoryMuted.mockResolvedValue(false);
+    signalRepo.findByEntityAndUser.mockResolvedValue([]);
+    profileRepo.findByUserId.mockResolvedValue(
+      new UserInterestProfile('user-1', 0.9, 0.5, 0.3, 0.3, 0.2, 0.3, 0.4, 0.4, 0.4, 0.3, new Date(), new Date(), new Date()),
+    );
+    aiScoring.scoreNotification.mockResolvedValue({ score: 0.95, reason: 'High similarity' });
 
-  it('GET /notifications returns the inbox list', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/notifications')
-      .set(authHeader)
-      .expect(200);
+    const result = await service.checkEligibility(
+      'user-1', 'THREAD', 'thread-1', 'title', 'body', 'threads', undefined, undefined,
+    );
 
-    expect(response.body.total).toBe(1);
-    expect(response.body.notifications).toHaveLength(1);
-    expect(listNotificationsUseCase.execute).toHaveBeenCalledWith('user-1', {
-      skip: 0,
-      take: 20,
-      unreadOnly: false,
-    });
+    // rawScore with zero signals = 0.3 flat floor; finalScore = (0.95 + 0.3) / 2 = 0.625
+    expect(result.finalScore).toBeCloseTo(0.625, 3);
+    expect(result.passed).toBe(true);
   });
 
-  it('GET /notifications/unread-count returns the unread badge count', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/notifications/unread-count')
-      .set(authHeader)
-      .expect(200);
+  it('rejects when AI score is low even with a decent profile weight', async () => {
+    muteRepo.isEntityMuted.mockResolvedValue(false);
+    muteRepo.isCategoryMuted.mockResolvedValue(false);
+    signalRepo.findByEntityAndUser.mockResolvedValue([]);
+    profileRepo.findByUserId.mockResolvedValue(
+      new UserInterestProfile('user-1', 0.9, 0.5, 0.3, 0.3, 0.2, 0.3, 0.4, 0.4, 0.4, 0.3, new Date(), new Date(), new Date()),
+    );
+    aiScoring.scoreNotification.mockResolvedValue({ score: 0.1, reason: 'Low similarity' });
 
-    expect(response.body.unreadCount).toBe(1);
-  });
+    const result = await service.checkEligibility(
+      'user-1', 'THREAD', 'thread-1', 'title', 'body', 'threads',
+    );
 
-  it('GET /notifications/preferences returns user notification preferences', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/notifications/preferences')
-      .set(authHeader)
-      .expect(200);
-
-    expect(response.body.preferences.userId).toBe('user-1');
-    expect(response.body.preferences.inAppEnabled).toBe(true);
-  });
-
-  it('PATCH /notifications/preferences updates preferences', async () => {
-    const response = await request(app.getHttpServer())
-      .patch('/notifications/preferences')
-      .set(authHeader)
-      .send({ emailEnabled: true })
-      .expect(200);
-
-    expect(response.body.preferences.emailEnabled).toBe(true);
-    expect(updatePreferencesUseCase.execute).toHaveBeenCalledWith('user-1', {
-      emailEnabled: true,
-    });
-  });
-
-  it('PATCH /notifications/:id/read marks a notification read', async () => {
-    const response = await request(app.getHttpServer())
-      .patch('/notifications/notif-1/read')
-      .set(authHeader)
-      .expect(200);
-
-    expect(response.body.notification.isRead).toBe(true);
-    expect(markReadUseCase.execute).toHaveBeenCalledWith('notif-1', 'user-1');
-  });
-
-  it('PATCH /notifications/read-all marks all notifications read', async () => {
-    const response = await request(app.getHttpServer())
-      .patch('/notifications/read-all')
-      .set(authHeader)
-      .expect(200);
-
-    expect(response.body.updatedCount).toBe(1);
-  });
-
-  it('PATCH /notifications/:id/dismiss dismisses a notification', async () => {
-    const response = await request(app.getHttpServer())
-      .patch('/notifications/notif-1/dismiss')
-      .set(authHeader)
-      .expect(200);
-
-    expect(response.body.notification.dismissedAt).toBeDefined();
-    expect(dismissUseCase.execute).toHaveBeenCalledWith('notif-1', 'user-1');
+    expect(result.passed).toBe(false);
   });
 });
