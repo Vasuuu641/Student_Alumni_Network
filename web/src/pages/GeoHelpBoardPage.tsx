@@ -1901,7 +1901,7 @@ export function GeoHelpBoardPage() {
                 {savedSpotIds.has(selectedSpot.id) ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
                 {savedSpotIds.has(selectedSpot.id) ? 'Saved' : 'Save'}
               </button>
-              
+
               <button
                 type="button"
                 onClick={() => {
