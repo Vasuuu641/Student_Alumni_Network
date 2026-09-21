@@ -1,7 +1,8 @@
+// personalized-notification-worker.service.ts
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PersonalizedNotificationFanoutRequest } from '../services/personalized-notification-fanout.service';
 import type { UserInterestProfileRepository } from 'src/domain/repositories/user-interest.repository';
-import { NotificationAIScoringService } from '../services/notification-ai-scoring.service';
+import { NotificationEligibilityService } from '../services/notification-eligibility.service';
 import { CreateNotificationUseCase } from 'src/application/notifications/create-notification.usecase';
 import { NotificationChannel } from 'src/domain/entities/notification.entity';
 
@@ -15,16 +16,22 @@ export class PersonalizedNotificationWorkerService {
   constructor(
     @Inject('UserInterestProfileRepository')
     private readonly interestProfileRepo: UserInterestProfileRepository,
-    private readonly aiScoring: NotificationAIScoringService,
+    private readonly eligibilityService: NotificationEligibilityService,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
   ) {}
 
-  private pruneOld(userId: string) {
+  private pruneOld(userId: string): number[] {
     const now = Date.now();
     const window = 60_000;
     const arr = this.perUserTimestamps.get(userId) ?? [];
     const filtered = arr.filter((t) => now - t < window);
-    this.perUserTimestamps.set(userId, filtered);
+
+    if (filtered.length === 0) {
+      this.perUserTimestamps.delete(userId);
+    } else {
+      this.perUserTimestamps.set(userId, filtered);
+    }
+
     return filtered;
   }
 
@@ -35,33 +42,58 @@ export class PersonalizedNotificationWorkerService {
   }
 
   async process(request: PersonalizedNotificationFanoutRequest): Promise<number> {
-    const profiles = await this.interestProfileRepo.findAll();
+    const profiles = request.threadPanel
+      ? await this.interestProfileRepo.findEligibleForPanel(request.threadPanel, 0.2)
+      : request.geoCategory
+        ? await this.interestProfileRepo.findEligibleForGeoCategory(request.geoCategory, 0.2)
+        : await this.interestProfileRepo.findAll();
+
     const excluded = new Set(request.excludeUserIds ?? []);
     const safeLimit = Math.max(1, request.limit ?? 5);
-    const minScore = request.minScore ?? 0.45;
 
-    const scoredRecipients = await Promise.all(
+    const evaluated = await Promise.allSettled(
       profiles
         .filter((profile) => !excluded.has(profile.userId))
         .map(async (profile) => {
-          const result = await this.aiScoring.scoreNotification(
+          const result = await this.eligibilityService.checkEligibility(
             profile.userId,
+            request.entityType,
+            request.entityId,
             request.title,
             request.body,
+            request.sourceModule,
             request.threadTitle,
             request.threadPanel,
+            request.geoCategory,
           );
 
-          return {
-            userId: profile.userId,
-            score: result.score,
-            reason: result.reason,
-          };
+          return { userId: profile.userId, result };
         }),
     );
 
-    const recipients = scoredRecipients
-      .filter((recipient) => recipient.score >= minScore)
+    const eligible = evaluated.flatMap((settled) => {
+      if (settled.status !== 'fulfilled') {
+        this.logger.warn(
+          `Eligibility check failed for a candidate, skipping: ${
+            settled.reason instanceof Error ? settled.reason.message : 'unknown error'
+          }`,
+        );
+        return [];
+      }
+
+      const { userId, result } = settled.value;
+
+      const meetsOverride =
+        request.minScore === undefined || result.finalScore >= request.minScore;
+
+      if (!result.passed || !meetsOverride) {
+        return [];
+      }
+
+      return [{ userId, score: result.finalScore, reason: result.reason }];
+    });
+
+    const recipients = eligible
       .sort((left, right) => right.score - left.score)
       .slice(0, safeLimit);
 
@@ -74,7 +106,7 @@ export class PersonalizedNotificationWorkerService {
         continue;
       }
 
-      await this.createNotificationUseCase.execute({
+      const result = await this.createNotificationUseCase.execute({
         userId: recipient.userId,
         type: request.type,
         title: request.title,
@@ -87,14 +119,16 @@ export class PersonalizedNotificationWorkerService {
         dedupeKey: `${request.dedupeKeyPrefix ?? request.sourceModule}:${request.entityId}:${recipient.userId}`,
         metadataJson: {
           ...(request.metadataJson ?? {}),
-          aiScore: recipient.score,
+          eligibilityScore: recipient.score,
           personalizationReason: recipient.reason,
         },
         deliveryChannels: request.deliveryChannels ?? [NotificationChannel.IN_APP],
       });
 
-      this.record(recipient.userId);
-      created++;
+      if (result) {
+        this.record(recipient.userId);
+        created++;
+      }
     }
 
     return created;

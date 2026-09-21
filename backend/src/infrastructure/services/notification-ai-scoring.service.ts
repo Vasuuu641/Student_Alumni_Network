@@ -1,6 +1,6 @@
+// notification-ai-scoring.service.ts
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CohereClient } from 'cohere-ai';
-import { UserInterestProfile } from 'src/domain/entities/user-interest.entity';
 import type { UserInterestProfileRepository } from 'src/domain/repositories/user-interest.repository';
 
 @Injectable()
@@ -17,20 +17,13 @@ export class NotificationAIScoringService {
     });
   }
 
-  /**
-   * Score a notification using AI semantic similarity + interest weights.
-   * Returns a score (0-1) indicating relevance to the user.
-   */
   async scoreNotification(
     userId: string,
     notificationTitle: string,
     notificationBody: string,
     threadTitle?: string,
     threadPanel?: 'ACADEMIC' | 'ALUMNI',
-  ): Promise<{
-    score: number;
-    reason: string;
-  }> {
+  ): Promise<{ score: number; reason: string }> {
     try {
       const profile = await this.interestProfileRepository.findByUserId(userId);
 
@@ -38,43 +31,47 @@ export class NotificationAIScoringService {
         return { score: 0.5, reason: 'No interest profile found' };
       }
 
-      const panelWeight = threadPanel
-        ? profile.getWeightForPanel(threadPanel)
-        : 0.5;
+      const panelWeight = threadPanel ? profile.getWeightForPanel(threadPanel) : 0.5;
 
       const combinedText = [notificationTitle, notificationBody, threadTitle]
         .filter(Boolean)
         .join(' ');
 
-      const userTopics = profile
-        .getTopics()
-        .map((t) => t.name)
-        .join(', ');
+      const userTopics = profile.getTopics().map((t) => t.name).join(', ');
       const userInterests = `Topics of interest: ${userTopics || 'general'}`;
 
-      const embeddingResponse = await this.cohere.embed({
-        texts: [combinedText, userInterests],
-        model: 'embed-english-v3.0',
-        inputType: 'search_document',
-      });
+      // Two separate calls, matching MentorClusteringService's query/document split —
+      // asymmetric inputType is required for meaningful retrieval-style similarity.
+      const [interestResponse, notificationResponse] = await Promise.all([
+        this.cohere.embed({
+          texts: [userInterests],
+          model: 'embed-english-v3.0',
+          inputType: 'search_query',
+          embeddingTypes: ['float'],
+        }),
+        this.cohere.embed({
+          texts: [combinedText],
+          model: 'embed-english-v3.0',
+          inputType: 'search_document',
+          embeddingTypes: ['float'],
+        }),
+      ]);
 
-      const embeddings = (embeddingResponse as any).embeddings as number[][] | undefined;
+      const interestEmbedding = (interestResponse.embeddings as any)?.float?.[0] as
+        | number[]
+        | undefined;
+      const notificationEmbedding = (notificationResponse.embeddings as any)?.float?.[0] as
+        | number[]
+        | undefined;
 
-      if (!embeddings || embeddings.length < 2) {
+      if (!interestEmbedding || !notificationEmbedding) {
         return {
           score: panelWeight * 0.7,
           reason: 'Embedding failed, using panel weight',
         };
       }
 
-      const notificationEmbedding = embeddings[0];
-      const interestEmbedding = embeddings[1];
-
-      const semanticSimilarity = this.cosineSimilarity(
-        notificationEmbedding,
-        interestEmbedding,
-      );
-
+      const semanticSimilarity = this.cosineSimilarity(notificationEmbedding, interestEmbedding);
       const finalScore = Math.max(0, Math.min(1, semanticSimilarity * panelWeight));
 
       return {
@@ -82,19 +79,11 @@ export class NotificationAIScoringService {
         reason: `Semantic match: ${(semanticSimilarity * 100).toFixed(1)}% + panel weight ${(panelWeight * 100).toFixed(1)}%`,
       };
     } catch (error) {
-      this.logger.warn(
-        `AI scoring failed for user ${userId}: ${this.formatError(error)}`,
-      );
-      return {
-        score: 0.5,
-        reason: 'AI scoring failed, using fallback',
-      };
+      this.logger.warn(`AI scoring failed for user ${userId}: ${this.formatError(error)}`);
+      return { score: 0.5, reason: 'AI scoring failed, using fallback' };
     }
   }
 
-  /**
-   * Compute cosine similarity between two embedding vectors.
-   */
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) return 0;
 

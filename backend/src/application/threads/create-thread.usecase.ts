@@ -1,8 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type { ThreadRepository } from 'src/domain/repositories/thread.repository';
-import type {ThreadAttachmentRepository} from 'src/domain/repositories/threadAttachment.repository';
-import type {FileStorageService, FileUploadRequest} from 'src/domain/services/file-storage';
-import {THREAD_ATTACHMENT_UPLOAD_OPTIONS} from 'src/shared/constants/upload_limits';
+import type { ThreadAttachmentRepository } from 'src/domain/repositories/threadAttachment.repository';
+import type { FileStorageService, FileUploadRequest } from 'src/domain/services/file-storage';
+import { THREAD_ATTACHMENT_UPLOAD_OPTIONS } from 'src/shared/constants/upload_limits';
 import { ThreadPanel, ThreadStatus } from 'src/domain/entities/thread.entity';
 import { ThreadAccessPolicy } from './policies/thread-access-policy';
 import { Role } from 'src/domain/entities/role.enum';
@@ -37,7 +38,7 @@ export class CreateThreadUseCase {
     const now = new Date();
 
     const thread = await this.threadRepository.create({
-      id: this.generateUniqueId(),
+      id: randomUUID(),
       title,
       description,
       panel,
@@ -92,7 +93,7 @@ export class CreateThreadUseCase {
         excludeUserIds: [userId],
       });
 
-      await Promise.all(
+        await Promise.all(
         mentorMatches.map((match) =>
           this.createNotificationUseCase
             .execute({
@@ -106,6 +107,10 @@ export class CreateThreadUseCase {
               actionUrl: `/threads/${thread.id}`,
               score: match.score,
               dedupeKey: `mentor-thread:${thread.id}:${match.userId}`,
+              collapsible: true,
+              collapseWindowMinutes: 240,
+              collapsedTitle: `${title} is getting active`,
+              collapsedBody: `This alumni discussion matching your expertise is gaining more replies.`,
               metadataJson: {
                 matchReason: match.reason,
                 matchedSignals: match.matchedSignals,
@@ -120,6 +125,7 @@ export class CreateThreadUseCase {
             }),
         ),
       );
+              
     } else {
       await this.personalizedNotificationFanoutService.notifyRelevantUsers({
         type: NotificationType.THREAD_ACTIVITY,
@@ -138,14 +144,10 @@ export class CreateThreadUseCase {
         },
         dedupeKeyPrefix: 'thread-interest',
         limit: 5,
-        minScore: 0.45,
+        minScore: 0.2,
       });
     }
 
     return thread.id;
-  }
-
-  private generateUniqueId(): string {
-    return Math.random().toString(36).substring(2, 11);
   }
 }

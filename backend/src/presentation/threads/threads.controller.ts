@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Delete,
   Query,
   UseGuards,
   Req,
@@ -46,6 +47,11 @@ import type { ThreadVoteRepository } from 'src/domain/repositories/thread.reposi
 import { VoteType } from 'src/domain/entities/thread.entity';
 import { ThreadStatus } from 'src/domain/entities/thread.entity';
 
+import { SaveThreadUseCase } from 'src/application/threads/save-thread.usecase';
+import { UnsaveThreadUseCase } from 'src/application/threads/unsave-thread.usecase';
+import { ListSavedThreadsUseCase } from 'src/application/threads/list-saved-threads.usecase';
+
+
 type ThreadView = Thread & {
   authorName?: string;
   viewerVote?: VoteType | null;
@@ -81,6 +87,9 @@ export class ThreadsController {
     private readonly userRepository: UserRepository,
     @Inject('ThreadVoteRepository')
     private readonly threadVoteRepository: ThreadVoteRepository,
+    private readonly saveThreadUseCase: SaveThreadUseCase,
+    private readonly unsaveThreadUseCase: UnsaveThreadUseCase,
+    private readonly listSavedThreadsUseCase: ListSavedThreadsUseCase,
   ) {}
 
   /**
@@ -169,7 +178,7 @@ export class ThreadsController {
   ) {
     try {
       const { role, userId } = request.user;
-      const thread = await this.getThreadUseCase.execute(threadId, role);
+      const thread = await this.getThreadUseCase.execute(threadId, role, userId);
       const [threadWithAuthor] = await this.withThreadAuthorNames([thread]);
       const [threadWithVoteCounts] = await this.withThreadVoteCounts([threadWithAuthor]);
       const [threadWithVote] = await this.withThreadViewerVotes([threadWithVoteCounts], userId);
@@ -430,6 +439,56 @@ async listReplies(
     }
   }
 
+  @Get('saved')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async listSavedThreads(@Req() request: any) {
+    try {
+      const { userId } = request.user;
+      const threads = await this.listSavedThreadsUseCase.execute(userId);
+      const threadsWithAuthors = await this.withThreadAuthorNames(threads);
+      const threadsWithVoteCounts = await this.withThreadVoteCounts(threadsWithAuthors);
+      const threadsWithVotes = await this.withThreadViewerVotes(threadsWithVoteCounts, userId);
+      return { threads: threadsWithVotes };
+    } catch (error) {
+      throw new HttpException(
+        getErrorMessage(error) || 'Failed to list saved threads',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // ... existing @Get(':id') getThread(...) stays here, unchanged, after 'saved' ...
+
+  @Post(':id/save')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async saveThread(@Req() request: any, @Param('id') threadId: string) {
+    try {
+      const { userId } = request.user;
+      const saved = await this.saveThreadUseCase.execute(threadId, userId);
+      return { saved };
+    } catch (error) {
+      throw new HttpException(
+        getErrorMessage(error) || 'Failed to save thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Delete(':id/save')
+  @UseGuards(JwtStrategy, RolesGuard)
+  async unsaveThread(@Req() request: any, @Param('id') threadId: string) {
+    try {
+      const { userId } = request.user;
+      await this.unsaveThreadUseCase.execute(threadId, userId);
+      return { success: true };
+    } catch (error) {
+      throw new HttpException(
+        getErrorMessage(error) || 'Failed to unsave thread',
+        getErrorStatus(error) || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   private async withThreadAuthorNames(threads: Thread[]): Promise<ThreadView[]> {
     if (!threads.length) return [];
 
@@ -534,3 +593,4 @@ async listReplies(
     }, {});
   }
 }
+

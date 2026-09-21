@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GeoHelpSpot, GeoHelpSpotCategory, GeoHelpSpotSection } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
+import { NotificationEligibilityService } from 'src/infrastructure/services/notification-eligibility.service';
+import { InterestSignalType } from 'src/domain/entities/user-interest.entity';
 
 export interface ListPopularGeoHelpSpotsRequest {
   city?: string;
@@ -8,6 +10,7 @@ export interface ListPopularGeoHelpSpotsRequest {
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
+  userId?: string;
 }
 
 @Injectable()
@@ -18,13 +21,14 @@ export class ListPopularGeoHelpSpotsUseCase {
   constructor(
     @Inject('GeoHelpBoardRepository')
     private readonly geoHelpBoardRepository: GeoHelpBoardRepository,
+    private readonly eligibilityService: NotificationEligibilityService,
   ) {}
 
   async execute(request: ListPopularGeoHelpSpotsRequest): Promise<GeoHelpSpot[]> {
     const limit = this.normalizeLimit(request.limit);
     const page = this.normalizePage(request.page);
 
-    return this.geoHelpBoardRepository.listPopularSpots({
+    const results = await this.geoHelpBoardRepository.listPopularSpots({
       city: request.city?.trim(),
       section: request.section,
       category: request.category,
@@ -32,6 +36,23 @@ export class ListPopularGeoHelpSpotsUseCase {
       limit,
       offset: (page - 1) * limit,
     });
+
+    if (request.userId && request.category) {
+      this.eligibilityService
+        .captureSignal(
+          request.userId,
+          InterestSignalType.CATEGORY_BROWSE,
+          'GEO_CATEGORY',
+          request.category,
+          undefined,
+          'geo-help-board',
+        )
+        .catch((error) => {
+          console.error(`Failed to capture geo category browse signal: ${error?.message ?? error}`);
+        });
+    }
+
+    return results;
   }
 
   private normalizeLimit(limit?: number): number {

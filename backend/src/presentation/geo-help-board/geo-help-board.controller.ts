@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, NotFoundException, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtStrategy } from '../../auth/jwt.strategy';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -13,6 +13,9 @@ import { EditGeoHelpSpotUseCase } from '../../application/geo-help-board/edit-ge
 import { DeactivateGeoHelpSpotUseCase } from '../../application/geo-help-board/deactivate-geo-help-spot.usecase';
 import { VerifyGeoHelpSpotUseCase } from '../../application/geo-help-board/verify-geo-help-spot.usecase';
 import { ListReviewGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-review-geo-help-spots.usecase';
+import { ListSavedGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-saved-geo-help-spots.usecase';
+import { SaveGeoHelpSpotUseCase } from '../../application/geo-help-board/save-geo-help-spot.usecase';
+import { UnsaveGeoHelpSpotUseCase } from '../../application/geo-help-board/unsave-geo-help-spot.usecase';
 
 import { CreateGeoHelpSpotDto } from './dto/create-geo-help-spot.dto';
 import { UpdateGeoHelpSpotDto } from './dto/update-geo-help-spot.dto';
@@ -35,6 +38,9 @@ export class GeoHelpBoardController {
     private readonly listPopularGeoHelpSpotsUseCase: ListPopularGeoHelpSpotsUseCase,
     private readonly listNearbyGeoHelpSpotsUseCase: ListNearbyGeoHelpSpotsUseCase,
     private readonly recordGeoHelpSpotVisitUseCase: RecordGeoHelpSpotVisitUseCase,
+    private readonly listSavedGeoHelpSpotsUseCase: ListSavedGeoHelpSpotsUseCase,
+    private readonly saveGeoHelpSpotUseCase: SaveGeoHelpSpotUseCase,
+    private readonly unsaveGeoHelpSpotUseCase: UnsaveGeoHelpSpotUseCase,
   ) {}
 
   @Get('spots/review-queue')
@@ -55,8 +61,8 @@ export class GeoHelpBoardController {
     }
   }
 
-  @Get('spots/popular')
-  async listPopular(@Query() query: ListPopularGeoHelpSpotsQueryDto) {
+    @Get('spots/popular')
+  async listPopular(@Req() request: any, @Query() query: ListPopularGeoHelpSpotsQueryDto) {
     try {
       return await this.listPopularGeoHelpSpotsUseCase.execute({
         city: query.city,
@@ -64,6 +70,7 @@ export class GeoHelpBoardController {
         category: query.category as any,
         limit: query.limit,
         page: query.page,
+        userId: request.user?.userId,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);
@@ -71,7 +78,7 @@ export class GeoHelpBoardController {
   }
 
   @Get('spots/nearby')
-  async listNearby(@Query() query: ListNearbyGeoHelpSpotsQueryDto) {
+  async listNearby(@Req() request: any, @Query() query: ListNearbyGeoHelpSpotsQueryDto) {
     try {
       return await this.listNearbyGeoHelpSpotsUseCase.execute({
         latitude: query.latitude,
@@ -82,6 +89,7 @@ export class GeoHelpBoardController {
         category: query.category as any,
         limit: query.limit,
         page: query.page,
+        userId: request.user?.userId,
       });
     } catch (error) {
       this.rethrowGeoHelpBoardError(error);
@@ -148,8 +156,7 @@ export class GeoHelpBoardController {
     }
   }
 
-  @Patch('spots/:spotId/review')
-  @Patch('spots/:spotId/verification')
+  @Patch(['spots/:spotId/review', 'spots/:spotId/verification'])
   @Roles('ADMIN')
   @UseGuards(RateLimitGuard)
   @RateLimit({ maxRequests: 30, windowMs: 60_000 })
@@ -178,6 +185,38 @@ export class GeoHelpBoardController {
       this.rethrowGeoHelpBoardError(error);
     }
   }
+
+  @Get('spots/saved')
+async listSavedSpots(@Req() request: any) {
+  try {
+    return await this.listSavedGeoHelpSpotsUseCase.execute(request.user?.userId);
+  } catch (error) {
+    this.rethrowGeoHelpBoardError(error);
+  }
+}
+
+@Post('spots/:spotId/save')
+@UseGuards(RateLimitGuard)
+@RateLimit({ maxRequests: 30, windowMs: 60_000 })
+async saveSpot(@Req() request: any, @Param('spotId') spotId: string) {
+  try {
+    return await this.saveGeoHelpSpotUseCase.execute(spotId, request.user?.userId);
+  } catch (error) {
+    this.rethrowGeoHelpBoardError(error);
+  }
+}
+
+@Delete('spots/:spotId/save')
+@UseGuards(RateLimitGuard)
+@RateLimit({ maxRequests: 30, windowMs: 60_000 })
+async unsaveSpot(@Req() request: any, @Param('spotId') spotId: string) {
+  try {
+    await this.unsaveGeoHelpSpotUseCase.execute(spotId, request.user?.userId);
+    return { success: true };
+  } catch (error) {
+    this.rethrowGeoHelpBoardError(error);
+  }
+}
 
   private rethrowGeoHelpBoardError(error: unknown): never {
     if (error instanceof GeoHelpBoardError) {

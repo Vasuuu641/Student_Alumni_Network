@@ -32,6 +32,8 @@ model User {
   threadsAuthored Thread[]           @relation("ThreadAuthor")
   repliesAuthored ThreadReply[]      @relation("ReplyAuthor")
   threadVotes     ThreadVote[]
+  notificationMutes NotificationMute[]
+  savedItems SavedItem[]
   replyVotes      ThreadReplyVote[]
   studyGroupsOwned      StudyGroup[]          @relation("StudyGroupOwner")
   studyGroupMemberships StudyGroupMember[]
@@ -252,6 +254,7 @@ model Notification {
   recipient    User               @relation("NotificationRecipient", fields: [userId], references: [id])
   deliveries   NotificationDelivery[]
 
+  @@unique([userId, dedupeKey])
   @@index([userId, isRead, createdAt])
   @@index([userId, dismissedAt, createdAt])
   @@index([dedupeKey])
@@ -309,6 +312,10 @@ model UserInterestProfile {
   housingWeight       Float    @default(0.3)
   shoppingWeight      Float    @default(0.2)
   internshipWeight    Float    @default(0.3)
+  campusServicesWeight Float   @default(0.4)
+  foodWeight          Float    @default(0.4)
+  studyWeight         Float    @default(0.4)
+  socialWeight        Float    @default(0.3)
   lastUpdatedAt       DateTime @default(now())
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -336,32 +343,6 @@ model UserInterestSignal {
   @@index([userId, createdAt])
   @@index([entityType, entityId])
   @@index([type, userId])
-}
-
-model NotificationCandidate {
-  id                String     @id @default(uuid())
-  notificationId    String?
-  userId            String
-  type              NotificationType
-  title             String     @db.VarChar(255)
-  body              String
-  entityType        String
-  entityId          String
-  sourceModule      String
-  actionUrl         String?
-  dedupeKey         String?
-  metadataJson      Json?
-  rawScore          Float      @default(0)
-  aiScore           Float?
-  finalScore        Float      @default(0)
-  scoringReason     String?
-  isEligible        Boolean    @default(false)
-  rejectionReason   String?
-  createdAt         DateTime   @default(now())
-  expiresAt         DateTime
-
-  @@index([userId, isEligible, createdAt])
-  @@index([expiresAt])
 }
 
 // Threads feature
@@ -820,4 +801,38 @@ model PasswordResetOtp {
   createdAt DateTime @default(now())
 
   @@index([email, consumed, expiresAt])
+}
+
+enum NotificationMuteScope {
+  ENTITY
+  CATEGORY
+}
+
+model NotificationMute {
+  id           String                @id @default(uuid())
+  userId       String
+  scope        NotificationMuteScope
+  entityType   String?
+  entityId     String?
+  category     String?
+  sourceModule String
+  createdAt    DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entityType, entityId])
+  @@index([userId, sourceModule, category])
+}
+
+model SavedItem {
+  id         String   @id @default(uuid())
+  userId     String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, entityType])
 }

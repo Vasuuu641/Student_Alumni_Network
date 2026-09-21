@@ -8,6 +8,8 @@ export interface MentorMatch {
   score: number;
   reason: string;
   matchedSignals: string[];
+  displayName: string;
+  isAnonymous: boolean;
 }
 
 export interface MentorClusterRequest {
@@ -16,6 +18,21 @@ export interface MentorClusterRequest {
   panel: ThreadPanel;
   limit?: number;
   excludeUserIds?: string[];
+}
+
+interface AlumniCandidateProfile {
+  alumni: {
+    userId: string;
+    interests: string[];
+    major: string | null;
+    jobTitle: string | null;
+    company: string | null;
+    bio: string | null;
+    isAnonymous: boolean;
+    anonymousName: string | null;
+  };
+  text: string;
+  displayName: string;
 }
 
 @Injectable()
@@ -51,9 +68,12 @@ export class MentorClusteringService {
       .join(' ')
       .slice(0, 3500);
 
-    const candidateProfiles = candidates.map((alumni) => ({
+    const candidateProfiles: AlumniCandidateProfile[] = candidates.map((alumni) => ({
       alumni,
       text: this.buildAlumniProfileText(alumni).slice(0, 3500),
+      displayName: alumni.isAnonymous
+        ? alumni.anonymousName ?? 'Anonymous Alumnus'
+        : `${alumni.userId}`, // placeholder — see note below on resolving real names
     }));
 
     if (!this.cohere) {
@@ -86,6 +106,8 @@ export class MentorClusteringService {
             score,
             reason: `AI mentor match ${(score * 100).toFixed(1)}%`,
             matchedSignals: candidate.alumni.interests.slice(0, 5),
+            displayName: candidate.displayName,
+            isAnonymous: candidate.alumni.isAnonymous,
           } satisfies MentorMatch;
         })
         .filter((match) => match.score >= 0.35)
@@ -101,7 +123,7 @@ export class MentorClusteringService {
 
   private fallbackMatches(
     queryText: string,
-    candidates: Array<{ alumni: { userId: string; interests: string[]; major: string | null; jobTitle: string | null; company: string | null; bio: string | null }; text: string }>,
+    candidates: AlumniCandidateProfile[],
     limit: number,
   ): MentorMatch[] {
     const queryTokens = this.tokenize(queryText);
@@ -117,6 +139,8 @@ export class MentorClusteringService {
           score,
           reason: overlap.length > 0 ? `Keyword mentor match on ${overlap.slice(0, 3).join(', ')}` : 'Weak mentor match',
           matchedSignals: candidate.alumni.interests.slice(0, 5),
+          displayName: candidate.displayName,
+          isAnonymous: candidate.alumni.isAnonymous,
         } satisfies MentorMatch;
       })
       .filter((match) => match.score >= 0.25)

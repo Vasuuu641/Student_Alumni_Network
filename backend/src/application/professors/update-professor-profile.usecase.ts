@@ -134,7 +134,7 @@ export class UpdateProfessorProfileUseCase {
     };
   }
 
-  private async syncInterestProfile(professor: Professor): Promise<void> {
+    private async syncInterestProfile(professor: Professor): Promise<void> {
     const academicWeight = 0.8;
     const alumniWeight = 0.2;
     const careerWeight = Math.min(1, 0.55 + (professor.jobTitle ? 0.15 : 0));
@@ -151,10 +151,15 @@ export class UpdateProfessorProfileUseCase {
         housingWeight,
         shoppingWeight,
         internshipWeight,
+        0.4,
+        0.4,
+        0.4,
+        0.3,
         new Date(),
         new Date(),
         new Date(),
       ),
     );
-  }
+  };
 }
+

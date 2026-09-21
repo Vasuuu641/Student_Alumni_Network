@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { NotificationAIScoringService } from './notification-ai-scoring.service';
 import type {
   UserInterestProfileRepository,
@@ -9,6 +10,8 @@ import {
   UserInterestSignal,
   UserInterestProfile,
 } from 'src/domain/entities/user-interest.entity';
+import { GeoHelpSpotCategory } from 'src/domain/entities/geo-help-spot.entity';
+import type { NotificationMuteRepository } from 'src/domain/repositories/notification-mute.repository';
 
 export interface NotificationEligibilityResult {
   passed: boolean;
@@ -21,96 +24,126 @@ export interface NotificationEligibilityResult {
 @Injectable()
 export class NotificationEligibilityService {
   private readonly logger = new Logger(NotificationEligibilityService.name);
-  private readonly SCORE_THRESHOLD = 0.6;
-  private readonly DEDUP_WINDOW_HOURS = 4;
+  private readonly SCORE_THRESHOLD = 0.2;
 
   constructor(
     @Inject('UserInterestProfileRepository')
     private readonly interestProfileRepository: UserInterestProfileRepository,
     @Inject('UserInterestSignalRepository')
     private readonly signalRepository: UserInterestSignalRepository,
+    @Inject('NotificationMuteRepository')
+    private readonly muteRepository: NotificationMuteRepository,
     private readonly aiScoring: NotificationAIScoringService,
   ) {}
 
-  /**
-   * Check if a notification should be delivered to a user.
-   * Uses AI scoring + past behavior signals + eligibility rules.
-   */
-  async checkEligibility(
-    userId: string,
-    entityId: string,
-    notificationTitle: string,
-    notificationBody: string,
-    threadTitle?: string,
-    threadPanel?: 'ACADEMIC' | 'ALUMNI',
-  ): Promise<NotificationEligibilityResult> {
-    try {
-      const signals = await this.signalRepository.findByEntityAndUser(
-        userId,
-        'THREAD',
-        entityId,
-      );
-
-      const profile =
-        await this.interestProfileRepository.findByUserId(userId);
-
-      if (!profile) {
-        return {
-          passed: false,
-          aiScore: 0,
-          finalScore: 0,
-          signals: [],
-          reason: 'No interest profile',
-        };
-      }
-
-      const { score: aiScore, reason: scoringReason } =
-        await this.aiScoring.scoreNotification(
-          userId,
-          notificationTitle,
-          notificationBody,
-          threadTitle,
-          threadPanel,
-        );
-
-      const rawScore = this.computeSignalScore(signals, profile, threadPanel);
-      const finalScore = (aiScore + rawScore) / 2;
-
-      if (finalScore < this.SCORE_THRESHOLD) {
-        return {
-          passed: false,
-          aiScore,
-          finalScore,
-          signals,
-          reason: `Score ${finalScore.toFixed(2)} below threshold ${this.SCORE_THRESHOLD}. AI: ${scoringReason}`,
-        };
-      }
-
-      return {
-        passed: true,
-        aiScore,
-        finalScore,
-        signals,
-        reason: `Score ${finalScore.toFixed(2)} passes. AI: ${scoringReason}`,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Eligibility check failed for user ${userId}: ${this.formatError(error)}`,
-      );
-
+  // notification-eligibility.service.ts — updated checkEligibility only, rest unchanged
+async checkEligibility(
+  userId: string,
+  entityType: string,
+  entityId: string,
+  notificationTitle: string,
+  notificationBody: string,
+  sourceModule: string,
+  threadTitle?: string,
+  threadPanel?: 'ACADEMIC' | 'ALUMNI',
+  geoCategory?: GeoHelpSpotCategory,
+): Promise<NotificationEligibilityResult> {
+  try {
+    // Mute checks come first, before any signal lookup or AI call — a muted
+    // source should never cost a Cohere call. Entity mute takes precedence:
+    // it's the more specific, more recently expressed preference.
+    const isEntityMuted = await this.muteRepository.isEntityMuted(userId, entityType, entityId);
+    
+    if (isEntityMuted) {
       return {
         passed: false,
         aiScore: 0,
         finalScore: 0,
         signals: [],
-        reason: 'Eligibility check failed',
+        reason: 'Source is muted',
       };
     }
-  }
 
-  /**
-   * Capture a user interest signal (e.g., thread view, reply, like).
-   */
+    const category = threadPanel ?? geoCategory;
+    if (category) {
+      const isCategoryMuted = await this.muteRepository.isCategoryMuted(
+        userId,
+        sourceModule,
+        category,
+      );
+      if (isCategoryMuted) {
+        return {
+          passed: false,
+          aiScore: 0,
+          finalScore: 0,
+          signals: [],
+          reason: 'Category is muted',
+        };
+      }
+    }
+
+    const signals = await this.signalRepository.findByEntityAndUser(userId, entityType, entityId);
+    const profile = await this.interestProfileRepository.findByUserId(userId);
+
+    this.logger.debug(`checkEligibility reached for user ${userId} (profile found: ${!!profile})`);
+
+    if (!profile) {
+      return {
+        passed: false,
+        aiScore: 0,
+        finalScore: 0,
+        signals: [],
+        reason: 'No interest profile',
+      };
+    }
+
+    const { score: aiScore, reason: scoringReason } = await this.aiScoring.scoreNotification(
+      userId,
+      notificationTitle,
+      notificationBody,
+      threadTitle,
+      threadPanel,
+    );
+
+    const rawScore = this.computeSignalScore(signals, profile, threadPanel, geoCategory);
+    const finalScore = (aiScore + rawScore) / 2;
+
+    this.logger.debug(
+      `Eligibility for user ${userId}: aiScore=${aiScore.toFixed(3)}, rawScore=${rawScore.toFixed(3)}, finalScore=${finalScore.toFixed(3)}, threshold=${this.SCORE_THRESHOLD}`,
+    );
+
+    if (finalScore < this.SCORE_THRESHOLD) {
+      return {
+        passed: false,
+        aiScore,
+        finalScore,
+        signals,
+        reason: `Score ${finalScore.toFixed(2)} below threshold ${this.SCORE_THRESHOLD}. AI: ${scoringReason}`,
+      };
+    }
+
+    return {
+      passed: true,
+      aiScore,
+      finalScore,
+      signals,
+      reason: `Score ${finalScore.toFixed(2)} passes. AI: ${scoringReason}`,
+    };
+  } catch (error) {
+    this.logger.error(`Eligibility check failed for user ${userId}: ${this.formatError(error)}`);
+    return {
+      passed: false,
+      aiScore: 0,
+      finalScore: 0,
+      signals: [],
+      reason: 'Eligibility check failed',
+    };
+  }
+}
+
+      
+        
+
   async captureSignal(
     userId: string,
     type: InterestSignalType,
@@ -121,9 +154,17 @@ export class NotificationEligibilityService {
   ): Promise<UserInterestSignal> {
     const strength = this.getSignalStrength(type);
 
+    const existingProfile = await this.interestProfileRepository.findByUserId(userId);
+    if (!existingProfile) {
+      const now = new Date();
+      await this.interestProfileRepository.upsert(
+        new UserInterestProfile(userId, 0.5, 0.5, 0.3, 0.3, 0.2, 0.3, 0.4, 0.4, 0.4, 0.3, now, now, now),
+      );
+    }
+
     return this.signalRepository.create(
       new UserInterestSignal(
-        Math.random().toString(36).substring(2, 11),
+        randomUUID(),
         userId,
         type,
         entityType,
@@ -137,25 +178,26 @@ export class NotificationEligibilityService {
     );
   }
 
-  /**
-   * Compute raw signal-based relevance score.
-   */
   private computeSignalScore(
     signals: UserInterestSignal[],
     profile: UserInterestProfile,
     threadPanel?: 'ACADEMIC' | 'ALUMNI',
+    geoCategory?: GeoHelpSpotCategory,
   ): number {
     if (signals.length === 0) return 0.3;
 
     const signalScore = Math.min(1, signals.reduce((sum, s) => sum + s.strength * 0.15, 0));
-    const panelBonus = threadPanel ? profile.getWeightForPanel(threadPanel) : 0.5;
 
-    return signalScore * 0.7 + panelBonus * 0.3;
+    let categoryBonus = 0.5;
+    if (threadPanel) {
+      categoryBonus = profile.getWeightForPanel(threadPanel);
+    } else if (geoCategory) {
+      categoryBonus = profile.getWeightForGeoCategory(geoCategory) ?? 0.5;
+    }
+
+    return signalScore * 0.7 + categoryBonus * 0.3;
   }
 
-  /**
-   * Determine signal strength based on type.
-   */
   private getSignalStrength(type: InterestSignalType): number {
     const strengths: Record<InterestSignalType, number> = {
       [InterestSignalType.THREAD_REPLY]: 1.0,

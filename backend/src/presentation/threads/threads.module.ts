@@ -11,6 +11,9 @@ import { VoteThreadUseCase } from '../../application/threads/vote-thread.usecase
 import { VoteReplyUseCase } from '../../application/threads/vote-reply.usecase';
 import { UpdateThreadStatusUseCase } from '../../application/threads/update-thread-status.usecase';
 import { ListRepliesUseCase } from '../../application/threads/list-replies.usecase';
+import { SaveThreadUseCase } from '../../application/threads/save-thread.usecase';
+import { UnsaveThreadUseCase } from '../../application/threads/unsave-thread.usecase';
+import { ListSavedThreadsUseCase } from '../../application/threads/list-saved-threads.usecase';
 
 import { PrismaThreadRepository } from '../../infrastructure/repositories/prisma-thread.repository';
 import { PrismaThreadReplyRepository } from '../../infrastructure/repositories/prisma-thread-reply.repository';
@@ -23,9 +26,10 @@ import { ThreadsGateway } from '../../infrastructure/websocket/threads.gateway';
 
 import { CohereThreadLLMService } from '../../infrastructure/ai/cohere/cohere-thread-llm.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SavedItemsModule } from '../../application/saved-items/saved-items.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule, SavedItemsModule],
   controllers: [ThreadsController],
   providers: [
     // Use cases
@@ -39,6 +43,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     VoteReplyUseCase,
     UpdateThreadStatusUseCase,
     ListRepliesUseCase,
+    SaveThreadUseCase,
+    UnsaveThreadUseCase,
+    ListSavedThreadsUseCase,
 
     // Repository implementations
     PrismaThreadRepository,
@@ -48,7 +55,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
     // LLM service
     CohereThreadLLMService,
-    
 
     // Injection tokens
     { provide: 'ThreadRepository', useClass: PrismaThreadRepository },

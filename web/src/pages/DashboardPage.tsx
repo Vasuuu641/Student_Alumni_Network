@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import type { Socket } from 'socket.io-client';
 import {
   Bell,
   BookOpen,
@@ -13,15 +14,28 @@ import {
   Sparkles,
   User,
   Users,
+  X,
+  BellOff,
 } from 'lucide-react';
 import { getAccessToken, getRoleFromAccessToken, getUserIdFromAccessToken, type UserRole } from '../lib/auth';
 import { getCurrentUserProfile, type UserProfileData } from '../api/profile.api';
 import { listUserNotes } from '../api/notes.api';
 import { listStudyGroups } from '../api/study-groups.api';
 import { listThreads, type Thread, type ThreadPanel } from '../api/threads.api';
-import { getUnreadNotificationCount, listNotifications, markAllNotificationsRead, markNotificationRead, type NotificationItem } from '../api/notifications.api';
+import {
+  createNotificationsSocket,
+  dismissNotification,
+  getUnreadNotificationCount,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  muteNotificationSource,
+  type NotificationItem,
+} from '../api/notifications.api';
 import { PlatformTopNav } from '../components/PlatformTopNav';
 import { ThemePicker } from '../components/ThemePicker';
+
+const MAX_LIVE_NOTIFICATIONS = 8;
 
 function resolveProfilePictureUrl(profilePictureUrl?: string | null): string | null {
   if (!profilePictureUrl) {
@@ -73,7 +87,9 @@ export function DashboardPage() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [workingNotificationId, setWorkingNotificationId] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationsSocketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!token || !role || isAdmin) {
@@ -203,6 +219,38 @@ export function DashboardPage() {
     };
   }, [isAdmin, role, token]);
 
+  // Live socket connection — established once on mount, independent of
+  // whether the dropdown panel is open, so the badge and list stay fresh
+  // in the background the same way the threads detail page does for replies.
+  useEffect(() => {
+    if (!token || !role || isAdmin) {
+      return;
+    }
+
+    const socket = createNotificationsSocket(token);
+    notificationsSocketRef.current = socket;
+    socket.connect();
+
+    socket.on('notifications:new', (incoming: NotificationItem) => {
+      setUnreadNotificationCount((count) => count + 1);
+      setNotifications((current) => {
+        if (current.some((item) => item.id === incoming.id)) {
+          return current;
+        }
+        return [incoming, ...current].slice(0, MAX_LIVE_NOTIFICATIONS);
+      });
+    });
+
+    socket.on('notifications:unread-count', (payload: { unreadCount: number }) => {
+      setUnreadNotificationCount(payload.unreadCount);
+    });
+
+    return () => {
+      socket.disconnect();
+      notificationsSocketRef.current = null;
+    };
+  }, [isAdmin, role, token]);
+
   useEffect(() => {
     if (!isNotificationsOpen || !token || !role || isAdmin) {
       return;
@@ -214,7 +262,7 @@ export function DashboardPage() {
       try {
         setNotificationsLoading(true);
         const [notificationsResponse, unreadCountResponse] = await Promise.all([
-          listNotifications({ take: 8 }),
+          listNotifications({ take: MAX_LIVE_NOTIFICATIONS }),
           getUnreadNotificationCount(),
         ]);
         if (!cancelled) {
@@ -309,6 +357,41 @@ export function DashboardPage() {
       setUnreadNotificationCount(0);
     } catch {
       setPlaceholderNotice('Could not mark notifications as read right now.');
+    }
+  }
+
+  async function handleDismissNotification(event: React.MouseEvent, notification: NotificationItem) {
+    event.stopPropagation();
+
+    try {
+      setWorkingNotificationId(notification.id);
+      await dismissNotification(notification.id);
+      setNotifications((current) => current.filter((item) => item.id !== notification.id));
+      if (!notification.isRead) {
+        setUnreadNotificationCount((count) => Math.max(0, count - 1));
+      }
+    } catch {
+      setPlaceholderNotice('Could not dismiss that notification right now.');
+    } finally {
+      setWorkingNotificationId(null);
+    }
+  }
+
+  async function handleMuteNotificationSource(event: React.MouseEvent, notification: NotificationItem) {
+    event.stopPropagation();
+
+    try {
+      setWorkingNotificationId(notification.id);
+      await muteNotificationSource(notification.id);
+      setNotifications((current) => current.filter((item) => item.id !== notification.id));
+      if (!notification.isRead) {
+        setUnreadNotificationCount((count) => Math.max(0, count - 1));
+      }
+      setPlaceholderNotice('You will no longer get notified about this.');
+    } catch {
+      setPlaceholderNotice('Could not mute that source right now.');
+    } finally {
+      setWorkingNotificationId(null);
     }
   }
 
@@ -435,15 +518,27 @@ export function DashboardPage() {
                   <h2>Notifications</h2>
                   <p>{unreadNotificationCount} unread</p>
                 </div>
-                <button
-                  type="button"
-                  className="dashboard-v2__notifications-action"
-                  onClick={handleMarkAllNotificationsRead}
-                  disabled={notificationsLoading || notifications.length === 0}
-                >
-                  <CheckCheck size={14} />
-                  Mark all read
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="dashboard-v2__notifications-action"
+                    onClick={handleMarkAllNotificationsRead}
+                    disabled={notificationsLoading || notifications.length === 0}
+                  >
+                    <CheckCheck size={14} />
+                    Mark all read
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-v2__notifications-see-all"
+                    onClick={() => {
+                      setIsNotificationsOpen(false);
+                      navigate('/notifications');
+                    }}
+                  >
+                    See all notifications
+                  </button>
+                </div>
               </div>
 
               <div className="dashboard-v2__notifications-list">
@@ -453,23 +548,49 @@ export function DashboardPage() {
                   <div className="dashboard-v2__empty">You&apos;re all caught up. New activity will appear here.</div>
                 ) : (
                   notifications.map((notification) => (
-                    <button
+                    <div
                       key={notification.id}
-                      type="button"
                       className={notification.isRead ? 'dashboard-v2__notification-item dashboard-v2__notification-item--read' : 'dashboard-v2__notification-item'}
-                      onClick={() => handleOpenNotification(notification)}
                     >
-                      <div className="dashboard-v2__notification-copy">
-                        <strong>{notification.title}</strong>
-                        <p>{notification.body}</p>
-                        <small>
-                          {notification.sourceModule} · {formatRelativeDate(notification.createdAt)}
-                        </small>
+                      <button
+                        type="button"
+                        className="dashboard-v2__notification-open"
+                        onClick={() => handleOpenNotification(notification)}
+                      >
+                        <div className="dashboard-v2__notification-copy">
+                          <strong>{notification.title}</strong>
+                          <p>{notification.body}</p>
+                          <small>
+                            {notification.sourceModule} · {formatRelativeDate(notification.createdAt)}
+                          </small>
+                        </div>
+                        <span className="dashboard-v2__notification-goal">
+                          <CircleArrowRight size={14} />
+                        </span>
+                      </button>
+                      <div className="dashboard-v2__notification-item-actions">
+                        <button
+                          type="button"
+                          className="dashboard-v2__notification-icon-btn"
+                          onClick={(event) => void handleMuteNotificationSource(event, notification)}
+                          disabled={workingNotificationId === notification.id}
+                          aria-label="Mute this source"
+                          title="Mute this source"
+                        >
+                          <BellOff size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="dashboard-v2__notification-icon-btn"
+                          onClick={(event) => void handleDismissNotification(event, notification)}
+                          disabled={workingNotificationId === notification.id}
+                          aria-label="Dismiss"
+                          title="Dismiss"
+                        >
+                          <X size={13} />
+                        </button>
                       </div>
-                      <span className="dashboard-v2__notification-goal">
-                        <CircleArrowRight size={14} />
-                      </span>
-                    </button>
+                    </div>
                   ))
                 )}
               </div>

@@ -12,13 +12,27 @@ import type { NotificationRepository } from 'src/domain/repositories/notificatio
 export class PrismaNotificationRepository implements NotificationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(notification: Notification, deliveryChannels: NotificationChannel[] = [NotificationChannel.IN_APP]): Promise<Notification> {
+  async create(
+    notification: Notification,
+    deliveryChannels: NotificationChannel[] = [NotificationChannel.IN_APP],
+  ): Promise<Notification | null> {
+    if (notification.dedupeKey) {
+      const existing = await this.prisma.notification.findFirst({
+        where: { userId: notification.userId, dedupeKey: notification.dedupeKey },
+      });
+      if (existing) {
+        return null; // caller treats null as "skipped, duplicate"
+      }
+    }
+
+    const uniqueChannels = Array.from(new Set(deliveryChannels.length > 0 ? deliveryChannels : [NotificationChannel.IN_APP]));
+
     const created = await this.prisma.$transaction(async (tx) => {
-      const notificationRecord = await tx.notification.create({
+      const record = await tx.notification.create({
         data: {
           id: notification.id,
           userId: notification.userId,
-          type: notification.type as unknown as NotificationType,
+          type: notification.type,
           title: notification.title,
           body: notification.body,
           entityType: notification.entityType,
@@ -27,38 +41,64 @@ export class PrismaNotificationRepository implements NotificationRepository {
           actionUrl: notification.actionUrl,
           score: notification.score,
           dedupeKey: notification.dedupeKey,
+          metadataJson: notification.metadataJson as any,
           isRead: notification.isRead,
           readAt: notification.readAt,
           dismissedAt: notification.dismissedAt,
           createdAt: notification.createdAt,
           updatedAt: notification.updatedAt,
-          ...(notification.metadataJson === null
-            ? {}
-            : { metadataJson: notification.metadataJson as any }),
         },
       });
 
-      await Promise.all(
-        deliveryChannels.map((channel) =>
-          tx.notificationDelivery.create({
-            data: {
-              notificationId: notificationRecord.id,
-              channel: channel as NotificationChannel,
-              status:
-                channel === NotificationChannel.IN_APP
-                  ? NotificationDeliveryStatus.DELIVERED
-                  : NotificationDeliveryStatus.PENDING,
-              sentAt: channel === NotificationChannel.IN_APP ? notification.createdAt : null,
-            },
-          }),
-        ),
-      );
+      if (uniqueChannels.length > 0) {
+        await tx.notificationDelivery.createMany({
+          data: uniqueChannels.map((channel) => ({
+            notificationId: record.id,
+            channel,
+            status: NotificationDeliveryStatus.DELIVERED,
+            sentAt: new Date(),
+          })),
+        });
+      }
 
-      return notificationRecord;
+      return record;
     });
 
     return this.toDomain(created);
   }
+
+  async markAsRead(id: string, userId: string): Promise<Notification | null> {
+    const existing = await this.prisma.notification.findFirst({ where: { id, userId } });
+    if (!existing) {
+      return null;
+    }
+
+    const updated = await this.prisma.notification.update({
+      where: { id },
+      data: {
+        isRead: true,
+        readAt: existing.readAt ?? new Date(),
+      },
+    });
+
+    return this.toDomain(updated);
+  }
+
+async dismiss(id: string, userId: string): Promise<Notification | null> {
+  const existing = await this.prisma.notification.findFirst({ where: { id, userId } });
+  if (!existing) {
+    return null;
+  }
+
+  const updated = await this.prisma.notification.update({
+    where: { id },
+    data: {
+      dismissedAt: existing.dismissedAt ?? new Date(),
+    },
+  });
+
+  return this.toDomain(updated);
+}
 
   async findById(id: string, userId: string): Promise<Notification | null> {
     const record = await this.prisma.notification.findFirst({
@@ -100,22 +140,6 @@ export class PrismaNotificationRepository implements NotificationRepository {
     });
   }
 
-  async markAsRead(id: string, userId: string): Promise<Notification> {
-    const existing = await this.prisma.notification.findFirst({ where: { id, userId } });
-    if (!existing) {
-      throw new Error(`Notification ${id} not found`);
-    }
-
-    const updated = await this.prisma.notification.update({
-      where: { id },
-      data: {
-        isRead: true,
-        readAt: existing.readAt ?? new Date(),
-      },
-    });
-
-    return this.toDomain(updated);
-  }
 
   async markAllAsRead(userId: string): Promise<number> {
     const result = await this.prisma.notification.updateMany({
@@ -129,20 +153,36 @@ export class PrismaNotificationRepository implements NotificationRepository {
     return result.count;
   }
 
-  async dismiss(id: string, userId: string): Promise<Notification> {
-    const existing = await this.prisma.notification.findFirst({ where: { id, userId } });
-    if (!existing) {
-      throw new Error(`Notification ${id} not found`);
-    }
+    async findActiveByDedupeKey(userId: string, dedupeKey: string): Promise<Notification | null> {
+    const record = await this.prisma.notification.findFirst({
+      where: { userId, dedupeKey, dismissedAt: null },
+    });
 
-    const updated = await this.prisma.notification.update({
+    return record ? this.toDomain(record) : null;
+  }
+
+  async updateContent(
+    id: string,
+    updates: {
+      title?: string;
+      body?: string;
+      score?: number;
+      metadataJson?: Record<string, unknown> | null;
+      markUnread?: boolean;
+    },
+  ): Promise<Notification> {
+    const record = await this.prisma.notification.update({
       where: { id },
       data: {
-        dismissedAt: existing.dismissedAt ?? new Date(),
+        ...(updates.title !== undefined ? { title: updates.title } : {}),
+        ...(updates.body !== undefined ? { body: updates.body } : {}),
+        ...(updates.score !== undefined ? { score: updates.score } : {}),
+        ...(updates.metadataJson !== undefined ? { metadataJson: updates.metadataJson as any } : {}),
+        ...(updates.markUnread ? { isRead: false, readAt: null } : {}),
       },
     });
 
-    return this.toDomain(updated);
+    return this.toDomain(record);
   }
 
   private toDomain(record: any): Notification {

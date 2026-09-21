@@ -10,13 +10,17 @@ import { MarkAllNotificationsReadUseCase } from '../../application/notifications
 import { DismissNotificationUseCase } from '../../application/notifications/dismiss-notification.usecase';
 import { GetNotificationPreferencesUseCase } from '../../application/notifications/get-notification-preferences.usecase';
 import { UpdateNotificationPreferencesUseCase } from '../../application/notifications/update-notification-preferences.usecase';
+import { MuteNotificationSourceUseCase } from '../../application/notifications/mute-notification-source.usecase';
+import { MuteNotificationCategoryUseCase } from '../../application/notifications/mute-notification-category.usecase';
+import { UnmuteNotificationUseCase } from '../../application/notifications/unmute-notification.usecase';
+import { ListNotificationMutesUseCase } from '../../application/notifications/list-notification-mute.usecase';
 import { PrismaNotificationRepository } from '../../infrastructure/repositories/prisma-notification.repository';
 import { PrismaNotificationPreferenceRepository } from '../../infrastructure/repositories/prisma-notification-preference.repository';
+import { PrismaNotificationMuteRepository } from '../../infrastructure/repositories/prisma-notification-mute.repository';
 import { PrismaAlumniRepository } from '../../infrastructure/repositories/prisma-alumni.repository';
 import {
   PrismaUserInterestProfileRepository,
   PrismaUserInterestSignalRepository,
-  PrismaNotificationCandidateRepository,
 } from '../../infrastructure/repositories/prisma-user-interest.repository';
 import { NotificationAIScoringService } from '../../infrastructure/services/notification-ai-scoring.service';
 import { NotificationEligibilityService } from '../../infrastructure/services/notification-eligibility.service';
@@ -25,6 +29,7 @@ import { PersonalizedNotificationFanoutService } from '../../infrastructure/serv
 import { InProcessJobQueueService } from '../../infrastructure/queue/in-process-job-queue.service';
 import { PersonalizedNotificationWorkerService } from '../../infrastructure/queue/personalized-notification-worker.service';
 import { JobProcessorService } from '../../infrastructure/queue/job-processor.service';
+import { NotificationsGateway } from '../../infrastructure/websocket/notifications.gateway';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -38,17 +43,25 @@ import { JobProcessorService } from '../../infrastructure/queue/job-processor.se
     DismissNotificationUseCase,
     GetNotificationPreferencesUseCase,
     UpdateNotificationPreferencesUseCase,
+    MuteNotificationSourceUseCase,
+    MuteNotificationCategoryUseCase,
+    UnmuteNotificationUseCase,
+    ListNotificationMutesUseCase,
     PrismaNotificationRepository,
     PrismaNotificationPreferenceRepository,
+    PrismaNotificationMuteRepository,
     PrismaAlumniRepository,
     PrismaUserInterestProfileRepository,
     PrismaUserInterestSignalRepository,
-    PrismaNotificationCandidateRepository,
     NotificationAIScoringService,
     NotificationEligibilityService,
     MentorClusteringService,
     PersonalizedNotificationFanoutService,
-    // job queue and worker
+    NotificationsGateway,
+    {
+      provide: 'NotificationsRealtimePublisher',
+      useExisting: NotificationsGateway,
+    },
     {
       provide: 'JobQueue',
       useClass: InProcessJobQueueService,
@@ -67,6 +80,10 @@ import { JobProcessorService } from '../../infrastructure/queue/job-processor.se
       useClass: PrismaNotificationPreferenceRepository,
     },
     {
+      provide: 'NotificationMuteRepository',
+      useClass: PrismaNotificationMuteRepository,
+    },
+    {
       provide: 'AlumniRepository',
       useClass: PrismaAlumniRepository,
     },
@@ -78,16 +95,13 @@ import { JobProcessorService } from '../../infrastructure/queue/job-processor.se
       provide: 'UserInterestSignalRepository',
       useClass: PrismaUserInterestSignalRepository,
     },
-    {
-      provide: 'NotificationCandidateRepository',
-      useClass: PrismaNotificationCandidateRepository,
-    },
   ],
   exports: [
     CreateNotificationUseCase,
     NotificationEligibilityService,
     MentorClusteringService,
     PersonalizedNotificationFanoutService,
+    NotificationsGateway,
     'UserInterestProfileRepository',
     'UserInterestSignalRepository',
     'AlumniRepository',

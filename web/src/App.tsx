@@ -18,6 +18,7 @@ import { AdminThreadsModerationPage } from './pages/admin/AdminThreadsModeration
 import { ProfilePage } from './pages/ProfilePage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
     </Routes>
   );
 }

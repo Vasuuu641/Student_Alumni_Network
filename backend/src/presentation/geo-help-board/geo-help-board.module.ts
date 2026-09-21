@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
 import { AuthModule } from '../../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SavedItemsModule } from '../../application/saved-items/saved-items.module';
 
 import { GeoHelpBoardController } from './geo-help-board.controller';
 
@@ -14,12 +15,15 @@ import { ListPopularGeoHelpSpotsUseCase } from '../../application/geo-help-board
 import { ListNearbyGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-nearby-geo-help-spots.usecase';
 import { RecordGeoHelpSpotVisitUseCase } from '../../application/geo-help-board/record-geo-help-spot-visit.usecase';
 import { ListReviewGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-review-geo-help-spots.usecase';
+import { SaveGeoHelpSpotUseCase } from '../../application/geo-help-board/save-geo-help-spot.usecase';
+import { UnsaveGeoHelpSpotUseCase } from '../../application/geo-help-board/unsave-geo-help-spot.usecase';
+import { ListSavedGeoHelpSpotsUseCase } from '../../application/geo-help-board/list-saved-geo-help-spots.usecase';
 
 import { PrismaGeoHelpBoardRepository } from '../../infrastructure/repositories/prisma-geo-help-board.repository';
 import { RateLimitGuard } from '../../infrastructure/security/rate-limit.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule, SavedItemsModule],
   controllers: [GeoHelpBoardController],
   providers: [
     CreateGeoHelpSpotUseCase,
@@ -30,6 +34,9 @@ import { RateLimitGuard } from '../../infrastructure/security/rate-limit.guard';
     ListPopularGeoHelpSpotsUseCase,
     ListNearbyGeoHelpSpotsUseCase,
     RecordGeoHelpSpotVisitUseCase,
+    SaveGeoHelpSpotUseCase,
+    UnsaveGeoHelpSpotUseCase,
+    ListSavedGeoHelpSpotsUseCase,
     RateLimitGuard,
 
     PrismaGeoHelpBoardRepository,

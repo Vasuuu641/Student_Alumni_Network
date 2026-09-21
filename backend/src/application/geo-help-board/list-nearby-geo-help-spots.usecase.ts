@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { GeoHelpSpotCategory, GeoHelpSpotSection, GeoHelpSpotWithDistance } from '../../domain/entities/geo-help-spot.entity';
 import type { GeoHelpBoardRepository } from '../../domain/repositories/geo-help-board.repository';
 import { GeoHelpBoardValidationError } from './geo-help-board.errors';
+import { NotificationEligibilityService } from 'src/infrastructure/services/notification-eligibility.service';
+import { InterestSignalType } from 'src/domain/entities/user-interest.entity';
 
 export interface ListNearbyGeoHelpSpotsRequest {
   latitude: number;
@@ -12,6 +14,7 @@ export interface ListNearbyGeoHelpSpotsRequest {
   category?: GeoHelpSpotCategory;
   limit?: number;
   page?: number;
+  userId?: string;
 }
 
 @Injectable()
@@ -24,6 +27,7 @@ export class ListNearbyGeoHelpSpotsUseCase {
   constructor(
     @Inject('GeoHelpBoardRepository')
     private readonly geoHelpBoardRepository: GeoHelpBoardRepository,
+    private readonly eligibilityService: NotificationEligibilityService,
   ) {}
 
   async execute(request: ListNearbyGeoHelpSpotsRequest): Promise<GeoHelpSpotWithDistance[]> {
@@ -51,7 +55,7 @@ export class ListNearbyGeoHelpSpotsUseCase {
     const limit = this.normalizeLimit(request.limit);
     const page = this.normalizePage(request.page);
 
-    return this.geoHelpBoardRepository.listNearbySpots({
+    const results = await this.geoHelpBoardRepository.listNearbySpots({
       latitude: request.latitude,
       longitude: request.longitude,
       radiusKm: request.radiusKm,
@@ -61,6 +65,23 @@ export class ListNearbyGeoHelpSpotsUseCase {
       limit,
       offset: (page - 1) * limit,
     });
+
+    if (request.userId && request.category) {
+      this.eligibilityService
+        .captureSignal(
+          request.userId,
+          InterestSignalType.CATEGORY_BROWSE,
+          'GEO_CATEGORY',
+          request.category,
+          undefined,
+          'geo-help-board',
+        )
+        .catch((error) => {
+          console.error(`Failed to capture geo category browse signal: ${error?.message ?? error}`);
+        });
+    }
+
+    return results;
   }
 
   private normalizeLimit(limit?: number): number {

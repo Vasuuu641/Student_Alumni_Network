@@ -1,3 +1,5 @@
+import { GeoHelpSpotCategory } from './geo-help-spot.entity';
+
 export enum InterestSignalType {
   THREAD_VIEW = 'THREAD_VIEW',
   THREAD_OPEN = 'THREAD_OPEN',
@@ -20,6 +22,10 @@ export class UserInterestProfile {
     public housingWeight: number,
     public shoppingWeight: number,
     public internshipWeight: number,
+    public campusServicesWeight: number,
+    public foodWeight: number,
+    public studyWeight: number,
+    public socialWeight: number,
     public readonly lastUpdatedAt: Date,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
@@ -29,15 +35,44 @@ export class UserInterestProfile {
     return panel === 'ACADEMIC' ? this.academicWeight : this.alumniWeight;
   }
 
+  getWeightForGeoCategory(category: GeoHelpSpotCategory): number | null {
+    switch (category) {
+      case GeoHelpSpotCategory.UNIVERSITY_SERVICE:
+      case GeoHelpSpotCategory.ACADEMIC_DEPARTMENT:
+      case GeoHelpSpotCategory.ADMIN_OFFICE:
+      case GeoHelpSpotCategory.STUDENT_SUPPORT:
+        return this.campusServicesWeight;
+      case GeoHelpSpotCategory.RESTAURANT:
+      case GeoHelpSpotCategory.CAFE:
+        return this.foodWeight;
+      case GeoHelpSpotCategory.STUDY_SPOT:
+      case GeoHelpSpotCategory.CAMPUS_FACILITY:
+        return this.studyWeight;
+      case GeoHelpSpotCategory.SOCIAL_HANGOUT:
+      case GeoHelpSpotCategory.FITNESS_WELLNESS:
+        return this.socialWeight;
+      case GeoHelpSpotCategory.SHOPPING:
+        return this.shoppingWeight;
+      case GeoHelpSpotCategory.OTHER:
+      default:
+        return null; // no dedicated weight — caller should fall back to a flat default
+    }
+  }
+
   getTopics(): Array<{ name: string; weight: number }> {
     return [
       { name: 'career', weight: this.careerWeight },
       { name: 'housing', weight: this.housingWeight },
       { name: 'shopping', weight: this.shoppingWeight },
       { name: 'internship', weight: this.internshipWeight },
+      { name: 'campusServices', weight: this.campusServicesWeight },
+      { name: 'food', weight: this.foodWeight },
+      { name: 'study', weight: this.studyWeight },
+      { name: 'social', weight: this.socialWeight },
     ].filter((t) => t.weight > 0);
   }
 }
+
 
 export class UserInterestSignal {
   constructor(
@@ -54,26 +89,3 @@ export class UserInterestSignal {
   ) {}
 }
 
-export class NotificationCandidate {
-  constructor(
-    public readonly id: string,
-    public readonly userId: string,
-    public readonly type: string,
-    public title: string,
-    public body: string,
-    public readonly entityType: string,
-    public readonly entityId: string,
-    public readonly sourceModule: string,
-    public rawScore: number,
-    public aiScore: number | null,
-    public finalScore: number,
-    public isEligible: boolean,
-    public scoringReason: string | null,
-    public rejectionReason: string | null,
-    public readonly actionUrl: string | null,
-    public readonly dedupeKey: string | null,
-    public readonly metadataJson: Record<string, unknown> | null,
-    public readonly createdAt: Date,
-    public readonly expiresAt: Date,
-  ) {}
-}

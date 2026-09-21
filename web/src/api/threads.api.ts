@@ -199,3 +199,26 @@ export function createThreadsSocket(token: string): Socket {
 		auth: { token },
 	})
 }
+
+export interface SavedItem {
+	id: string
+	userId: string
+	entityType: string
+	entityId: string
+	createdAt: string
+}
+
+export async function saveThread(threadId: string): Promise<{ saved: SavedItem }> {
+	const { data } = await api.post<{ saved: SavedItem }>(`/threads/${threadId}/save`)
+	return data
+}
+
+export async function unsaveThread(threadId: string): Promise<{ success: boolean }> {
+	const { data } = await api.delete<{ success: boolean }>(`/threads/${threadId}/save`)
+	return data
+}
+
+export async function listSavedThreads(): Promise<{ threads: Thread[] }> {
+	const { data } = await api.get<{ threads: Thread[] }>('/threads/saved')
+	return data
+}
