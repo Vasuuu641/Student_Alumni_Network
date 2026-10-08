@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Pin, Search, MessageSquareText, Lock, Unlock, ExternalLink, ArrowLeft } from 'lucide-react';
+import { Loader2, Pin, Search, MessageSquareText, Lock, Unlock, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { listThreadsForAdmin, setThreadStatus, type AdminThread } from '../../api/admin.api';
 
@@ -89,11 +89,6 @@ export function AdminThreadsModerationPage() {
           <h1>Thread Moderation</h1>
           <p>Pin important threads and control discussion status across panels.</p>
         </div>
-
-        <Link to="/admin" className="admin-back-link" aria-label="Back to admin console">
-          <ArrowLeft size={14} />
-          Back to admin console
-        </Link>
       </header>
 
       <section className="admin-table-card">
