@@ -1,12 +1,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
 	BookOpen,
 	Briefcase,
+	ArrowLeft,
 	ChevronRight,
 	MessageCircle,
 	Plus,
 	Search,
+	Pin,
 	X,
 	Paperclip,
 } from 'lucide-react'
@@ -54,6 +56,7 @@ export function ThreadsPage() {
 	const navigate = useNavigate()
 	const token = getAccessToken()
 	const role = (token ? getRoleFromAccessToken(token) : null) as UserRole | null
+	const isAdmin = role === 'ADMIN'
 
 	const availablePanels = useMemo<ThreadPanel[]>(() => {
 		if (role === 'ALUMNI') {
@@ -319,6 +322,12 @@ export function ThreadsPage() {
 						<p>{pageSubtitle}</p>
 					</div>
 					<div className="threads-header__actions">
+						{isAdmin && (
+							<Link to="/admin" className="threads-secondary-btn threads-secondary-btn--compact">
+								<ArrowLeft size={16} />
+								Admin Console
+							</Link>
+						)}
 						<button className="threads-primary-btn" onClick={() => setShowCreateModal(true)}>
 							<Plus size={16} />
 							New Discussion
@@ -416,12 +425,21 @@ export function ThreadsPage() {
 								className="thread-card"
 							>
 								<button className="thread-main" onClick={() => navigate(`/threads/${thread.id}`)}>
-									<h3>{thread.title}</h3>
+									<div className="thread-title-row">
+										<h3>{thread.title}</h3>
+										{thread.status === 'PINNED' && (
+											<span className="thread-status-pill thread-status-pill--pinned" aria-label="Pinned discussion">
+												<Pin size={12} />
+												Pinned
+											</span>
+										)}
+									</div>
 									{thread.description && <p>{thread.description}</p>}
 									<div className="thread-meta-row">
 										<span>By {thread.authorName ?? thread.authorId.slice(0, 8)}</span>
 										<span>{formatRelativeDate(thread.createdAt)}</span>
 										<span>{thread.replyCount} comments</span>
+										{thread.status === 'PINNED' && <span>Pinned to the top</span>}
 										<span>↑ {thread.upvoteCount ?? 0} • ↓ {thread.downvoteCount ?? 0}</span>
 									</div>
 								</button>

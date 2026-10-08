@@ -18,7 +18,7 @@ import {
   type ThreadReply,
   type VoteType,
 } from '../api/threads.api'
-import { getAccessToken } from '../lib/auth'
+import { getAccessToken, getRoleFromAccessToken } from '../lib/auth'
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (
@@ -90,6 +90,7 @@ export function ThreadDetailPage() {
   const navigate = useNavigate()
   const { threadId } = useParams<{ threadId: string }>()
   const token = getAccessToken()
+  const isAdmin = token ? getRoleFromAccessToken(token) === 'ADMIN' : false
   const currentUserId = token ? decodeUserId(token) : null
 
   const [thread, setThread] = useState<Thread | null>(null)
@@ -728,6 +729,13 @@ export function ThreadDetailPage() {
           <ArrowLeft size={15} />
           Back to Discussions
         </button>
+
+        {isAdmin && (
+          <button className="threads-secondary-btn threads-secondary-btn--compact" onClick={() => navigate('/admin')}>
+            <ArrowLeft size={15} />
+            Admin Console
+          </button>
+        )}
       </header>
 
       <section className="thread-detail-page__content">
