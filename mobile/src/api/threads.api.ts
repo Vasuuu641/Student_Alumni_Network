@@ -21,6 +21,7 @@ export interface ThreadSummary {
   title: string;
   description?: string | null;
   panel: ThreadPanel;
+  status: ThreadStatus;
   updatedAt: string;
   replyCount: number;
   authorId?: string | null;

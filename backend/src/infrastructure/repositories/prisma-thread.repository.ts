@@ -81,22 +81,12 @@ export class PrismaThreadRepository implements ThreadRepository {
   panel: ThreadPanel,
   options: { skip: number; take: number; sortBy: string },
 ): Promise<{ threads: Thread[]; total: number }> {
-  const orderBy =
-    options.sortBy === 'mostReplies'
-      ? { replyCount: 'desc' as const }
-      : options.sortBy === 'topVoted'
-      ? { voteScore: 'desc' as const }
-      : { createdAt: 'desc' as const };
-
   const [records, total] = await Promise.all([
     this.prisma.thread.findMany({
       where: {
         panel,
         status: { not: PRISMA_THREAD_STATUS_DELETED },
       },
-      orderBy,
-      skip: options.skip,
-      take: options.take,
     }),
     this.prisma.thread.count({
       where: {
@@ -106,7 +96,29 @@ export class PrismaThreadRepository implements ThreadRepository {
     }),
   ]);
 
-  return { threads: records.map((r) => this.toDomain(r)), total };
+  const sorted = records
+    .slice()
+    .sort((a, b) => {
+      const pinnedRank = (a.status === 'PINNED' ? 0 : 1) - (b.status === 'PINNED' ? 0 : 1);
+      if (pinnedRank !== 0) return pinnedRank;
+
+      if (options.sortBy === 'mostReplies') {
+        const replyRank = b.replyCount - a.replyCount;
+        if (replyRank !== 0) return replyRank;
+      } else if (options.sortBy === 'topVoted') {
+        const voteRank = b.voteScore - a.voteScore;
+        if (voteRank !== 0) return voteRank;
+      } else {
+        const createdRank = b.createdAt.getTime() - a.createdAt.getTime();
+        if (createdRank !== 0) return createdRank;
+      }
+
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
+    });
+
+  const paged = sorted.slice(options.skip, options.skip + options.take);
+
+  return { threads: paged.map((r) => this.toDomain(r)), total };
 }
 
   async incrementViewCount(threadId: string): Promise<void> {

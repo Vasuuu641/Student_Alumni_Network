@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faSearch, faLock, faUnlock } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faLock, faUnlock, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import {
   listThreadsForAdmin,
   setThreadStatus,
@@ -21,6 +21,7 @@ type StatusFilter = 'ALL' | 'OPEN' | 'CLOSED' | 'PINNED';
 
 interface AdminThreadsModerationPageProps {
   token: string;
+  onBackToConsole?: () => void;
 }
 
 function formatDate(value: string): string {
@@ -57,7 +58,7 @@ function getStatusTextColor(status: 'OPEN' | 'CLOSED' | 'PINNED'): string {
   }
 }
 
-export function AdminThreadsModerationPage({ token }: AdminThreadsModerationPageProps) {
+export function AdminThreadsModerationPage({ token, onBackToConsole }: AdminThreadsModerationPageProps) {
   const [threads, setThreads] = useState<AdminThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -153,6 +154,15 @@ export function AdminThreadsModerationPage({ token }: AdminThreadsModerationPage
 
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <Pressable
+          onPress={onBackToConsole}
+          disabled={!onBackToConsole}
+          style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, borderRadius: 999, borderWidth: 1, borderColor: '#dbe4f1', backgroundColor: '#f7faff', paddingHorizontal: 12, paddingVertical: 8 }}
+        >
+          <FontAwesomeIcon icon={faArrowLeft} size={12} color={onBackToConsole ? '#24406c' : '#9aa8bd'} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: onBackToConsole ? '#24406c' : '#9aa8bd' }}>Back to console</Text>
+        </Pressable>
+
         <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4 }}>Thread Moderation</Text>
         <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
           Pin important threads and control discussion status

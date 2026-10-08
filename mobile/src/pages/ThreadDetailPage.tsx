@@ -28,6 +28,7 @@ import {
   type VoteType,
 } from '../api/threads.api';
 import { getValidAccessToken } from '../lib/auth-session';
+import { getRoleFromAccessToken } from '../lib/jwt';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { useTheme } from '../theme/theme';
 
@@ -84,6 +85,7 @@ export function ThreadDetailPage({ route, navigation }: Props) {
   const { tokens } = useTheme();
   const { threadId } = route.params;
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
   const [replies, setReplies] = useState<ThreadReply[]>([]);
@@ -103,6 +105,7 @@ export function ThreadDetailPage({ route, navigation }: Props) {
       const token = await getValidAccessToken();
       if (!token) { navigation.replace('Login'); return; }
       setAccessToken(token);
+      setIsAdmin(getRoleFromAccessToken(token) === 'ADMIN');
       setCurrentUserId(decodeUserId(token));
     };
     void initToken();
@@ -283,7 +286,13 @@ function removeReplyAttachment(index: number) {
         <FontAwesomeIcon icon={faArrowLeft as IconProp} size={20} color={tokens.primary} />
       </Pressable>
       <Text style={{ fontSize: 18, fontWeight: '700', color: tokens.text }}>Discussion</Text>
-      <View style={{ width: 20 }} />
+      {isAdmin ? (
+        <Pressable onPress={() => navigation.navigate('AdminLayout')}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>Admin Console</Text>
+        </Pressable>
+      ) : (
+        <View style={{ width: 20 }} />
+      )}
     </View>
   );
 

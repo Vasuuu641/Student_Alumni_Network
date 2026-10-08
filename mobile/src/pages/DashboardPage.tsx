@@ -384,6 +384,11 @@ export function DashboardPage({ navigation }: Props) {
                             {thread.panel === 'ALUMNI' ? 'alumni' : 'academic'}
                           </Text>
                         </View>
+                        {thread.status === 'PINNED' ? (
+                          <View style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: '#e3f2fd' }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#1565c0' }}>Pinned</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <Text style={{ fontSize: 15, fontWeight: '600', lineHeight: 20, color: tokens.text }}>{thread.title}</Text>
                       <Text style={{ marginTop: 4, fontSize: 14, lineHeight: 20, color: tokens.muted }}>

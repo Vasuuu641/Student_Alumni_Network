@@ -72,6 +72,10 @@ export function AdminLayout({ navigation }: Props) {
     navigation.replace('Home');
   }
 
+  function handleBackToConsole() {
+    setActiveTab('users');
+  }
+
   if (loading || !accessToken) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
@@ -165,7 +169,7 @@ export function AdminLayout({ navigation }: Props) {
       <ScrollView style={{ flex: 1, backgroundColor: tokens.background }} contentContainerStyle={{ paddingBottom: 20 }}>
         {activeTab === 'users' && <AdminUsersPage token={accessToken} />}
         {activeTab === 'geo' && <AdminGeoModerationPage token={accessToken} />}
-        {activeTab === 'threads' && <AdminThreadsModerationPage token={accessToken} />}
+        {activeTab === 'threads' && <AdminThreadsModerationPage token={accessToken} onBackToConsole={handleBackToConsole} />}
       </ScrollView>
     </SafeAreaView>
   );

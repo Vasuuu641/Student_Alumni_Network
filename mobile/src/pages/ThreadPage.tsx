@@ -7,6 +7,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core';
 import {
   faBell,
   faBridge,
+  faArrowLeft,
   faChevronDown,
   faComments,
   faPalette,
@@ -193,6 +194,15 @@ export function DiscussionsPage({ navigation }: Props) {
             <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: tokens.muted }}>
               Join conversations with your academic community
             </Text>
+            {profile?.role === 'ADMIN' ? (
+              <Pressable
+                onPress={() => navigation.navigate('AdminLayout')}
+                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, borderRadius: 999, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surfaceElevated, paddingHorizontal: 12, paddingVertical: 8 }}
+              >
+                <FontAwesomeIcon icon={faArrowLeft as IconProp} size={12} color={tokens.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: tokens.primary }}>Admin Console</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {/* New Discussion Button */}
@@ -330,6 +340,11 @@ function DiscussionThreadItem({ thread, tokens, onPress }: { thread: ThreadSumma
                 {thread.panel === 'ALUMNI' ? 'alumni' : 'academic'}
               </Text>
             </View>
+            {thread.status === 'PINNED' ? (
+              <View style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: '#e3f2fd' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#1565c0' }}>Pinned</Text>
+              </View>
+            ) : null}
             <Text style={{ fontSize: 12, fontWeight: '500', color: tokens.muted }}>{formatRelativeDate(thread.updatedAt)}</Text>
           </View>
 
