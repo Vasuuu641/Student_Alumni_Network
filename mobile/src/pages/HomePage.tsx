@@ -108,12 +108,30 @@ export function HomePage({ navigation }: Props) {
           </View>
 
           <View style={{ marginTop: 18, flexDirection: 'row', gap: 8 }}>
-            {['🎓 Students', '📚 Professors', '🧑‍💼 Alumni'].map((label) => (
+            {[
+              { icon: '🎓', label: 'Students' },
+              { icon: '📚', label: 'Professors' },
+              { icon: '💼', label: 'Alumni' },
+            ].map(({ icon, label }) => (
               <View
                 key={label}
-                style={{ flex: 1, borderRadius: 999, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.surface, paddingVertical: 8, alignItems: 'center' }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: tokens.border,
+                  backgroundColor: tokens.surface,
+                  paddingVertical: 8,
+                }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.text }}>{label}</Text>
+                <Text style={{ fontSize: 12 }}>{icon}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '600', color: tokens.text }}>
+                  {label}
+                </Text>
               </View>
             ))}
           </View>
