@@ -1,19 +1,5 @@
 // screens/NoteScreen.tsx
-// Mobile equivalent of src/pages/NotePage.tsx
-//
-// Dependencies:
-//   npx expo install @10play/tentap-editor react-native-webview
-//   npx expo install react-native-safe-area-context
-//   yarn add lucide-react-native
-//   @react-navigation/native + @react-navigation/native-stack
-//
-// Note: @10play/tentap-editor requires an Expo Dev Client build for full
-// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
-//
-// Collaborative cursors are intentionally omitted — TenTap's real-time
-// collab is a paid Pro feature. Autosave + version history covers mobile.
-
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -33,9 +19,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   RichText,
   useEditorBridge,
-  useEditorContent,
   TenTapStartKit,
   ImageBridge,
+  HistoryBridge,
 } from '@10play/tentap-editor';
 import {
   ArrowLeft,
@@ -48,26 +34,29 @@ import {
   History,
   Share2,
   Sparkles,
-  Users,
 } from 'lucide-react-native';
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api';
 import { getValidAccessToken } from '../lib/auth-session';
 import { getRoleFromAccessToken } from '../lib/jwt';
+import { socket } from '../lib/socket';
+import { stringToColor } from '../lib/utils';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel';
 import { MobileEditorToolbar } from '../components/notes/MobileEditorToolbar';
-import { useNotePresence } from '../hooks/UseNotesPresence';
 import { useRelatedThreads } from '../hooks/UseRelatedThreads';
 import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel';
 import { MobileSharePanel } from '../components/notes/MobileSharePanel';
 import { useTheme } from '../theme/theme';
+import { editorHtml } from '../editor/editorHtml';
+import { CollabNativeBridge, collabListeners } from '../editor/CollabNativeBridge';
+import { useNoteRoom } from '../hooks/UseNoteRoom';
+import { useCollabRelay } from '../hooks/UseCollabRelay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>;
-
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface NoteData {
@@ -76,7 +65,6 @@ interface NoteData {
   content: any;
   ownerId: string;
   status: 'ACTIVE' | 'ARCHIVED';
-  role?: string;    // "OWNER" | "EDITOR" | "VIEWER" — returned by the API
   updatedAt?: string;
   createdAt?: string;
 }
@@ -92,54 +80,30 @@ function decodeUserId(token: string): string | null {
   }
 }
 
-function tiptapJsonToHtml(json: any): string {
-  if (!json) return '';
-  if (typeof json === 'string') return json;
-  if (typeof json === 'object' && json.type === 'doc') {
-    return jsonNodeToHtml(json);
-  }
-  return '';
+// Plain text from Tiptap JSON (also tolerates legacy HTML strings).
+function jsonToPlainText(n: any): string {
+  if (!n) return '';
+  if (typeof n === 'string') return n.replace(/<[^>]*>/g, ' ').trim();
+  if (n.type === 'text') return n.text ?? '';
+  const parts: string[] = (n.content ?? []).map(jsonToPlainText);
+  const block = ['doc', 'bulletList', 'orderedList', 'blockquote', 'pageSection', 'listItem'];
+  return parts.join(block.includes(n.type) ? '\n' : '');
 }
 
-function jsonNodeToHtml(node: any): string {
-  if (!node) return '';
-  if (node.type === 'doc') return (node.content ?? []).map(jsonNodeToHtml).join('');
-  if (node.type === 'paragraph') {
-    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
-    return `<p>${inner || '<br>'}</p>`;
-  }
-  if (node.type === 'heading') {
-    const level = node.attrs?.level ?? 1;
-    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
-    return `<h${level}>${inner}</h${level}>`;
-  }
-  if (node.type === 'bulletList') return `<ul>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ul>`;
-  if (node.type === 'orderedList') return `<ol>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ol>`;
-  if (node.type === 'listItem') return `<li>${(node.content ?? []).map(jsonNodeToHtml).join('')}</li>`;
-  if (node.type === 'blockquote') return `<blockquote>${(node.content ?? []).map(jsonNodeToHtml).join('')}</blockquote>`;
-  if (node.type === 'codeBlock') return `<pre><code>${(node.content ?? []).map(jsonNodeToHtml).join('')}</code></pre>`;
-  if (node.type === 'horizontalRule') return '<hr>';
-  if (node.type === 'text') {
-    let text = node.text ?? '';
-    const marks: string[] = node.marks?.map((m: any) => m.type) ?? [];
-    if (marks.includes('bold')) text = `<strong>${text}</strong>`;
-    if (marks.includes('italic')) text = `<em>${text}</em>`;
-    if (marks.includes('strike')) text = `<s>${text}</s>`;
-    if (marks.includes('code')) text = `<code>${text}</code>`;
-    return text;
-  }
-  return (node.content ?? []).map(jsonNodeToHtml).join('');
-}
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Screen (keyed by noteId so the WebView + Y.Doc reset per note) ──────────
 
 export function NoteScreen() {
+  const route = useRoute<NoteRoute>();
+  const noteId: string = (route.params as any)?.noteId ?? '';
+  return <NoteScreenInner key={noteId} noteId={noteId} />;
+}
+
+function NoteScreenInner({ noteId }: { noteId: string }) {
   const { tokens } = useTheme();
   const navigation = useNavigation<Nav>();
-  const route = useRoute<NoteRoute>();
   const insets = useSafeAreaInsets();
-  const noteId: string = (route.params as any)?.noteId ?? '';
 
+  // ── Auth ───────────────────────────────────────────────────────────────────
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -148,8 +112,7 @@ export function NoteScreen() {
   useEffect(() => {
     getValidAccessToken().then((t) => {
       setToken(t);
-      const r = t ? String(getRoleFromAccessToken(t)) : null;
-      setRole(r);
+      setRole(t ? String(getRoleFromAccessToken(t)) : null);
       setCurrentUserId(t ? decodeUserId(t) : null);
       setAuthReady(true);
     });
@@ -157,6 +120,7 @@ export function NoteScreen() {
 
   const canAccessNotes = role !== 'ALUMNI';
 
+  // ── Note + UI state ────────────────────────────────────────────────────────
   const [note, setNote] = useState<NoteData | null>(null);
   const [loadingNote, setLoadingNote] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -165,7 +129,6 @@ export function NoteScreen() {
   const [showShare, setShowShare] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(false);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [savingCheckpoint, setSavingCheckpoint] = useState(false);
@@ -174,44 +137,55 @@ export function NoteScreen() {
   const [editingTitle, setEditingTitle] = useState(false);
   const titleInputRef = useRef<TextInput>(null);
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── Collab state ───────────────────────────────────────────────────────────
   const lastSavedRef = useRef<string>('');
   const inFlightRef = useRef(false);
-  const hasPendingRef = useRef(false);
-  const pendingContentRef = useRef<string>('');
-  const autosaveArmedRef = useRef(false);
-  const hasSetInitialContentRef = useRef(false);
+  const pendingRef = useRef<any>(null);
+  const armedRef = useRef(false);
+  const latestJsonRef = useRef<any>(null);
+  const initSentRef = useRef(false);
+
   const [editorReady, setEditorReady] = useState(false);
+  const [collabReady, setCollabReady] = useState(false);
+  const [everJoined, setEverJoined] = useState(false);
+  const [liveContent, setLiveContent] = useState<any>(null);
+  const [history, setHistory] = useState({ canUndo: false, canRedo: false });
 
   const editor = useEditorBridge({
+    customSource: editorHtml,
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
-    bridgeExtensions: [...TenTapStartKit, ImageBridge],
+    // Must mirror the list in editor-web/src/App.tsx
+    bridgeExtensions: [
+      ...TenTapStartKit.filter((b: any) => b !== HistoryBridge),
+      ImageBridge,
+      CollabNativeBridge,
+    ],
   });
+  const collab = editor as any;
 
-  const htmlContent = useEditorContent(editor, {
-    type: 'html',
-    debounceInterval: 500,
-  });
+  const room = useNoteRoom(noteId, authReady && !!token && canAccessNotes);
 
-  const canEdit = authReady && canAccessNotes && role !== 'ALUMNI';
-  const isOwner = note ? note.ownerId === currentUserId : false;
   const isArchived = note?.status === 'ARCHIVED';
+  const canEdit = room.canEdit && !isArchived;
+  const isOwner =
+    room.role === 'OWNER' || (!!note && !!currentUserId && note.ownerId === currentUserId);
 
-  // ─── Presence ──────────────────────────────────────────────────────────────
-  const { onlineCount, othersOnline } = useNotePresence({
-    noteId,
-    userId: currentUserId,
-    enabled: !!note && authReady,
-  });
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
 
-  // ─── AI Insights ───────────────────────────────────────────────────────────
-  const initialHtml = note ? tiptapJsonToHtml(note.content) : '';
-  const plainTextContent = (htmlContent || initialHtml)
-    .replace(/<[^>]*>/g, '')
-    .trim();
+  const userColor = stringToColor(currentUserId ?? noteId);
 
+  useCollabRelay(editor, noteId, collabReady);
+
+  const plainTextContent = useMemo(
+    () => jsonToPlainText(liveContent ?? note?.content).trim(),
+    [liveContent, note?.content],
+  );
+  const isEmpty = plainTextContent.length === 0;
+
+  // ── AI insights ────────────────────────────────────────────────────────────
   const {
     threads: relatedThreads,
     isLoading: threadsLoading,
@@ -224,42 +198,41 @@ export function NoteScreen() {
     token,
     noteContent: plainTextContent,
     title: note?.title ?? '',
-    contentJson: note?.content ?? null,
+    contentJson: liveContent ?? note?.content ?? null,
     enabled: showAIInsights,
   });
 
-  // Derive display role label — prefer API-returned role, fall back to ownership check
-  const noteRoleLabel: string = (() => {
-    const r = note?.role?.toUpperCase();
-    if (r === 'OWNER' || isOwner) return 'Owner';
-    if (r === 'EDITOR' || canEdit) return 'Editor';
-    return 'Viewer';
-  })();
+  const noteRoleLabel =
+    room.role === 'OWNER' ? 'Owner'
+    : room.role === 'EDITOR' ? 'Editor'
+    : room.role === 'VIEWER' ? 'Viewer'
+    : '…';
+  const noteRoleBg = isOwner ? tokens.primarySoft : tokens.surfaceElevated;
+  const noteRoleColor = isOwner ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
 
-  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? tokens.primarySoft : tokens.surfaceElevated;
-  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
-
+  // ── Redirects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authReady) return;
     if (!token) navigation.replace('Login', undefined);
     else if (!canAccessNotes) navigation.replace('Notes', undefined);
   }, [authReady, token, canAccessNotes, navigation]);
 
-  const fetchNote = useCallback(async () => {
+  // ── Fetch note ─────────────────────────────────────────────────────────────
+  const fetchNote = useCallback(async (): Promise<NoteData | null> => {
     if (!authReady || !noteId || !token) {
       if (authReady) setLoadingNote(false);
-      return;
+      return null;
     }
     try {
       setFetchError(null);
-      const fetchedNote = await getNote(token, noteId);
-      setNote(fetchedNote);
-      setTitleDraft(fetchedNote.title);
-      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null);
+      const fetched = (await getNote(token, noteId)) as NoteData;
+      setNote(fetched);
+      setTitleDraft(fetched.title);
+      lastSavedRef.current = JSON.stringify(fetched.content ?? null);
+      return fetched;
     } catch {
       setFetchError('Failed to load note');
+      return null;
     } finally {
       setLoadingNote(false);
     }
@@ -267,96 +240,103 @@ export function NoteScreen() {
 
   useEffect(() => { fetchNote(); }, [fetchNote]);
 
+  // ── Editor ready ───────────────────────────────────────────────────────────
   useEffect(() => {
     const state = editor.getEditorState() as any;
     if (state && state.isReady) {
       setEditorReady(true);
       return;
     }
-
-    return editor._subscribeToEditorStateUpdate((updatedState: any) => {
-      if (updatedState && updatedState.isReady) {
-        setEditorReady(true);
-      }
+    return editor._subscribeToEditorStateUpdate((updated: any) => {
+      if (updated && updated.isReady) setEditorReady(true);
     });
   }, [editor]);
 
+  // ── Collab wiring ──────────────────────────────────────────────────────────
+
+  // 1) init once: editor ready + note loaded
   useEffect(() => {
-    if (!note || !editorReady || hasSetInitialContentRef.current) return;
+    if (initSentRef.current || !editorReady || !note) return;
+    initSentRef.current = true;
+    collab.collabInit({ noteId, initialContent: note.content });
+    setCollabReady(true);
+  }, [editorReady, note, noteId]);
 
-    const htmlSeed = tiptapJsonToHtml(note.content);
-
-    const isContentEmpty = !note.content ||
-      (typeof note.content === 'object' &&
-        Array.isArray(note.content?.content) &&
-        note.content.content.length === 0) ||
-      (typeof note.content === 'string' && note.content.trim() === '');
-
-    editor.setContent(htmlSeed);
-    hasSetInitialContentRef.current = true;
-    setIsEmpty(isContentEmpty);
-    editor.setEditable(canEdit);
-    if (canEdit) autosaveArmedRef.current = true;
-  }, [note, editor, canEdit, editorReady]);
+  // 2) push room state (join status / permission / peers / identity) into the WebView
+  useEffect(() => {
+    if (!collabReady) return;
+    const first = (room.currentUser?.displayName ?? '').trim().split(/\s+/)[0] || 'User';
+    collab.collabRoom({
+      status: room.status,
+      canEdit,
+      peerCount: room.others.length,
+      user: { name: first, color: userColor },
+    });
+  }, [collabReady, room.status, canEdit, room.others.length, room.currentUser?.displayName]);
 
   useEffect(() => {
-    if (!autosaveArmedRef.current) return;
-    if (!htmlContent) return;
-    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
-      setIsEmpty(false);
-    }
-    void persistContent(htmlContent);
-  }, [htmlContent, isEmpty]);
+    if (room.status === 'joined') setEverJoined(true);
+  }, [room.status]);
 
-  const persistContent = useCallback(async (content: string) => {
-    if (!canEdit || !token || !noteId) return;
-    if (!autosaveArmedRef.current) return;
-    if (content === lastSavedRef.current) return;
+  // 3) save as Tiptap JSON (same format as web), with a fresh token each time
+  const persistContent = useCallback(async (json: any) => {
+    if (!canEditRef.current || !armedRef.current || !noteId) return;
+    const serialized = JSON.stringify(json ?? null);
+    if (serialized === lastSavedRef.current) return;
     if (inFlightRef.current) {
-      hasPendingRef.current = true;
-      pendingContentRef.current = content;
+      pendingRef.current = json;
       return;
     }
     inFlightRef.current = true;
     setSaveStatus('saving');
     try {
-      await updateNote(token, noteId, { content });
-      lastSavedRef.current = content;
+      const t = await getValidAccessToken();
+      if (!t) throw new Error('no token');
+      await updateNote(t, noteId, { content: json });
+      lastSavedRef.current = serialized;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1200);
     } catch {
       setSaveStatus('error');
     } finally {
       inFlightRef.current = false;
-      if (hasPendingRef.current) {
-        hasPendingRef.current = false;
-        const pending = pendingContentRef.current;
-        pendingContentRef.current = '';
-        await persistContent(pending);
+      if (pendingRef.current) {
+        const next = pendingRef.current;
+        pendingRef.current = null;
+        void persistContent(next);
       }
     }
-  }, [canEdit, token, noteId]);
+  }, [noteId]);
+
+  // 4) messages coming back from the WebView
+  useEffect(() => {
+    const listener = (type: string, payload: any) => {
+      if (type === 'armed') armedRef.current = true;
+      else if (type === 'history') setHistory(payload);
+      else if (type === 'content') {
+        latestJsonRef.current = payload;
+        setLiveContent(payload);
+        void persistContent(payload);
+      }
+    };
+    collabListeners.add(listener);
+    return () => { collabListeners.delete(listener); };
+  }, [persistContent]);
 
   const flushPendingSave = useCallback(async () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
+    if (!armedRef.current) return;
+    collab.collabFlush(); // ask the WebView for the latest JSON now
+    await new Promise((r) => setTimeout(r, 150));
+    if (latestJsonRef.current) await persistContent(latestJsonRef.current);
+    for (let i = 0; i < 100 && (inFlightRef.current || pendingRef.current); i++) {
+      await new Promise((r) => setTimeout(r, 20));
     }
-    if (autosaveArmedRef.current && token && noteId && canEdit) {
-      try {
-        const latestHtml = await editor.getHTML();
-        await persistContent(latestHtml);
-      } catch {
-        // ignore
-      }
-    }
-  }, [editor, token, noteId, canEdit, persistContent]);
+  }, [editor, persistContent]);
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        void flushPendingSave();
-      }
+    const sub = AppState.addEventListener('change', (s: AppStateStatus) => {
+      if (s === 'background' || s === 'inactive') void flushPendingSave();
+      if (s === 'active' && !socket.connected) socket.connect(); // useNoteRoom re-joins on 'connect'
     });
     return () => sub.remove();
   }, [flushPendingSave]);
@@ -365,6 +345,7 @@ export function NoteScreen() {
     return () => { void flushPendingSave(); };
   }, [flushPendingSave]);
 
+  // ── Title / archive / checkpoint / restore ─────────────────────────────────
   function startEditTitle() {
     if (!isOwner) return;
     setEditingTitle(true);
@@ -377,7 +358,7 @@ export function NoteScreen() {
     if (trimmed === note?.title || !token) return;
     try {
       await updateNote(token, noteId, { title: trimmed });
-      setNote((prev) => prev ? { ...prev, title: trimmed } : prev);
+      setNote((prev) => (prev ? { ...prev, title: trimmed } : prev));
     } catch {
       setTitleDraft(note?.title ?? '');
     }
@@ -389,7 +370,7 @@ export function NoteScreen() {
     try {
       setArchiving(true);
       await updateNote(token, noteId, { status: nextStatus });
-      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev);
+      setNote((prev) => (prev ? { ...prev, status: nextStatus } : prev));
     } catch {
       // silently fail
     } finally {
@@ -401,22 +382,28 @@ export function NoteScreen() {
     if (!token) return;
     try {
       setSavingCheckpoint(true);
-      await flushPendingSave();
+      await flushPendingSave(); // the server snapshots note.content, so save first
       await createCheckpoint(token, noteId);
     } finally {
       setSavingCheckpoint(false);
     }
   };
 
+  // Only the user who restored applies it; everyone else receives it through Yjs.
   const handleRestored = useCallback(async () => {
-    hasSetInitialContentRef.current = false;
-    autosaveArmedRef.current = false;
     setShowVersionHistory(false);
-    await fetchNote();
-  }, [fetchNote]);
+    const fresh = await fetchNote();
+    if (fresh) {
+      setLiveContent(null);
+      latestJsonRef.current = null;
+      lastSavedRef.current = JSON.stringify(fresh.content ?? null);
+      collab.collabReplace(fresh.content);
+    }
+  }, [fetchNote, editor]);
 
   const isMidnight = tokens.name === 'midnight';
 
+  // ── Early returns ──────────────────────────────────────────────────────────
   if (loadingNote) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
@@ -438,6 +425,22 @@ export function NoteScreen() {
     );
   }
 
+  if (room.status === 'denied') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
+        <FileText size={40} color={tokens.muted} strokeWidth={1.3} />
+        <Text style={{ fontSize: 15, color: tokens.muted }}>You don't have access to this note.</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>← Back to notes</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const onlineCount = room.status === 'joined' ? room.others.length + 1 : 0;
+  const othersOnline = room.others.length;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: tokens.surface }}
@@ -449,7 +452,6 @@ export function NoteScreen() {
 
       {/* Header wrapper */}
       <View style={{ paddingTop: insets.top, backgroundColor: tokens.surface }}>
-        {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.border, gap: 8, backgroundColor: tokens.surface }}>
           {/* Back */}
           <TouchableOpacity
@@ -479,18 +481,13 @@ export function NoteScreen() {
               />
             ) : (
               <Pressable onPress={startEditTitle}>
-                <Text
-                  style={{ fontSize: 16, fontWeight: '700', color: tokens.text }}
-                  numberOfLines={1}
-                >
+                <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }} numberOfLines={1}>
                   {note.title || 'Untitled document'}
                 </Text>
               </Pressable>
             )}
             <View style={{ alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: noteRoleBg }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: noteRoleColor }}>
-                {noteRoleLabel}
-              </Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: noteRoleColor }}>{noteRoleLabel}</Text>
             </View>
           </View>
 
@@ -564,7 +561,7 @@ export function NoteScreen() {
           </View>
         </View>
 
-        {/* Archive Banner */}
+        {/* Archive banner */}
         {isArchived && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
             <Archive size={13} color={tokens.accent} />
@@ -578,9 +575,20 @@ export function NoteScreen() {
             )}
           </View>
         )}
+
+        {/* Connection banner */}
+        {collabReady && room.status !== 'joined' && (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 6, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.accent }}>
+              {everJoined
+                ? "Connection lost, reconnecting… your edits will sync when you're back."
+                : 'Joining note…'}
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Editor Area */}
+      {/* Editor area */}
       <View style={{ flex: 1 }}>
         <RichText editor={editor} style={{ flex: 1 }} />
         {isEmpty && canEdit && !isArchived && (
@@ -588,9 +596,7 @@ export function NoteScreen() {
             style={{ position: 'absolute', left: 0, right: 0, top: 0, paddingTop: 16, paddingHorizontal: 24 }}
             pointerEvents="none"
           >
-            <Text style={{ fontSize: 15, color: tokens.muted }}>
-              Start writing your note…
-            </Text>
+            <Text style={{ fontSize: 15, color: tokens.muted }}>Start writing your note…</Text>
           </View>
         )}
       </View>
@@ -601,10 +607,14 @@ export function NoteScreen() {
           bottomInset={insets.bottom}
           noteId={noteId}
           token={token}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          onUndo={() => collab.collabUndo()}
+          onRedo={() => collab.collabRedo()}
         />
       )}
 
-      {/* Modals and Side Panels */}
+      {/* Modals and side panels */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -641,6 +651,7 @@ export function NoteScreen() {
   );
 }
 
+// ─── Keep PresenceIndicator and SaveIndicator exactly as they are ────────────
 // ─── Presence Indicator ──────────────────────────────────────────────────────
 
 interface PresenceIndicatorProps {
