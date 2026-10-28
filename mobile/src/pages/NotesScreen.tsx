@@ -53,6 +53,13 @@ import { CollabNativeBridge, collabListeners } from '../editor/CollabNativeBridg
 import { useNoteRoom } from '../hooks/UseNoteRoom';
 import { useCollabRelay } from '../hooks/UseCollabRelay';
 
+const baseBridges = (TenTapStartKit as any[]).filter((b) => b !== HistoryBridge)
+const NOTE_BRIDGES = [
+  ...baseBridges,
+  ...(baseBridges.includes(ImageBridge) ? [] : [ImageBridge]),
+  CollabNativeBridge,
+]
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -157,11 +164,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     avoidIosKeyboard: true,
     editable: false,
     // Must mirror the list in editor-web/src/App.tsx
-    bridgeExtensions: [
-      ...TenTapStartKit.filter((b: any) => b !== HistoryBridge),
-      ImageBridge,
-      CollabNativeBridge,
-    ],
+    bridgeExtensions: NOTE_BRIDGES, 
   });
   const collab = editor as any;
 
