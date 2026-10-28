@@ -16,11 +16,19 @@ export class UpdateNoteUseCase {
     @Inject('NoteLLMService') private readonly noteLLMService: NoteLLMService,
   ) {}
 
+  
+
   async execute(
     noteId: string,
     actorId: string,
     contentJson: any,
   ): Promise<void> {
+
+    if (!contentJson || typeof contentJson !== 'object' || contentJson.type !== 'doc') 
+    {
+    throw new Error('Note content must be a Tiptap JSON document')
+    }
+    
     // Validate content size
     const contentSize = JSON.stringify(contentJson).length
     if (contentSize > MAX_NOTE_CONTENT_SIZE_BYTES) {
