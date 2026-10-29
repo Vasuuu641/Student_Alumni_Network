@@ -135,7 +135,7 @@ export function createCollab(editor: any, post: Post) {
 
   return {
     init(p: { noteId: string; initialContent: unknown }) {
-      if (sock) return
+      if (sock) { post('inited', true); return }
       initialContent = p.initialContent
       restHadContent = hasContent(initialContent)
       sock = new BridgeSocket((ev, payload) => {
@@ -149,6 +149,7 @@ export function createCollab(editor: any, post: Post) {
         room.user,
         awareness,
       )
+      post('inited', true)
     },
 
     setRoom(next: RoomInfo) {

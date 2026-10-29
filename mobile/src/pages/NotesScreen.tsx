@@ -275,13 +275,29 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   // ── Collab wiring ──────────────────────────────────────────────────────────
 
-  // 1) init once: editor ready + note loaded
+  // 1) init: keep sending until the WebView acknowledges ('inited').
+  //    TenTap drops messages sent before the WebView bridge is listening,
+  //    so a single fire-and-forget init can be lost.
   useEffect(() => {
-    if (initSentRef.current || !editorReady || !note) return;
-    initSentRef.current = true;
-    collab.collabInit({ noteId, initialContent: note.content });
-    setCollabReady(true);
-  }, [editorReady, note, noteId]);
+    if (initSentRef.current || !note) return;
+    let done = false;
+    const onAck = (type: string, msg: any) => {
+      if (type !== 'inited' || msg?.noteId !== noteId || done) return;
+      done = true;
+      initSentRef.current = true;
+      setCollabReady(true);
+    };
+    collabListeners.add(onAck);
+    const send = () => {
+      if (!done) collab.collabInit({ noteId, initialContent: note.content });
+    };
+    send();
+    const timer = setInterval(send, 500);
+    return () => {
+      clearInterval(timer);
+      collabListeners.delete(onAck);
+    };
+  }, [note, noteId]);
 
   // 2) push room state (join status / permission / peers / identity) into the WebView.
   //    peerCount includes my own other devices (so the seed rule matches web).
