@@ -295,6 +295,11 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   }, [collabReady, room.status, canEdit, room.peerCount, room.currentUser?.displayName]);
 
   useEffect(() => {
+  if (!collabReady) return;
+  try { editor.setEditable(canEdit); } catch (e) { console.warn('[setEditable]', e); }
+}, [collabReady, canEdit, room.status]);
+
+  useEffect(() => {
     if (room.status === 'joined') setEverJoined(true);
   }, [room.status]);
 
@@ -350,6 +355,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
         setLiveContent(payload.json);
         void persistContent(payload.json, payload.cleared);
       }
+      else if (type === 'error') console.warn('[WEBVIEW ERROR]', payload);
     };
     collabListeners.add(listener);
     return () => { collabListeners.delete(listener); };
@@ -632,7 +638,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
       {/* TEMPORARY debug line: delete once everything works */}
       <Text style={{ fontSize: 10, padding: 4, color: '#c00' }}>
-        {`DBG ed=${editorReady} collab=${collabReady} room=${room.status} role=${room.role} canEdit=${room.canEdit} sock=${socket.connected} empty=${isEmpty} peers=${room.peerCount}`}
+        {`DBG ed=${editorReady} collab=${collabReady} room=${room.status} role=${room.role} canEdit=${room.canEdit} sock=${socket.connected} empty=${isEmpty} peers=${room.peerCount} failed=${loadFailed}`}
       </Text>
 
       {/* Editor area (the editor draws its own placeholder) */}

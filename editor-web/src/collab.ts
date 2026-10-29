@@ -13,6 +13,7 @@ export interface RoomInfo {
   canEdit: boolean
   peerCount: number
   user: { name: string; color: string }
+  blocked?: boolean
 }
 
 // Stands in for socket.io's Socket: NotesYProvider only uses on / off / emit.
@@ -31,6 +32,7 @@ class BridgeSocket {
 }
 
 export function createCollab(editor: any, post: Post) {
+  ;(window as any).__editor = editor   
   let room: RoomInfo = {
     status: 'connecting', canEdit: false, peerCount: 0,
     user: { name: 'Connecting…', color: '#999999' },
@@ -89,7 +91,11 @@ export function createCollab(editor: any, post: Post) {
     setRoom(next: RoomInfo) {
       const prev = room
       room = next
-      editor.setEditable(next.canEdit)
+      try {
+        editor.setEditable(next.canEdit && !next.blocked)
+      } catch (e: any) {
+        post('error', String(e?.stack || e))
+      }
       if (prev.user.name !== next.user.name || prev.user.color !== next.user.color) {
         provider?.setUser(next.user)
       }
