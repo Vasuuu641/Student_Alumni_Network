@@ -26,15 +26,18 @@ const CollabEditorExtensions = Extension.create({
 })
 
 let collab: ReturnType<typeof createCollab> | null = null
+let currentNoteId = ''
 
 export const CollabWebBridge = new BridgeExtension<any, any, any>({
   forceName: 'collab',
   tiptapExtension: CollabEditorExtensions,
   onBridgeMessage: (editor: any, message: any, sendMessageBack: any) => {
-    const post = (type: string, payload?: unknown) =>
-      sendMessageBack({ type: `collab-${type}`, payload })
+    // Every message back to React Native says which note it belongs to.
+    const post = (type: string, data?: unknown) =>
+      sendMessageBack({ type: `collab-${type}`, payload: { noteId: currentNoteId, data } })
     switch (message.type) {
       case 'collab-init':
+        currentNoteId = message.payload.noteId
         collab ??= createCollab(editor, post)
         collab.init(message.payload)
         return true

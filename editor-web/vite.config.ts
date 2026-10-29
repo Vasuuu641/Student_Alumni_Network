@@ -13,4 +13,5 @@ export default defineConfig({
     ],
   },
   build: { outDir: 'build' },
+  define: { __BUILD__: JSON.stringify(new Date().toISOString()) },
 })
