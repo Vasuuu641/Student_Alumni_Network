@@ -8,14 +8,15 @@
   },
   "dependencies": {
     "@10play/tentap-editor": "1.0.1",
-    "@tiptap/core": "^2.27.2",
-    "@tiptap/extension-collaboration": "^2.27.2",
-    "@tiptap/extension-collaboration-cursor": "^2.26.2",
-    "@tiptap/extension-font-family": "^2.27.2",
-    "@tiptap/extension-text-align": "^2.27.2",
-    "@tiptap/extension-text-style": "^2.27.2",
-    "@tiptap/pm": "^2.27.2",
-    "@tiptap/react": "^2.27.2",
+    "@tiptap/core": "^3.32.1",
+    "@tiptap/extension-collaboration": "^3.32.1",
+    "@tiptap/extension-collaboration-caret": "^3.32.1",
+    "@tiptap/extension-font-family": "^3.32.1",
+    "@tiptap/extension-text-align": "^3.32.1",
+    "@tiptap/extension-text-style": "^3.32.1",
+    "@tiptap/pm": "^3.32.1",
+    "@tiptap/react": "^3.32.1",
+    "@tiptap/y-tiptap": "^3.0.11",
     "lib0": "^0.2.117",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -31,9 +32,5 @@
     "typescript": "^5.7.3",
     "vite": "^6.0.5",
     "vite-plugin-singlefile": "^2.0.0"
-  },
-  "overrides": {
-    "@tiptap/core": "^2.27.2",
-    "@tiptap/pm": "^2.27.2"
   }
 }

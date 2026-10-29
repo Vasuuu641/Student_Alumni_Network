@@ -1,7 +1,7 @@
 import { BridgeExtension } from '@10play/tentap-editor/web'
 import { Extension } from '@tiptap/core'
 import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import TextAlign from '@tiptap/extension-text-align'
 import FontFamily from '@tiptap/extension-font-family'
 import { PageSection } from './extensions/PageSection'
@@ -13,7 +13,7 @@ const CollabEditorExtensions = Extension.create({
   addExtensions() {
     return [
       Collaboration.configure({ document: ydoc }),
-      CollaborationCursor.configure({
+      CollaborationCaret.configure({
         provider: { awareness } as any,
         user: { name: 'Connecting…', color: '#999999' },
       }),
@@ -54,10 +54,10 @@ export const CollabWebBridge = new BridgeExtension<any, any, any>({
         collab?.flush()
         return true
       case 'collab-undo':
-        editor.commands.undo()
+        editor.commands.undo?.()
         return true
       case 'collab-redo':
-        editor.commands.redo()
+        editor.commands.redo?.()
         return true
     }
     return false

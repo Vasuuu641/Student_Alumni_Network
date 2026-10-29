@@ -166,7 +166,9 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const [editorReady, setEditorReady] = useState(false);
   const [collabReady, setCollabReady] = useState(false);
   const [everJoined, setEverJoined] = useState(false);
-  const [liveContent, setLiveContent] = useState<any>(null);
+  // Latest JSON lives in latestJsonRef; state only holds the plain text so
+  // identical content doesn't re-render the screen (and the WebView).
+  const [liveText, setLiveText] = useState<string | null>(null);
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
 
   const editor = useEditorBridge({
@@ -193,8 +195,8 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   useCollabRelay(editor, noteId, collabReady);
 
   const plainTextContent = useMemo(
-    () => jsonToPlainText(liveContent ?? note?.content).trim(),
-    [liveContent, note?.content],
+    () => liveText ?? jsonToPlainText(note?.content).trim(),
+    [liveText, note?.content],
   );
   const isEmpty = plainTextContent.length === 0;
 
@@ -217,7 +219,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     token,
     noteContent: plainTextContent,
     title: note?.title ?? '',
-    contentJson: liveContent ?? note?.content ?? null,
+    contentJson: (liveText !== null ? latestJsonRef.current?.json : null) ?? note?.content ?? null,
     enabled: showAIInsights,
   });
 
@@ -298,12 +300,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   if (!collabReady) return;
   try {
     editor.setEditable(canEdit);
-    if (canEdit) {
-      // Give the WebView time to flip into editable mode before focusing.
-      // Without this the cursor never appears; toolbar buttons only worked as
-      // a fluke because Tiptap commands call editor.view.focus() internally.
-      setTimeout(() => { try { editor.focus(); } catch {} }, 100);
-    }
+    if (canEdit) setTimeout(() => { try { (editor as any).focus(); } catch {} }, 150);
   } catch (e) { console.warn('[setEditable]', e); }
 }, [collabReady, canEdit, room.status]);
 
@@ -360,12 +357,15 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
       const payload = msg.data;
       if (type === 'armed') armedRef.current = true;
       else if (type === 'load-failed') { armedRef.current = false; setLoadFailed(true); }
-      else if (type === 'history') setHistory(payload);
+      else if (type === 'history') setHistory((prev) =>
+        prev.canUndo === !!payload?.canUndo && prev.canRedo === !!payload?.canRedo
+          ? prev
+          : { canUndo: !!payload?.canUndo, canRedo: !!payload?.canRedo });
       else if (type === 'content') {
         // payload is { json: TiptapJSON, cleared: boolean }
         const contentData = payload as { json: any; cleared?: boolean };
         latestJsonRef.current = contentData;
-        setLiveContent(contentData.json);
+        setLiveText(jsonToPlainText(contentData.json).trim());
         void persistContent(contentData.json, contentData.cleared ?? false);
       }
       else if (type === 'error') console.warn('[WEBVIEW ERROR]', payload);
@@ -446,7 +446,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     setShowVersionHistory(false);
     const fresh = await fetchNote();
     if (fresh) {
-      setLiveContent(null);
+      setLiveText(null);
       latestJsonRef.current = null;
       lastSavedRef.current = JSON.stringify(fresh.content ?? null);
       collab.collabReplace(fresh.content);
