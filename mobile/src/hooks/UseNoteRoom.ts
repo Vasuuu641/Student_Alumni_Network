@@ -15,7 +15,8 @@ interface RoomState {
   role: NoteRole | null
   canEdit: boolean
   currentUser: { userId: string; displayName: string; email: string | null } | null
-  others: PresenceUser[]
+  others: PresenceUser[]   // display only: excludes me
+  peerCount: number        // seed decision: includes my other devices
 }
 
 const INITIAL: RoomState = {
@@ -24,6 +25,7 @@ const INITIAL: RoomState = {
   canEdit: false,
   currentUser: null,
   others: [],
+  peerCount: 0,
 }
 
 export function useNoteRoom(noteId: string, enabled = true) {
@@ -60,40 +62,42 @@ export function useNoteRoom(noteId: string, enabled = true) {
       setState((p) => ({
         ...p,
         others: d.users.filter((u) => u.userId !== p.currentUser?.userId),
+        peerCount: d.users.length,
       }))
     }
 
     const onPresence = (d: any) => {
       if (!active) return
       setState((p) => {
-        if (d.userId === p.currentUser?.userId) return p
+        const peerCount = Math.max(0, p.peerCount + (d.event === 'user-joined' ? 1 : -1))
+        if (d.userId === p.currentUser?.userId) return { ...p, peerCount }
         if (d.event === 'user-joined') {
-          if (p.others.some((u) => u.userId === d.userId)) return p
+          if (p.others.some((u) => u.userId === d.userId)) return { ...p, peerCount }
           return {
             ...p,
+            peerCount,
             others: [
               ...p.others,
               { userId: d.userId, role: d.role, email: d.email, displayName: d.displayName },
             ],
           }
         }
-        return { ...p, others: p.others.filter((u) => u.userId !== d.userId) }
+        return { ...p, peerCount, others: p.others.filter((u) => u.userId !== d.userId) }
       })
     }
 
     const onError = (d: { message?: string }) => {
       if (!active) return
       const m = d?.message ?? ''
-      if (m.includes('Join the note room first')) return join() // membership lost
+      if (m.includes('Join the note room first')) return join()
       if (m.includes('Unauthorized') && !retried) {
-        retried = true // gateway's handleConnection race
+        retried = true
         setTimeout(join, 400)
         return
       }
       if (m.includes('Access denied') || m.includes('Unauthorized')) {
         setState({ ...INITIAL, status: 'denied' })
       }
-      // other errors (e.g. "viewers cannot edit") are not fatal on mobile
     }
 
     const onConnectError = (e: Error) => {
@@ -102,9 +106,8 @@ export function useNoteRoom(noteId: string, enabled = true) {
       setState({ ...INITIAL, status: denied ? 'denied' : 'error' })
     }
 
-    // Keep role/canEdit while offline so typing continues; Yjs merges on rejoin.
     const onDisconnect = () => {
-      if (active) setState((p) => ({ ...p, status: 'connecting', others: [] }))
+      if (active) setState((p) => ({ ...p, status: 'connecting', others: [], peerCount: 0 }))
     }
 
     socket.on('notes:joined', onJoined)
@@ -113,7 +116,7 @@ export function useNoteRoom(noteId: string, enabled = true) {
     socket.on('error', onError)
     socket.on('connect_error', onConnectError)
     socket.on('disconnect', onDisconnect)
-    socket.on('connect', join) // first connect AND every reconnect (new socket id = no rooms)
+    socket.on('connect', join)
 
     if (socket.connected) join()
     else socket.connect()
@@ -127,7 +130,7 @@ export function useNoteRoom(noteId: string, enabled = true) {
       socket.off('error', onError)
       socket.off('connect_error', onConnectError)
       socket.off('disconnect', onDisconnect)
-      socket.off('connect', join) // named, so other listeners survive
+      socket.off('connect', join)
     }
   }, [noteId, enabled])
 

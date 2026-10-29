@@ -26,10 +26,11 @@ export function useCollabRelay(editor: any, noteId: string, enabled: boolean) {
 
     const fromWebView = (type: string, msg: any) => {
       if (type !== 'socket-emit') return
-      if (!RELAYED.includes(msg?.ev) || msg.payload?.noteId !== noteId) return
-      if (socket.connected) socket.emit(msg.ev, msg.payload) // never buffer stale CRDT traffic
+      if (msg?.noteId !== noteId) return                    // ignore other notes' editors
+      const { ev, payload } = msg.data ?? {}
+      if (!RELAYED.includes(ev) || payload?.noteId !== noteId) return
+      if (socket.connected) socket.emit(ev, payload)
     }
-    collabListeners.add(fromWebView)
 
     return () => {
       subs.forEach(([ev, h]) => socket.off(ev, h))
