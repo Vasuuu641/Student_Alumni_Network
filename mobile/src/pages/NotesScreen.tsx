@@ -296,7 +296,15 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   useEffect(() => {
   if (!collabReady) return;
-  try { editor.setEditable(canEdit); } catch (e) { console.warn('[setEditable]', e); }
+  try {
+    editor.setEditable(canEdit);
+    if (canEdit) {
+      // Give the WebView time to flip into editable mode before focusing.
+      // Without this the cursor never appears; toolbar buttons only worked as
+      // a fluke because Tiptap commands call editor.view.focus() internally.
+      setTimeout(() => { try { editor.focus(); } catch {} }, 100);
+    }
+  } catch (e) { console.warn('[setEditable]', e); }
 }, [collabReady, canEdit, room.status]);
 
   useEffect(() => {
@@ -343,17 +351,22 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   }, [noteId]);
 
   // 4) messages coming back from the WebView (each is tagged with its note id)
+  //    CollabWebBridge wraps every post() as { noteId, data: <original payload> },
+  //    so the 'content' data arrives at msg.data = { json, cleared }.
   useEffect(() => {
     const listener = (type: string, msg: any) => {
       if (msg?.noteId !== noteId) return; // ignore other notes' editors
+      // msg.data is the raw value passed to post() inside collab.ts / CollabWebBridge
       const payload = msg.data;
       if (type === 'armed') armedRef.current = true;
       else if (type === 'load-failed') { armedRef.current = false; setLoadFailed(true); }
       else if (type === 'history') setHistory(payload);
       else if (type === 'content') {
-        latestJsonRef.current = payload;
-        setLiveContent(payload.json);
-        void persistContent(payload.json, payload.cleared);
+        // payload is { json: TiptapJSON, cleared: boolean }
+        const contentData = payload as { json: any; cleared?: boolean };
+        latestJsonRef.current = contentData;
+        setLiveContent(contentData.json);
+        void persistContent(contentData.json, contentData.cleared ?? false);
       }
       else if (type === 'error') console.warn('[WEBVIEW ERROR]', payload);
     };

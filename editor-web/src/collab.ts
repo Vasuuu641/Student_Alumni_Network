@@ -3,6 +3,9 @@ import * as awarenessProtocol from 'y-protocols/awareness'
 import type { Socket } from 'socket.io-client'
 import { NotesYProvider } from './notes-y-provider'
 
+// These are module-level singletons tied to this WebView's lifetime.
+// The NoteScreen component uses key={noteId} which forces a full WebView remount
+// on each note navigation, so each note gets a completely fresh JS context here.
 export const ydoc = new Y.Doc()
 export const awareness = new awarenessProtocol.Awareness(ydoc)
 
@@ -32,7 +35,7 @@ class BridgeSocket {
 }
 
 export function createCollab(editor: any, post: Post) {
-  ;(window as any).__editor = editor   
+  ;(window as any).__editor = editor
   let room: RoomInfo = {
     status: 'connecting', canEdit: false, peerCount: 0,
     user: { name: 'Connecting…', color: '#999999' },
@@ -46,14 +49,18 @@ export function createCollab(editor: any, post: Post) {
   let contentTimer: ReturnType<typeof setTimeout> | undefined
   let lastHistory = ''
 
-  const sendContent = () => { clearTimeout(contentTimer); post('content', editor.getJSON()) }
+  // Post { json, cleared } so NotesScreen.tsx can read payload.data.json / payload.data.cleared.
+  const sendContent = (cleared = false) => {
+    clearTimeout(contentTimer)
+    post('content', { json: editor.getJSON(), cleared })
+  }
 
   // Fires for local AND remote (Yjs) changes, same as web's onUpdate.
   // Tiptap v2's setContent doesn't emit 'update' by default, so seeding/restoring never re-saves.
   editor.on('update', () => {
     if (!armed) return
     clearTimeout(contentTimer)
-    contentTimer = setTimeout(sendContent, 500)
+    contentTimer = setTimeout(() => sendContent(false), 500)
   })
 
   editor.on('transaction', () => {
@@ -109,7 +116,7 @@ export function createCollab(editor: any, post: Post) {
 
     socketEvent(ev: string, payload: unknown) { sock?.dispatch(ev, payload) },
     replace(json: unknown) { editor.commands.setContent(json as any) },   // version restore (actor only)
-    flush() { if (armed) sendContent() },
+    flush() { if (armed) sendContent(false) },
     destroy() { clearTimeout(contentTimer); provider?.destroy() },
   }
 }

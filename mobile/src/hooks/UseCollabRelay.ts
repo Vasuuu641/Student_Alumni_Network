@@ -32,6 +32,8 @@ export function useCollabRelay(editor: any, noteId: string, enabled: boolean) {
       if (socket.connected) socket.emit(ev, payload)
     }
 
+    collabListeners.add(fromWebView)   // ← was missing: forward WebView→socket events
+
     return () => {
       subs.forEach(([ev, h]) => socket.off(ev, h))
       collabListeners.delete(fromWebView)
