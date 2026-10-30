@@ -1,5 +1,8 @@
 import { BridgeExtension } from '@10play/tentap-editor/web'
 import { Extension } from '@tiptap/core'
+import Document from '@tiptap/extension-document'
+import Paragraph from '@tiptap/extension-paragraph'
+import Text from '@tiptap/extension-text'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import TextAlign from '@tiptap/extension-text-align'
@@ -12,6 +15,9 @@ const CollabEditorExtensions = Extension.create({
   name: 'collab',
   addExtensions() {
     return [
+      Document,
+      Paragraph,
+      Text,
       Collaboration.configure({ document: ydoc }),
       CollaborationCaret.configure({
         provider: { awareness } as any,

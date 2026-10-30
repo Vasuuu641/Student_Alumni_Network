@@ -53,10 +53,8 @@ import { CollabNativeBridge, collabListeners } from '../editor/CollabNativeBridg
 import { useNoteRoom } from '../hooks/UseNoteRoom';
 import { useCollabRelay } from '../hooks/UseCollabRelay';
 
-// ─── Bridges ───────────────────────────────────────────────────────────────
-const baseBridges = (TenTapStartKit as any[]).filter(
-  (b) => b !== HistoryBridge && b.name !== 'textStyle' && b.name !== 'listItem'
-);
+// ─── Bridges (Filter only HistoryBridge, exactly like web App.tsx) ──────────
+const baseBridges = (TenTapStartKit as any[]).filter((b) => b !== HistoryBridge);
 const NOTE_BRIDGES = [
   ...baseBridges,
   ...(baseBridges.includes(ImageBridge) ? [] : [ImageBridge]),
@@ -161,12 +159,12 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
   const [webInfo, setWebInfo] = useState<any>(null);
 
+  // Removed initialContent from here so collab.ts handles seeding exclusively
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
-    initialContent: note?.content,
     bridgeExtensions: NOTE_BRIDGES,
   });
   const collab = editor as any;

@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from 'vite-plugin-singlefile'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   resolve: {
+    alias: {
+       '@10play/tentap-editor/web': path.resolve(
+         __dirname,
+         'node_modules/@10play/tentap-editor/lib/module/webEditorUtils/index.js',
+       ),
+     },
     dedupe: [
       'react', 'react-dom',
       '@tiptap/core', '@tiptap/pm', '@tiptap/react',
