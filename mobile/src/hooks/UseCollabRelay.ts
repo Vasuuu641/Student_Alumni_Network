@@ -26,12 +26,15 @@ export function useCollabRelay(editor: any, noteId: string, enabled: boolean) {
 
     const fromWebView = (type: string, msg: any) => {
       if (type !== 'socket-emit') return
-      if (msg?.noteId !== noteId) return
+      if (msg?.noteId && msg.noteId !== noteId) return
       const { ev, payload } = msg.data ?? {}
-      if (!RELAYED.includes(ev) || payload?.noteId !== noteId) return
-      if (socket.connected) socket.emit(ev, payload)
+      if (!RELAYED.includes(ev)) return
+      if (socket.connected) {
+        socket.emit(ev, payload)
+      }
     }
-    collabListeners.add(fromWebView)   // <- the line that was missing
+
+    collabListeners.add(fromWebView)
 
     return () => {
       subs.forEach(([ev, h]) => socket.off(ev, h))

@@ -48,7 +48,14 @@ function hasContent(n: any): boolean {
 }
 
 export function createCollab(editor: any, post: Post) {
-  ;(window as any).__editor = editor // TEMPORARY debug handle for chrome://inspect
+  ;(window as any).__editor = editor // debug handle for chrome://inspect
+
+  // Send WebView errors to the React Native console (Metro) instead of
+  // painting them over the editor.
+  window.addEventListener('error', (e) => post('error', e.message))
+  window.addEventListener('unhandledrejection', (e: any) =>
+    post('error', String(e?.reason?.stack ?? e?.reason)),
+  )
 
   let room: RoomInfo = {
     status: 'connecting',
@@ -65,6 +72,10 @@ export function createCollab(editor: any, post: Post) {
   let armed = false
   let blocked = false
   let everHadContent = false
+  // True only when THIS device changed the document (typing, local undo/redo).
+  // Changes that arrive through Yjs from other users never set it, so mobile
+  // can't overwrite the saved note with something it didn't author.
+  let dirty = false
   let contentTimer: ReturnType<typeof setTimeout> | undefined
   let lastHistory = ''
 
@@ -72,16 +83,24 @@ export function createCollab(editor: any, post: Post) {
 
   const sendContent = () => {
     clearTimeout(contentTimer)
-    if (!armed || blocked) return
+    if (!armed || blocked || !dirty) return
     const json = editor.getJSON()
     const has = hasContent(json)
     if (has) everHadContent = true
     if (!has && !everHadContent && restHadContent) return
+    dirty = false
     post('content', { json, cleared: !has && everHadContent })
   }
 
-  editor.on('update', () => {
+  editor.on('update', ({ transaction }: any) => {
     if (!armed || blocked) return
+    // setEditable() also emits 'update' – ignore anything that didn't change the doc.
+    if (!transaction?.docChanged) return
+    // Remote Yjs change (other user / sync)? Not ours to persist.
+    // Local undo/redo also arrives with isChangeOrigin, so let those through.
+    const sync = transaction.getMeta?.('y-sync$')
+    if (sync?.isChangeOrigin && !sync?.isUndoRedoOperation) return
+    dirty = true
     clearTimeout(contentTimer)
     contentTimer = setTimeout(sendContent, 500)
   })
@@ -108,6 +127,14 @@ export function createCollab(editor: any, post: Post) {
     while (!cond() && Date.now() < end) await new Promise((r) => setTimeout(r, 200))
   }
 
+  const focusIfEditable = () => {
+    if (!room.canEdit || blocked) return
+    try {
+      editor.setEditable(true)
+      editor.commands.focus('end')
+    } catch {}
+  }
+
   const seedOnce = () => {
     if (seeded) return
     seeded = true
@@ -122,9 +149,11 @@ export function createCollab(editor: any, post: Post) {
         everHadContent = true
         armed = true
         post('armed', true)
+        focusIfEditable()
       } else if (!restHadContent) {
         armed = true
         post('armed', true)
+        focusIfEditable()
       } else {
         blocked = true
         try { editor.setEditable(false) } catch {}
@@ -149,6 +178,14 @@ export function createCollab(editor: any, post: Post) {
         room.user,
         awareness,
       )
+      // Lets the RN debug line confirm which bundle is running and whether the
+      // collab extensions were actually loaded into the editor.
+      const names: string[] = editor.extensionManager.extensions.map((e: any) => e.name)
+      post('info', {
+        build: (window as any).__BUILD__ ?? 'unknown',
+        collabLoaded: names.includes('collaboration'),
+        pageSectionLoaded: names.includes('pageSection'),
+      })
       post('inited', true)
     },
 
@@ -179,6 +216,9 @@ export function createCollab(editor: any, post: Post) {
     },
     replace(json: unknown) {
       editor.commands.setContent(json as any)
+      // The restore already happened on the server; don't echo it back as a save.
+      clearTimeout(contentTimer)
+      dirty = false
       if (hasContent(json)) everHadContent = true
     },
     flush() {

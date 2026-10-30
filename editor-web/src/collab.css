@@ -30,3 +30,14 @@ img {
   max-width: 100%;
   height: auto;
 }
+
+/* Fill the WebView so tapping anywhere (even in an empty note) focuses the editor */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+.ProseMirror {
+  min-height: 100vh;
+  box-sizing: border-box;
+  outline: none;
+}

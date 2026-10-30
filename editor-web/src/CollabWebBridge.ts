@@ -9,7 +9,7 @@ import { FontSize } from './extensions/FontSize'
 import { ydoc, awareness, createCollab } from './collab'
 
 const CollabEditorExtensions = Extension.create({
-  name: 'collabEditorExtensions',
+  name: 'collab',
   addExtensions() {
     return [
       Collaboration.configure({ document: ydoc }),

@@ -3,20 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <script>
-      function showErr(m) {
-        var b = document.getElementById('__err');
-        if (!b) {
-          b = document.createElement('pre'); b.id = '__err';
-          b.style.cssText = 'position:fixed;left:0;right:0;top:0;max-height:45%;z-index:99999;margin:0;padding:8px;background:#fff;color:#c00;font:11px monospace;white-space:pre-wrap;overflow:auto';
-          document.documentElement.appendChild(b);
-        }
-        b.textContent += m + '\n\n';
-      }
-      window.addEventListener('error', function (e) { showErr(e.message); });
-      window.addEventListener('unhandledrejection', function (e) { showErr(String((e.reason && e.reason.stack) || e.reason)); });
-      var _w = console.warn; console.warn = function () { showErr('WARN ' + [].join.call(arguments, ' ')); _w.apply(console, arguments); };
-    </script>
   </head>
   <body>
     <div id="root"></div>

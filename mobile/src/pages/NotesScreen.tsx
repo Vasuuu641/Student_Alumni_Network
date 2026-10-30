@@ -53,15 +53,15 @@ import { CollabNativeBridge, collabListeners } from '../editor/CollabNativeBridg
 import { useNoteRoom } from '../hooks/UseNoteRoom';
 import { useCollabRelay } from '../hooks/UseCollabRelay';
 
-// ─── Bridges (module level: created once, must mirror editor-web/src/App.tsx) ─
-const baseBridges = (TenTapStartKit as any[]).filter((b) => b !== HistoryBridge);
+// ─── Bridges ───────────────────────────────────────────────────────────────
+const baseBridges = (TenTapStartKit as any[]).filter(
+  (b) => b !== HistoryBridge && b.name !== 'textStyle' && b.name !== 'listItem'
+);
 const NOTE_BRIDGES = [
   ...baseBridges,
   ...(baseBridges.includes(ImageBridge) ? [] : [ImageBridge]),
   CollabNativeBridge,
 ];
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>;
@@ -77,9 +77,6 @@ interface NoteData {
   createdAt?: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// True if a Tiptap JSON doc (or legacy HTML string) holds real content.
 function hasContent(n: any): boolean {
   if (!n) return false;
   if (typeof n === 'string') return /<img/i.test(n) || n.replace(/<[^>]*>/g, '').trim().length > 0;
@@ -97,7 +94,6 @@ function decodeUserId(token: string): string | null {
   }
 }
 
-// Plain text from Tiptap JSON (also tolerates legacy HTML strings).
 function jsonToPlainText(n: any): string {
   if (!n) return '';
   if (typeof n === 'string') return n.replace(/<[^>]*>/g, ' ').trim();
@@ -106,8 +102,6 @@ function jsonToPlainText(n: any): string {
   const block = ['doc', 'bulletList', 'orderedList', 'blockquote', 'pageSection', 'listItem'];
   return parts.join(block.includes(n.type) ? '\n' : '');
 }
-
-// ─── Screen (keyed by noteId so the WebView + Y.Doc reset per note) ──────────
 
 export function NoteScreen() {
   const route = useRoute<NoteRoute>();
@@ -120,7 +114,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -137,7 +130,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   const canAccessNotes = role !== 'ALUMNI';
 
-  // ── Note + UI state ────────────────────────────────────────────────────────
   const [note, setNote] = useState<NoteData | null>(null);
   const [loadingNote, setLoadingNote] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -155,27 +147,26 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const titleInputRef = useRef<TextInput>(null);
 
-  // ── Collab state ───────────────────────────────────────────────────────────
   const lastSavedRef = useRef<string>('');
   const inFlightRef = useRef(false);
   const pendingRef = useRef<any>(null);
   const armedRef = useRef(false);
-  const latestJsonRef = useRef<any>(null); // { json, cleared } from the WebView
+  const latestJsonRef = useRef<any>(null);
   const initSentRef = useRef(false);
 
   const [editorReady, setEditorReady] = useState(false);
   const [collabReady, setCollabReady] = useState(false);
   const [everJoined, setEverJoined] = useState(false);
-  // Latest JSON lives in latestJsonRef; state only holds the plain text so
-  // identical content doesn't re-render the screen (and the WebView).
   const [liveText, setLiveText] = useState<string | null>(null);
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+  const [webInfo, setWebInfo] = useState<any>(null);
 
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
+    initialContent: note?.content,
     bridgeExtensions: NOTE_BRIDGES,
   });
   const collab = editor as any;
@@ -200,13 +191,11 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   );
   const isEmpty = plainTextContent.length === 0;
 
-  // Go back instead of pushing a new Notes screen (avoids stacking old note screens)
   const goToNotes = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('Notes', undefined);
   }, [navigation]);
 
-  // ── AI insights ────────────────────────────────────────────────────────────
   const {
     threads: relatedThreads,
     isLoading: threadsLoading,
@@ -231,14 +220,12 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const noteRoleBg = isOwner ? tokens.primarySoft : tokens.surfaceElevated;
   const noteRoleColor = isOwner ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
 
-  // ── Redirects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authReady) return;
     if (!token) navigation.replace('Login', undefined);
     else if (!canAccessNotes) navigation.replace('Notes', undefined);
   }, [authReady, token, canAccessNotes, navigation]);
 
-  // ── Fetch note ─────────────────────────────────────────────────────────────
   const fetchNote = useCallback(async (): Promise<NoteData | null> => {
     if (!authReady || !noteId || !token) {
       if (authReady) setLoadingNote(false);
@@ -261,7 +248,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   useEffect(() => { fetchNote(); }, [fetchNote]);
 
-  // ── Editor ready ───────────────────────────────────────────────────────────
+  // Track editor readiness
   useEffect(() => {
     const state = editor.getEditorState() as any;
     if (state && state.isReady) {
@@ -273,11 +260,26 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     });
   }, [editor]);
 
-  // ── Collab wiring ──────────────────────────────────────────────────────────
+  // Robust Editability & Cursor Focus Synchronization
+  useEffect(() => {
+    if (!collabReady) return;
+    try {
+      editor.setEditable(canEdit);
+      if (canEdit) {
+        const timer = setTimeout(() => {
+          try {
+            (editor as any).focus?.();
+          } catch (e) {
+            console.warn('[WebView Focus Error]', e);
+          }
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.warn('[setEditable Error]', e);
+    }
+  }, [collabReady, canEdit, editor]);
 
-  // 1) init: keep sending until the WebView acknowledges ('inited').
-  //    TenTap drops messages sent before the WebView bridge is listening,
-  //    so a single fire-and-forget init can be lost.
   useEffect(() => {
     if (initSentRef.current || !note) return;
     let done = false;
@@ -299,8 +301,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     };
   }, [note, noteId]);
 
-  // 2) push room state (join status / permission / peers / identity) into the WebView.
-  //    peerCount includes my own other devices (so the seed rule matches web).
   useEffect(() => {
     if (!collabReady) return;
     const first = (room.currentUser?.displayName ?? '').trim().split(/\s+/)[0] || 'User';
@@ -313,19 +313,9 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   }, [collabReady, room.status, canEdit, room.peerCount, room.currentUser?.displayName]);
 
   useEffect(() => {
-  if (!collabReady) return;
-  try {
-    editor.setEditable(canEdit);
-    if (canEdit) setTimeout(() => { try { (editor as any).focus(); } catch {} }, 150);
-  } catch (e) { console.warn('[setEditable]', e); }
-}, [collabReady, canEdit, room.status]);
-
-  useEffect(() => {
     if (room.status === 'joined') setEverJoined(true);
   }, [room.status]);
 
-  // 3) save as Tiptap JSON (same format as web), with a fresh token each time.
-  //    Never replaces real content with an empty document unless the user cleared it.
   const persistContent = useCallback(async (json: any, cleared = false) => {
     if (!canEditRef.current || !armedRef.current || !noteId) return;
 
@@ -346,7 +336,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     try {
       const t = await getValidAccessToken();
       if (!t) throw new Error('no token');
-      console.log('[SAVE]', noteId, serialized.length, new Date().toISOString());
       await updateNote(t, noteId, { content: json });
       lastSavedRef.current = serialized;
       setSaveStatus('saved');
@@ -363,13 +352,9 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     }
   }, [noteId]);
 
-  // 4) messages coming back from the WebView (each is tagged with its note id)
-  //    CollabWebBridge wraps every post() as { noteId, data: <original payload> },
-  //    so the 'content' data arrives at msg.data = { json, cleared }.
   useEffect(() => {
     const listener = (type: string, msg: any) => {
-      if (msg?.noteId !== noteId) return; // ignore other notes' editors
-      // msg.data is the raw value passed to post() inside collab.ts / CollabWebBridge
+      if (msg?.noteId !== noteId) return;
       const payload = msg.data;
       if (type === 'armed') armedRef.current = true;
       else if (type === 'load-failed') { armedRef.current = false; setLoadFailed(true); }
@@ -378,12 +363,12 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
           ? prev
           : { canUndo: !!payload?.canUndo, canRedo: !!payload?.canRedo });
       else if (type === 'content') {
-        // payload is { json: TiptapJSON, cleared: boolean }
         const contentData = payload as { json: any; cleared?: boolean };
         latestJsonRef.current = contentData;
         setLiveText(jsonToPlainText(contentData.json).trim());
         void persistContent(contentData.json, contentData.cleared ?? false);
       }
+      else if (type === 'info') setWebInfo(payload);
       else if (type === 'error') console.warn('[WEBVIEW ERROR]', payload);
     };
     collabListeners.add(listener);
@@ -392,7 +377,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   const flushPendingSave = useCallback(async () => {
     if (!armedRef.current) return;
-    collab.collabFlush(); // ask the WebView for the latest JSON now
+    collab.collabFlush();
     await new Promise((r) => setTimeout(r, 150));
     const latest = latestJsonRef.current;
     if (latest) await persistContent(latest.json, latest.cleared);
@@ -404,7 +389,7 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s: AppStateStatus) => {
       if (s === 'background' || s === 'inactive') void flushPendingSave();
-      if (s === 'active' && !socket.connected) socket.connect(); // useNoteRoom re-joins on 'connect'
+      if (s === 'active' && !socket.connected) socket.connect();
     });
     return () => sub.remove();
   }, [flushPendingSave]);
@@ -413,7 +398,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     return () => { void flushPendingSave(); };
   }, [flushPendingSave]);
 
-  // ── Title / archive / checkpoint / restore ─────────────────────────────────
   function startEditTitle() {
     if (!isOwner) return;
     setEditingTitle(true);
@@ -450,14 +434,13 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     if (!token) return;
     try {
       setSavingCheckpoint(true);
-      await flushPendingSave(); // the server snapshots note.content, so save first
+      await flushPendingSave();
       await createCheckpoint(token, noteId);
     } finally {
       setSavingCheckpoint(false);
     }
   };
 
-  // Only the user who restored applies it; everyone else receives it through Yjs.
   const handleRestored = useCallback(async () => {
     setShowVersionHistory(false);
     const fresh = await fetchNote();
@@ -471,7 +454,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
 
   const isMidnight = tokens.name === 'midnight';
 
-  // ── Early returns ──────────────────────────────────────────────────────────
   if (loadingNote) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
@@ -508,7 +490,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   const onlineCount = room.status === 'joined' ? room.others.length + 1 : 0;
   const othersOnline = room.others.length;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: tokens.surface }}
@@ -518,10 +499,8 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     >
       <StatusBar style={isMidnight ? 'light' : 'dark'} />
 
-      {/* Header wrapper */}
       <View style={{ paddingTop: insets.top, backgroundColor: tokens.surface }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.border, gap: 8, backgroundColor: tokens.surface }}>
-          {/* Back */}
           <TouchableOpacity
             style={{ padding: 4 }}
             onPress={async () => {
@@ -534,7 +513,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
             <ArrowLeft size={20} color={tokens.text} />
           </TouchableOpacity>
 
-          {/* Title + role */}
           <View style={{ flex: 1, overflow: 'hidden' }}>
             {editingTitle ? (
               <TextInput
@@ -559,7 +537,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
             </View>
           </View>
 
-          {/* Actions */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} tokens={tokens} />
             <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
@@ -629,7 +606,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
           </View>
         </View>
 
-        {/* Archive banner */}
         {isArchived && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
             <Archive size={13} color={tokens.accent} />
@@ -644,7 +620,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
           </View>
         )}
 
-        {/* Connection banner */}
         {collabReady && room.status !== 'joined' && (
           <View style={{ paddingHorizontal: 16, paddingVertical: 6, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
             <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.accent }}>
@@ -655,7 +630,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
           </View>
         )}
 
-        {/* Load-failed banner: editing is locked to protect the note */}
         {loadFailed && (
           <View style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
             <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.accent }}>
@@ -665,14 +639,8 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
         )}
       </View>
 
-      {/* TEMPORARY debug line: delete once everything works */}
-      <Text style={{ fontSize: 10, padding: 4, color: '#c00' }}>
-        {`DBG ed=${editorReady} collab=${collabReady} room=${room.status} role=${room.role} canEdit=${room.canEdit} sock=${socket.connected} empty=${isEmpty} peers=${room.peerCount} failed=${loadFailed}`}
-      </Text>
-
-      {/* Editor area (the editor draws its own placeholder) */}
-      <View style={{ flex: 1 }}>
-        <RichText editor={editor} style={{ flex: 1 }} />
+      <View style={{ flex: 1, width: '100%', minHeight: 300, overflow: 'hidden' }}>
+        <RichText editor={editor} style={{ flex: 1, width: '100%', backgroundColor: tokens.surface }} />
       </View>
 
       {canEdit && token && (
@@ -688,7 +656,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
         />
       )}
 
-      {/* Modals and side panels */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -725,8 +692,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   );
 }
 
-// ─── Presence Indicator ──────────────────────────────────────────────────────
-
 interface PresenceIndicatorProps {
   onlineCount: number;
   othersOnline: number;
@@ -751,8 +716,6 @@ function PresenceIndicator({ onlineCount, othersOnline, tokens }: PresenceIndica
     </View>
   );
 }
-
-// ─── Save Indicator ──────────────────────────────────────────────────────────
 
 function SaveIndicator({ status, tokens, isMidnight }: { status: SaveStatus; tokens: any; isMidnight: boolean }) {
   if (status === 'idle') return null;
