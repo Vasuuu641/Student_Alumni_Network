@@ -38,14 +38,53 @@ class BridgeSocket {
   }
 }
 
+// Helper to clear the global Y.Doc state when switching between notes
+function ydocClear(doc: Y.Doc) {
+  doc.transact(() => {
+    doc.share.forEach((_, key) => {
+      const type = doc.get(key) as any
+      if (typeof type.delete === 'function' && typeof type.length === 'number') {
+        type.delete(0, type.length)
+      }
+    })
+  })
+}
+
 // True if a Tiptap JSON doc (or legacy HTML string) holds real content.
 function hasContent(n: any): boolean {
   if (!n) return false
   if (typeof n === 'string') return /<img/i.test(n) || n.replace(/<[^>]*>/g, '').trim().length > 0
   if (n.type === 'text') return !!n.text
-  if (n.type === 'image' || n.type === 'horizontalRule') return true
-  return (n.content ?? []).some(hasContent)
+  if (n.type === 'image' || n.type === 'horizontalRule' || n.type === 'pageSection') return true
+  // Check children safely
+  if (Array.isArray(n.content)) {
+    return n.content.some(hasContent)
+  }
+  return false
 }
+
+// Helper to ensure any JSON content has a valid Prosemirror/Tiptap root 'doc' node structure
+function sanitizeContent(json: unknown): unknown {
+  if (!json) return { type: 'doc', content: [{ type: 'paragraph' }] }
+  if (typeof json === 'string') {
+    return json
+  }
+  if (typeof json === 'object' && json !== null) {
+    const node = json as any
+    if (Array.isArray(json)) {
+      return { type: 'doc', content: json }
+    }
+    if (node.type !== 'doc') {
+      return { type: 'doc', content: [node] }
+    }
+    // Ensure doc content is always an array
+    if (!Array.isArray(node.content)) {
+      node.content = [{ type: 'paragraph' }]
+    }
+  }
+  return json
+}
+
 
 export function createCollab(editor: any, post: Post) {
   ;(window as any).__editor = editor // debug handle for chrome://inspect
@@ -78,6 +117,7 @@ export function createCollab(editor: any, post: Post) {
   let dirty = false
   let contentTimer: ReturnType<typeof setTimeout> | undefined
   let lastHistory = ''
+  let currentNoteId = ''
 
   const docHasContent = () => hasContent(editor.getJSON())
 
@@ -140,7 +180,7 @@ export function createCollab(editor: any, post: Post) {
     seeded = true
     setTimeout(async () => {
       if (!docHasContent() && room.peerCount === 0 && restHadContent) {
-        editor.commands.setContent(initialContent as any)
+        editor.commands.setContent(sanitizeContent(initialContent) as any)
       } else if (!docHasContent() && room.peerCount > 0) {
         await waitFor(docHasContent, 3000)
       }
@@ -164,8 +204,22 @@ export function createCollab(editor: any, post: Post) {
 
   return {
     init(p: { noteId: string; initialContent: unknown }) {
+      if (sock && currentNoteId !== p.noteId) {
+        provider?.destroy()
+        provider = null
+        sock = null
+        ydocClear(ydoc)
+        seeded = false
+        armed = false
+        blocked = false
+        everHadContent = false
+        dirty = false
+      }
+
+      currentNoteId = p.noteId
       if (sock) { post('inited', true); return }
-      initialContent = p.initialContent
+
+      initialContent = sanitizeContent(p.initialContent)
       restHadContent = hasContent(initialContent)
       sock = new BridgeSocket((ev, payload) => {
         if (ev === 'notes:crdt-update' && !room.canEdit) return
@@ -215,11 +269,12 @@ export function createCollab(editor: any, post: Post) {
       sock?.dispatch(ev, payload)
     },
     replace(json: unknown) {
-      editor.commands.setContent(json as any)
+      const safeJson = sanitizeContent(json)
+      editor.commands.setContent(safeJson as any)
       // The restore already happened on the server; don't echo it back as a save.
       clearTimeout(contentTimer)
       dirty = false
-      if (hasContent(json)) everHadContent = true
+      if (hasContent(safeJson)) everHadContent = true
     },
     flush() {
       sendContent()
@@ -227,6 +282,11 @@ export function createCollab(editor: any, post: Post) {
     destroy() {
       clearTimeout(contentTimer)
       provider?.destroy()
+      ydocClear(ydoc) // Immediately wipe memory so images don't leak to next note
+      sock = null
+      provider = null
+      seeded = false
+      armed = false
     },
   }
 }
