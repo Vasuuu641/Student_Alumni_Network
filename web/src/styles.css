@@ -4934,6 +4934,7 @@
     border-radius: 0.4rem;
     box-shadow: var(--theme-shadow);
     padding: 24mm 20mm;
+    flex-shrink: 0;
   }
 
   .note-editor {
@@ -4969,6 +4970,10 @@
     font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--theme-text);
   }
 
+  .note-editor .tiptap > hr {
+    margin: var(--note-page-gap-first) 0;
+  }
+
   .note-editor p { margin: 0 0 0.75rem; }
   .note-editor p:last-child { margin-bottom: 0; }
   .note-editor strong { font-weight: 700; color: var(--theme-text); }
@@ -4986,6 +4991,34 @@
     padding: 1rem 1.25rem; overflow-x: auto; margin: 1rem 0;
     font-size: 0.88rem; line-height: 1.6;
   }
+
+  /* One continuous sheet: the note grows as you type. */
+.note-paper {
+  flex-shrink: 0;
+}
+
+.note-editor .note-page-section,
+.note-editor .note-page-section--base {
+  width: 100%;
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.note-editor hr,
+.note-editor .note-page-section--base + hr {
+  border: 0;
+  border-top: 1px solid var(--theme-border);
+  margin: 1.5rem 0;
+}
+
+.note-editor hr::before {
+  content: none;
+}
 
   .note-editor pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
 

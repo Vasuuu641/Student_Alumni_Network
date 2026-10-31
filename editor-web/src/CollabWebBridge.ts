@@ -18,6 +18,7 @@ import { PageSection } from './extensions/PageSection'
 import { FontSize } from './extensions/FontSize'
 import { ydoc, awareness, createCollab } from './collab'
 
+
 const CollabEditorExtensions = Extension.create({
   name: 'collab',
   addExtensions() {

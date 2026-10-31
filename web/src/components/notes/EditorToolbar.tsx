@@ -14,7 +14,6 @@ import { uploadNoteImage } from '../../api/notes.api'
 interface Props {
   editor: Editor | null
   noteId: string
-  onInsertPageBreak?: () => void
 }
 
 const FONT_FAMILIES = [
@@ -34,7 +33,7 @@ const HIGHLIGHT_COLORS = [
   '#90EE90', '#ADD8E6', '#DDA0DD',
 ]
 
-export function EditorToolbar({ editor, noteId, onInsertPageBreak }: Props) {
+export function EditorToolbar({ editor, noteId }: Props) {
   const [openMenu, setOpenMenu] = useState<'file' | 'edit' | 'view' | 'insert' | null>(null)
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
@@ -145,26 +144,6 @@ export function EditorToolbar({ editor, noteId, onInsertPageBreak }: Props) {
     return text ? text.split(/\s+/).length : 0
   }, [editor.state])
 
-  // ─── Page helpers ─────────────────────────────────────────────────────────
-
-  const buildBlankPageSpacer = () => [
-    { type: 'horizontalRule' as const },
-    {
-      type: 'pageSection' as const,
-      content: [{ type: 'paragraph' as const }],
-    },
-  ]
-
-  const insertPageBreak = () => {
-    if (onInsertPageBreak) {
-      onInsertPageBreak()
-      return
-    }
-
-    const endPos = editor.state.doc.content.size
-    editor.chain().focus('end').insertContentAt(endPos, buildBlankPageSpacer()).focus('end').run()
-  }
-
   const downloadTxt = () => {
     const blob = new Blob([editor.getText()], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -188,7 +167,6 @@ export function EditorToolbar({ editor, noteId, onInsertPageBreak }: Props) {
           onToggle={() => setOpenMenu((m) => (m === 'file' ? null : 'file'))}
           onClose={() => setOpenMenu(null)}
           items={[
-            { label: 'New page', action: insertPageBreak },
             { label: 'Download .txt', action: downloadTxt },
           ]}
         />
@@ -220,7 +198,6 @@ export function EditorToolbar({ editor, noteId, onInsertPageBreak }: Props) {
           onToggle={() => setOpenMenu((m) => (m === 'insert' ? null : 'insert'))}
           onClose={() => setOpenMenu(null)}
           items={[
-            { label: 'New page', action: insertPageBreak },
             { label: 'Horizontal line', action: () => editor.chain().focus().setHorizontalRule().run() },
             { label: 'Blockquote', action: () => editor.chain().focus().toggleBlockquote().run() },
             { label: 'Code block', action: () => editor.chain().focus().toggleCodeBlock().run() },

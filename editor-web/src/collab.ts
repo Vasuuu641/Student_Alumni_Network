@@ -3,8 +3,11 @@ import * as awarenessProtocol from 'y-protocols/awareness'
 import type { Socket } from 'socket.io-client'
 import { NotesYProvider } from './notes-y-provider'
 
+
 export const ydoc = new Y.Doc()
 export const awareness = new awarenessProtocol.Awareness(ydoc)
+
+
 
 type Post = (type: string, payload?: unknown) => void
 

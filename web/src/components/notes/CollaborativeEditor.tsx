@@ -1,5 +1,5 @@
 // src/components/notes/CollaborativeEditor.tsx
-import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
+import { useEffect, useMemo, useRef, useCallback} from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -16,7 +16,6 @@ import Link from '@tiptap/extension-link'
 import FontFamily from '@tiptap/extension-font-family'
 import TextStyle from '@tiptap/extension-text-style'
 import { Extension, Node, mergeAttributes } from '@tiptap/core'
-import { Plus, Trash2 } from 'lucide-react'
 import Image from '@tiptap/extension-image'
 
 //custom font size extension 
@@ -133,23 +132,13 @@ export function CollaborativeEditor({
   onRegisterFlush,
   onContentUpdate,
 }: Props) {
-  const PAGE_CHAR_LIMIT = 2200
-  const AUTO_PAGE_BREAK_THRESHOLD = Math.floor(PAGE_CHAR_LIMIT * 0.85)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasSeededInitialContentRef = useRef(false)
   const autosaveArmedRef = useRef(false)
-  const autoPageBreakInProgressRef = useRef(false)
-  const autoInsertedPageCountRef = useRef(0)
-  const previousTextLengthRef = useRef(0)
-  const [currentTextLength, setCurrentTextLength] = useState(0)
-  const [extraPageCount, setExtraPageCount] = useState(0)
 
   useEffect(() => {
     hasSeededInitialContentRef.current = false
     autosaveArmedRef.current = false
-    autoPageBreakInProgressRef.current = false
-    autoInsertedPageCountRef.current = 0
-    previousTextLengthRef.current = 0
   }, [noteId])
 
   const latestContentRef = useRef<any>(initialContent ?? null)
@@ -231,113 +220,12 @@ export function CollaborativeEditor({
     lastSavedSerializedRef.current = serialized
   }, [noteId])
 
-  const buildBlankPageSpacer = useCallback(() => [
-    { type: 'horizontalRule' as const },
-    {
-      type: 'pageSection' as const,
-      attrs: { basePage: false },
-      content: [{ type: 'paragraph' as const }],
-    },
-  ], [])
 
-  const buildBasePageSection = useCallback((content: any[]) => ({
-    type: 'pageSection' as const,
-    attrs: { basePage: true },
-    content,
-  }), [])
 
-  const appendBlankPageAtEnd = useCallback((editorInstance: any) => {
-    const endPos = editorInstance.state.doc.content.size
-    editorInstance
-      .chain()
-      .focus('end')
-      .insertContentAt(endPos, buildBlankPageSpacer())
-      .focus('end')
-      .run()
-  }, [buildBlankPageSpacer])
 
-  const migrateBasePageToSectionAndAppend = useCallback((editorInstance: any) => {
-    const snapshot = editorInstance.getJSON()
-    const currentDocContent = Array.isArray(snapshot?.content) ? snapshot.content : []
-    const hasOnlyEmptyParagraph = currentDocContent.length === 1
-      && currentDocContent[0]?.type === 'paragraph'
-      && !Array.isArray(currentDocContent[0]?.content)
-    const baseContent = hasOnlyEmptyParagraph
-      ? [{ type: 'paragraph' as const }]
-      : (currentDocContent.length > 0 ? currentDocContent : [{ type: 'paragraph' as const }])
 
-    editorInstance
-      .chain()
-      .setContent({
-        type: 'doc',
-        content: [
-          buildBasePageSection(baseContent),
-          { type: 'horizontalRule' },
-          {
-            type: 'pageSection',
-            attrs: { basePage: false },
-            content: [{ type: 'paragraph' }],
-          },
-        ],
-      })
-      .focus('end')
-      .run()
-  }, [buildBasePageSection])
 
-  const insertPageBreakAtEnd = useCallback((editorInstance: any) => {
-    let hasPageSection = false
-    editorInstance.state.doc.descendants((node: any) => {
-      if (node.type?.name === 'pageSection') {
-        hasPageSection = true
-        return false
-      }
-      return true
-    })
 
-    if (!hasPageSection) {
-      migrateBasePageToSectionAndAppend(editorInstance)
-      return
-    }
-
-    appendBlankPageAtEnd(editorInstance)
-  }, [appendBlankPageAtEnd, migrateBasePageToSectionAndAppend])
-
-  const getLastPageSectionMeta = useCallback((doc: any) => {
-    let lastPagePos: number | null = null
-    let lastPageEnd: number | null = null
-    let lastPageNode: any = null
-    let lastBreakPos: number | null = null
-    let breakForLastPage: number | null = null
-
-    doc.descendants((node: any, pos: number) => {
-      if (node.type.name === 'horizontalRule') {
-        lastBreakPos = pos
-      }
-
-      if (node.type.name === 'pageSection') {
-        lastPagePos = pos
-        lastPageEnd = pos + node.nodeSize
-        lastPageNode = node
-        breakForLastPage = lastBreakPos
-      }
-    })
-
-    if (lastPagePos === null || lastPageEnd === null || !lastPageNode) {
-      return null
-    }
-
-    return {
-      start: lastPagePos,
-      end: lastPageEnd,
-      breakPos: breakForLastPage,
-      node: lastPageNode,
-    }
-  }, [])
-
-  const isPageSectionEmpty = useCallback((pageNode: any) => {
-    if (!pageNode) return false
-    return pageNode.textContent.trim().length === 0
-  }, [])
 
   const waitForSaveQueueToDrain = useCallback(async () => {
     while (inFlightSaveRef.current || hasPendingSaveRef.current) {
@@ -345,44 +233,8 @@ export function CollaborativeEditor({
     }
   }, [])
 
-  const syncEditorMetrics = useCallback((editorInstance: any) => {
-    setCurrentTextLength(editorInstance.getText().trim().length)
 
-    let breakCount = 0
-    editorInstance.state.doc.descendants((node: any) => {
-      if (node.type?.name === 'horizontalRule') {
-        breakCount += 1
-      }
-    })
-    setExtraPageCount(breakCount)
-  }, [])
 
-  const insertPageBreak = useCallback(() => {
-    const editorInstance = editorRef.current
-    if (!editorInstance || !canEditRef.current) return
-
-    insertPageBreakAtEnd(editorInstance)
-  }, [insertPageBreakAtEnd])
-
-  const removeTrailingPage = useCallback((requireEmpty: boolean) => {
-    const editorInstance = editorRef.current
-    if (!editorInstance || !canEditRef.current) return false
-
-    const meta = getLastPageSectionMeta(editorInstance.state.doc)
-    if (!meta) return false
-    if (meta.breakPos === null) return false
-    if (requireEmpty && !isPageSectionEmpty(meta.node)) return false
-
-    const from = meta.breakPos
-    editorInstance
-      .chain()
-      .focus()
-      .deleteRange({ from, to: meta.end })
-      .focus('end')
-      .run()
-
-    return true
-  }, [getLastPageSectionMeta, isPageSectionEmpty])
 
   // flushPendingSave no longer depends on persistContent directly —
   // it calls through the ref so it's a stable reference that never
@@ -396,35 +248,7 @@ export function CollaborativeEditor({
     await waitForSaveQueueToDrain()
   }, [waitForSaveQueueToDrain])
 
-  const maybeInsertAutoPageBreak = useCallback((editorInstance: any) => {
-    if (!canEditRef.current) return
-    if (!autosaveArmedRef.current) return
-    if (peerCount > 0) return
-    if (autoPageBreakInProgressRef.current) return
 
-    const textLength = editorInstance.getText().length
-    const previousLength = previousTextLengthRef.current
-    previousTextLengthRef.current = textLength
-
-    // Skip large jumps from hydration/sync; only react to normal typing growth.
-    if (Math.abs(textLength - previousLength) > 80) return
-    if (textLength < AUTO_PAGE_BREAK_THRESHOLD) return
-
-    const requiredBreaks = Math.floor(textLength / PAGE_CHAR_LIMIT)
-    if (requiredBreaks <= autoInsertedPageCountRef.current) return
-
-    autoPageBreakInProgressRef.current = true
-    autoInsertedPageCountRef.current = requiredBreaks
-    insertPageBreakAtEnd(editorInstance)
-
-    setTimeout(() => {
-      autoPageBreakInProgressRef.current = false
-    }, 0)
-  }, [AUTO_PAGE_BREAK_THRESHOLD, insertPageBreakAtEnd, peerCount])
-
-  const removeLastPage = useCallback(() => {
-    void removeTrailingPage(false)
-  }, [removeTrailingPage])
 
   // One Y.Doc per note — recreated if noteId changes
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
@@ -477,45 +301,6 @@ export function CollaborativeEditor({
   }),
       ],
       editable: false, // setEditable effect handles this
-      editorProps: {
-        handleKeyDown: (view, event) => {
-          if (!canEditRef.current) return false
-
-          const state = view.state
-          if (!state.selection.empty) return false
-
-          const lastPageMeta = getLastPageSectionMeta(state.doc)
-
-          if (event.key === 'ArrowDown') {
-            const atDocEnd = state.selection.$from.pos >= state.doc.content.size - 1
-            if (!atDocEnd) return false
-
-            if (lastPageMeta && lastPageMeta.breakPos !== null && isPageSectionEmpty(lastPageMeta.node)) {
-              return false
-            }
-
-            insertPageBreak()
-            event.preventDefault()
-            return true
-          }
-
-          if (event.key === 'ArrowUp' && lastPageMeta && lastPageMeta.breakPos !== null && isPageSectionEmpty(lastPageMeta.node)) {
-            const cursorPos = state.selection.$from.pos
-            const inLastPage = cursorPos >= lastPageMeta.start && cursorPos <= lastPageMeta.end
-            const atStartOfLastPage = cursorPos <= lastPageMeta.start + 1
-
-            if (inLastPage && atStartOfLastPage) {
-              const removed = removeTrailingPage(true)
-              if (removed) {
-                event.preventDefault()
-                return true
-              }
-            }
-          }
-
-          return false
-        },
-      },
       onUpdate: ({ editor }) => {
         const snapshot = editor.getJSON()
 
@@ -534,14 +319,10 @@ export function CollaborativeEditor({
           if (editor.getText().trim().length > 0) {
             latestContentRef.current = snapshot
           }
-          syncEditorMetrics(editor)
           return
         }
 
         latestContentRef.current = snapshot
-        syncEditorMetrics(editor)
-
-        maybeInsertAutoPageBreak(editor)
 
         if (saveTimer.current) clearTimeout(saveTimer.current)
         saveTimer.current = setTimeout(async () => {
@@ -596,10 +377,8 @@ export function CollaborativeEditor({
       if (!hasMeaningfulContent && peerCount === 0) {
         editor.commands.setContent(initialContent)
         latestContentRef.current = initialContent
-        syncEditorMetrics(editor)
       } else {
         latestContentRef.current = editor.getJSON()
-        syncEditorMetrics(editor)
       }
 
       lastSavedSerializedRef.current = JSON.stringify(initialContent)
@@ -642,7 +421,6 @@ export function CollaborativeEditor({
     lastSavedSerializedRef.current = JSON.stringify(latestContentRef.current)
     lastAppliedContentVersionRef.current = contentVersion
     autosaveArmedRef.current = true
-    syncEditorMetrics(editor)
   }, [editor, contentVersion, initialContent])
 
   // Keep editable in sync if role changes mid-session
@@ -706,43 +484,16 @@ export function CollaborativeEditor({
 
   // ─── Editor ───────────────────────────────────────────────────────────────
 
-  const pageActions = (
-    <div className="note-page-actions note-page-actions--dock">
-      <button
-        type="button"
-        className={`note-page-add-btn${currentTextLength >= AUTO_PAGE_BREAK_THRESHOLD ? ' note-page-add-btn--ready' : ''}`}
-        onClick={insertPageBreak}
-        title="Add page"
-        aria-label="Add page"
-      >
-        <Plus size={17} />
-        <span>Add page</span>
-      </button>
-      <button
-        type="button"
-        className="note-page-remove-btn"
-        onClick={removeLastPage}
-        title="Remove last page"
-        aria-label="Remove last page"
-        disabled={extraPageCount === 0}
-      >
-        <Trash2 size={16} />
-        <span>Remove page</span>
-      </button>
-    </div>
-  )
-
   return (
     <div className="note-canvas">
       {canEdit && (
         <div className="note-toolbar">
-          <EditorToolbar editor={editor} noteId={noteId} onInsertPageBreak={insertPageBreak} />
+          <EditorToolbar editor={editor} noteId={noteId} />
         </div>
       )}
       <div className="note-scroll-area">
         <div className="note-paper">
           <EditorContent editor={editor} className="note-editor" />
-          {pageActions}
         </div>
       </div>
     </div>

@@ -15,6 +15,15 @@ const bridges = [
   ...(base.includes(ImageBridge) ? [] : [ImageBridge]),
   CollabWebBridge,
 ]
+// If the phone's injected script hasn't run yet, TenTap finds no bridge config
+// and builds an editor with no nodes ("Schema is missing its top node type").
+if (typeof window !== 'undefined' && !(window as any).bridgeExtensionConfigMap) {
+  (window as any).bridgeExtensionConfigMap = JSON.stringify(
+    Object.fromEntries(
+      bridges.map((b: any) => [b.name, { optionsConfig: b.config, extendConfig: b.extendConfig }]),
+    ),
+  )
+}
 
 export default function App() {
   const editor = useTenTap({

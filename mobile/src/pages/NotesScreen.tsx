@@ -485,8 +485,6 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
     );
   }
 
-  const onlineCount = room.status === 'joined' ? room.others.length + 1 : 0;
-  const othersOnline = room.others.length;
 
   return (
     <KeyboardAvoidingView
@@ -498,109 +496,116 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
       <StatusBar style={isMidnight ? 'light' : 'dark'} />
 
       <View style={{ paddingTop: insets.top, backgroundColor: tokens.surface }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.border, gap: 8, backgroundColor: tokens.surface }}>
-          <TouchableOpacity
-            style={{ padding: 4 }}
-            onPress={async () => {
-              await flushPendingSave();
-              goToNotes();
-            }}
-            hitSlop={8}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={20} color={tokens.text} />
-          </TouchableOpacity>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, gap: 6 }}>
+          {/* Row 1: back, title, avatars, save status */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              style={{ padding: 4 }}
+              onPress={async () => {
+                await flushPendingSave();
+                goToNotes();
+              }}
+              hitSlop={8}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={20} color={tokens.text} />
+            </TouchableOpacity>
 
-          <View style={{ flex: 1, overflow: 'hidden' }}>
-            {editingTitle ? (
-              <TextInput
-                ref={titleInputRef}
-                style={{ fontSize: 16, fontWeight: '700', color: tokens.text, padding: 0, borderBottomWidth: 2, borderBottomColor: tokens.primary }}
-                value={titleDraft}
-                onChangeText={setTitleDraft}
-                onBlur={commitTitle}
-                onSubmitEditing={commitTitle}
-                maxLength={120}
-                returnKeyType="done"
-              />
-            ) : (
-              <Pressable onPress={startEditTitle}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }} numberOfLines={1}>
-                  {note.title || 'Untitled document'}
-                </Text>
-              </Pressable>
-            )}
-            <View style={{ alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: noteRoleBg }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: noteRoleColor }}>{noteRoleLabel}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {editingTitle ? (
+                <TextInput
+                  ref={titleInputRef}
+                  style={{ fontSize: 16, fontWeight: '700', color: tokens.text, padding: 0, borderBottomWidth: 2, borderBottomColor: tokens.primary }}
+                  value={titleDraft}
+                  onChangeText={setTitleDraft}
+                  onBlur={commitTitle}
+                  onSubmitEditing={commitTitle}
+                  maxLength={120}
+                  returnKeyType="done"
+                />
+              ) : (
+                <Pressable onPress={startEditTitle}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }} numberOfLines={1}>
+                    {note.title || 'Untitled document'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
+
+            <PresenceAvatars others={room.others} connected={room.status === 'joined'} tokens={tokens} />
+            <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} tokens={tokens} />
-            <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
+          {/* Row 2: role badge on the left, actions on the right */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexShrink: 0, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: noteRoleBg }}>
+              <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: noteRoleColor }}>{noteRoleLabel}</Text>
+            </View>
 
-            {canEdit && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {canEdit && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8 }}
+                  onPress={handleSaveCheckpoint}
+                  disabled={savingCheckpoint}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  {savingCheckpoint ? (
+                    <ActivityIndicator size="small" color={tokens.primary} />
+                  ) : (
+                    <BookmarkPlus size={20} color={tokens.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {isOwner && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8, backgroundColor: isArchived ? tokens.accentSoft : 'transparent' }}
+                  onPress={handleToggleArchive}
+                  disabled={archiving}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  {archiving ? (
+                    <ActivityIndicator size="small" color={tokens.accent} />
+                  ) : isArchived ? (
+                    <ArchiveRestore size={20} color={tokens.accent} />
+                  ) : (
+                    <Archive size={20} color={tokens.muted} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {isOwner && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8, backgroundColor: showShare ? tokens.primary : 'transparent' }}
+                  onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false); }}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  <Share2 size={20} color={showShare ? '#fff' : tokens.primary} />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8 }}
-                onPress={handleSaveCheckpoint}
-                disabled={savingCheckpoint}
+                style={{ padding: 6, borderRadius: 8, backgroundColor: showVersionHistory ? tokens.primary : 'transparent' }}
+                onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false); }}
                 hitSlop={6}
                 activeOpacity={0.7}
               >
-                {savingCheckpoint ? (
-                  <ActivityIndicator size="small" color={tokens.primary} />
-                ) : (
-                  <BookmarkPlus size={20} color={tokens.primary} />
-                )}
+                <History size={20} color={showVersionHistory ? '#fff' : tokens.primary} />
               </TouchableOpacity>
-            )}
 
-            {isOwner && (
               <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8, backgroundColor: isArchived ? tokens.accentSoft : 'transparent' }}
-                onPress={handleToggleArchive}
-                disabled={archiving}
+                style={{ padding: 6, borderRadius: 8, backgroundColor: showAIInsights ? tokens.accent : 'transparent' }}
+                onPress={() => { setShowAIInsights(true); setShowVersionHistory(false); setShowShare(false); }}
                 hitSlop={6}
                 activeOpacity={0.7}
               >
-                {archiving ? (
-                  <ActivityIndicator size="small" color={tokens.accent} />
-                ) : isArchived ? (
-                  <ArchiveRestore size={20} color={tokens.accent} />
-                ) : (
-                  <Archive size={20} color={tokens.muted} />
-                )}
+                <Sparkles size={20} color={showAIInsights ? '#fff' : tokens.accent} />
               </TouchableOpacity>
-            )}
-
-            {isOwner && (
-              <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8, backgroundColor: showShare ? tokens.primary : 'transparent' }}
-                onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false); }}
-                hitSlop={6}
-                activeOpacity={0.7}
-              >
-                <Share2 size={20} color={showShare ? '#fff' : tokens.primary} />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={{ padding: 6, borderRadius: 8, backgroundColor: showVersionHistory ? tokens.primary : 'transparent' }}
-              onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false); }}
-              hitSlop={6}
-              activeOpacity={0.7}
-            >
-              <History size={20} color={showVersionHistory ? '#fff' : tokens.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ padding: 6, borderRadius: 8, backgroundColor: showAIInsights ? tokens.accent : 'transparent' }}
-              onPress={() => { setShowAIInsights(true); setShowVersionHistory(false); setShowShare(false); }}
-              hitSlop={6}
-              activeOpacity={0.7}
-            >
-              <Sparkles size={20} color={showAIInsights ? '#fff' : tokens.accent} />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -690,27 +695,58 @@ function NoteScreenInner({ noteId }: { noteId: string }) {
   );
 }
 
-interface PresenceIndicatorProps {
-  onlineCount: number;
-  othersOnline: number;
-  tokens: any;
-}
+const initialsOf = (name?: string | null) => {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
-function PresenceIndicator({ onlineCount, othersOnline, tokens }: PresenceIndicatorProps) {
-  if (onlineCount === 0) return null;
-
-  const isAlone = othersOnline === 0;
-  const dotColor = isAlone ? tokens.muted : '#22c55e';
-  const label = isAlone
-    ? 'Only you'
-    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`;
+function PresenceAvatars({ others, connected, tokens }: { others: any[]; connected: boolean; tokens: any }) {
+  if (!connected || others.length === 0) return null;
+  const MAX = 3;
+  const visible = others.slice(0, MAX);
+  const overflow = others.length - MAX;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: tokens.surfaceElevated, borderWidth: 1, borderColor: tokens.border }}>
-      <View
-        style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: dotColor }}
-      />
-      <Text style={{ fontSize: 10, fontWeight: '600', color: tokens.muted }}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {visible.map((u, i) => (
+        <View
+          key={u.userId}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            marginLeft: i === 0 ? 0 : -8,
+            backgroundColor: stringToColor(u.userId),
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: tokens.surface,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+            {initialsOf(u.displayName ?? u.email)}
+          </Text>
+        </View>
+      ))}
+      {overflow > 0 && (
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            marginLeft: -8,
+            backgroundColor: tokens.surfaceElevated,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: tokens.surface,
+          }}
+        >
+          <Text style={{ color: tokens.muted, fontSize: 10, fontWeight: '700' }}>+{overflow}</Text>
+        </View>
+      )}
     </View>
   );
 }
