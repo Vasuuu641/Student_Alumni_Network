@@ -13,8 +13,11 @@ export class NotesYProvider {
     private doc: Y.Doc,
     private socket: Socket,
     public user: { name: string; color: string },
+    awareness?: awarenessProtocol.Awareness,  
   ) {
-    this.awareness = new awarenessProtocol.Awareness(doc)
+  this.awareness = awareness ?? new awarenessProtocol.Awareness(doc)
+
+
 
     // Register listeners
     this.doc.on('update', this.onDocUpdate)
@@ -151,6 +154,18 @@ export class NotesYProvider {
     this.isJoined = joined
     if (joined) {
       this.emitCurrentAwareness()
+    }
+  }
+
+  // NEW: call after every (re)join
+  syncAfterJoin(pushLocal: boolean) {
+    this.hasRequestedSync = false
+    this.requestSync()                                   // pull what peers have
+    if (pushLocal) {                                     // push what I have (offline edits)
+      this.socket.emit('notes:crdt-update', {
+        noteId: this.noteId,
+        update: Array.from(Y.encodeStateAsUpdate(this.doc)),
+      })
     }
   }
 

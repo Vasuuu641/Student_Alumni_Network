@@ -52,6 +52,10 @@ interface Props {
   bottomInset?: number
   noteId: string
   token: string
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
 }
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
@@ -72,7 +76,7 @@ const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ editor, bottomInset = 0, noteId, token }: Props) {
+export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ editor, bottomInset = 0, noteId, token, canUndo, canRedo, onUndo, onRedo }: Props) {
   // Subscribe to live editor state — scoped to this component so the parent
   // NoteScreen does NOT re-render on every keystroke / selection change.
   const editorState = useBridgeState(editor)
@@ -130,8 +134,6 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
   const isOrdered    = !!editorState?.isOrderedListActive
   const isBlockquote = !!editorState?.isBlockquoteActive
   const headingLevel = editorState?.headingLevel        // HeadingBridge: number|undefined
-  const canUndo      = editorState?.canUndo ?? false
-  const canRedo      = editorState?.canRedo ?? false
   
 
   return (
@@ -195,14 +197,14 @@ export const MobileEditorToolbar = React.memo(function MobileEditorToolbar({ edi
 
         {/* Undo */}
         <ToolBtn
-          onPress={() => run(() => editor.undo())}
+          onPress={onUndo}   
           icon={<Undo2 size={19} color={canUndo ? DEFAULT_FG : MUTED_FG} />}
           disabled={!canUndo}
         />
 
         {/* Redo */}
         <ToolBtn
-          onPress={() => run(() => editor.redo())}
+          onPress={onRedo}
           icon={<Redo2 size={19} color={canRedo ? DEFAULT_FG : MUTED_FG} />}
           disabled={!canRedo}
         />

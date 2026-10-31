@@ -1,19 +1,5 @@
 // screens/NoteScreen.tsx
-// Mobile equivalent of src/pages/NotePage.tsx
-//
-// Dependencies:
-//   npx expo install @10play/tentap-editor react-native-webview
-//   npx expo install react-native-safe-area-context
-//   yarn add lucide-react-native
-//   @react-navigation/native + @react-navigation/native-stack
-//
-// Note: @10play/tentap-editor requires an Expo Dev Client build for full
-// functionality. Basic usage (no custom CSS/fonts) works in Expo Go.
-//
-// Collaborative cursors are intentionally omitted — TenTap's real-time
-// collab is a paid Pro feature. Autosave + version history covers mobile.
-
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -33,9 +19,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   RichText,
   useEditorBridge,
-  useEditorContent,
   TenTapStartKit,
   ImageBridge,
+  HistoryBridge,
 } from '@10play/tentap-editor';
 import {
   ArrowLeft,
@@ -48,26 +34,35 @@ import {
   History,
   Share2,
   Sparkles,
-  Users,
 } from 'lucide-react-native';
 
 import { getNote, updateNote, createCheckpoint } from '../api/notes.api';
 import { getValidAccessToken } from '../lib/auth-session';
 import { getRoleFromAccessToken } from '../lib/jwt';
+import { socket } from '../lib/socket';
+import { stringToColor } from '../lib/utils';
 import type { RootStackParamList } from '../navigation/root-stack';
 import { MobileVersionHistoryPanel } from '../components/notes/MobileVersionHistoryPanel';
 import { MobileEditorToolbar } from '../components/notes/MobileEditorToolbar';
-import { useNotePresence } from '../hooks/UseNotesPresence';
 import { useRelatedThreads } from '../hooks/UseRelatedThreads';
 import { MobileAIInsightsPanel } from '../components/notes/MobileInsightsPanel';
 import { MobileSharePanel } from '../components/notes/MobileSharePanel';
 import { useTheme } from '../theme/theme';
+import { editorHtml } from '../editor/editorHtml';
+import { CollabNativeBridge, collabListeners } from '../editor/CollabNativeBridge';
+import { useNoteRoom } from '../hooks/UseNoteRoom';
+import { useCollabRelay } from '../hooks/UseCollabRelay';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Bridges (Filter only HistoryBridge, exactly like web App.tsx) ──────────
+const baseBridges = (TenTapStartKit as any[]).filter((b) => b !== HistoryBridge);
+const NOTE_BRIDGES = [
+  ...baseBridges,
+  ...(baseBridges.includes(ImageBridge) ? [] : [ImageBridge]),
+  CollabNativeBridge,
+];
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type NoteRoute = RouteProp<RootStackParamList, 'NoteScreen'>;
-
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface NoteData {
@@ -76,12 +71,17 @@ interface NoteData {
   content: any;
   ownerId: string;
   status: 'ACTIVE' | 'ARCHIVED';
-  role?: string;    // "OWNER" | "EDITOR" | "VIEWER" — returned by the API
   updatedAt?: string;
   createdAt?: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+function hasContent(n: any): boolean {
+  if (!n) return false;
+  if (typeof n === 'string') return /<img/i.test(n) || n.replace(/<[^>]*>/g, '').trim().length > 0;
+  if (n.type === 'text') return !!n.text;
+  if (n.type === 'image' || n.type === 'horizontalRule') return true;
+  return (n.content ?? []).some(hasContent);
+}
 
 function decodeUserId(token: string): string | null {
   try {
@@ -92,53 +92,25 @@ function decodeUserId(token: string): string | null {
   }
 }
 
-function tiptapJsonToHtml(json: any): string {
-  if (!json) return '';
-  if (typeof json === 'string') return json;
-  if (typeof json === 'object' && json.type === 'doc') {
-    return jsonNodeToHtml(json);
-  }
-  return '';
+function jsonToPlainText(n: any): string {
+  if (!n) return '';
+  if (typeof n === 'string') return n.replace(/<[^>]*>/g, ' ').trim();
+  if (n.type === 'text') return n.text ?? '';
+  const parts: string[] = (n.content ?? []).map(jsonToPlainText);
+  const block = ['doc', 'bulletList', 'orderedList', 'blockquote', 'pageSection', 'listItem'];
+  return parts.join(block.includes(n.type) ? '\n' : '');
 }
-
-function jsonNodeToHtml(node: any): string {
-  if (!node) return '';
-  if (node.type === 'doc') return (node.content ?? []).map(jsonNodeToHtml).join('');
-  if (node.type === 'paragraph') {
-    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
-    return `<p>${inner || '<br>'}</p>`;
-  }
-  if (node.type === 'heading') {
-    const level = node.attrs?.level ?? 1;
-    const inner = (node.content ?? []).map(jsonNodeToHtml).join('');
-    return `<h${level}>${inner}</h${level}>`;
-  }
-  if (node.type === 'bulletList') return `<ul>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ul>`;
-  if (node.type === 'orderedList') return `<ol>${(node.content ?? []).map(jsonNodeToHtml).join('')}</ol>`;
-  if (node.type === 'listItem') return `<li>${(node.content ?? []).map(jsonNodeToHtml).join('')}</li>`;
-  if (node.type === 'blockquote') return `<blockquote>${(node.content ?? []).map(jsonNodeToHtml).join('')}</blockquote>`;
-  if (node.type === 'codeBlock') return `<pre><code>${(node.content ?? []).map(jsonNodeToHtml).join('')}</code></pre>`;
-  if (node.type === 'horizontalRule') return '<hr>';
-  if (node.type === 'text') {
-    let text = node.text ?? '';
-    const marks: string[] = node.marks?.map((m: any) => m.type) ?? [];
-    if (marks.includes('bold')) text = `<strong>${text}</strong>`;
-    if (marks.includes('italic')) text = `<em>${text}</em>`;
-    if (marks.includes('strike')) text = `<s>${text}</s>`;
-    if (marks.includes('code')) text = `<code>${text}</code>`;
-    return text;
-  }
-  return (node.content ?? []).map(jsonNodeToHtml).join('');
-}
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function NoteScreen() {
+  const route = useRoute<NoteRoute>();
+  const noteId: string = (route.params as any)?.noteId ?? '';
+  return <NoteScreenInner key={noteId} noteId={noteId} />;
+}
+
+function NoteScreenInner({ noteId }: { noteId: string }) {
   const { tokens } = useTheme();
   const navigation = useNavigation<Nav>();
-  const route = useRoute<NoteRoute>();
   const insets = useSafeAreaInsets();
-  const noteId: string = (route.params as any)?.noteId ?? '';
 
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -148,8 +120,7 @@ export function NoteScreen() {
   useEffect(() => {
     getValidAccessToken().then((t) => {
       setToken(t);
-      const r = t ? String(getRoleFromAccessToken(t)) : null;
-      setRole(r);
+      setRole(t ? String(getRoleFromAccessToken(t)) : null);
       setCurrentUserId(t ? decodeUserId(t) : null);
       setAuthReady(true);
     });
@@ -160,12 +131,12 @@ export function NoteScreen() {
   const [note, setNote] = useState<NoteData | null>(null);
   const [loadingNote, setLoadingNote] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(false);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [savingCheckpoint, setSavingCheckpoint] = useState(false);
@@ -174,43 +145,54 @@ export function NoteScreen() {
   const [editingTitle, setEditingTitle] = useState(false);
   const titleInputRef = useRef<TextInput>(null);
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
   const inFlightRef = useRef(false);
-  const hasPendingRef = useRef(false);
-  const pendingContentRef = useRef<string>('');
-  const autosaveArmedRef = useRef(false);
-  const hasSetInitialContentRef = useRef(false);
-  const [editorReady, setEditorReady] = useState(false);
+  const pendingRef = useRef<any>(null);
+  const armedRef = useRef(false);
+  const latestJsonRef = useRef<any>(null);
+  const initSentRef = useRef(false);
 
+  const [editorReady, setEditorReady] = useState(false);
+  const [collabReady, setCollabReady] = useState(false);
+  const [everJoined, setEverJoined] = useState(false);
+  const [liveText, setLiveText] = useState<string | null>(null);
+  const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+  const [webInfo, setWebInfo] = useState<any>(null);
+
+  // Removed initialContent from here so collab.ts handles seeding exclusively
   const editor = useEditorBridge({
+    customSource: editorHtml,
     autofocus: false,
     avoidIosKeyboard: true,
     editable: false,
-    bridgeExtensions: [...TenTapStartKit, ImageBridge],
+    bridgeExtensions: NOTE_BRIDGES,
   });
+  const collab = editor as any;
 
-  const htmlContent = useEditorContent(editor, {
-    type: 'html',
-    debounceInterval: 500,
-  });
+  const room = useNoteRoom(noteId, authReady && !!token && canAccessNotes);
 
-  const canEdit = authReady && canAccessNotes && role !== 'ALUMNI';
-  const isOwner = note ? note.ownerId === currentUserId : false;
   const isArchived = note?.status === 'ARCHIVED';
+  const canEdit = room.canEdit && !isArchived && !loadFailed;
+  const isOwner =
+    room.role === 'OWNER' || (!!note && !!currentUserId && note.ownerId === currentUserId);
 
-  // ─── Presence ──────────────────────────────────────────────────────────────
-  const { onlineCount, othersOnline } = useNotePresence({
-    noteId,
-    userId: currentUserId,
-    enabled: !!note && authReady,
-  });
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
 
-  // ─── AI Insights ───────────────────────────────────────────────────────────
-  const initialHtml = note ? tiptapJsonToHtml(note.content) : '';
-  const plainTextContent = (htmlContent || initialHtml)
-    .replace(/<[^>]*>/g, '')
-    .trim();
+  const userColor = stringToColor(currentUserId ?? noteId);
+
+  useCollabRelay(editor, noteId, collabReady);
+
+  const plainTextContent = useMemo(
+    () => liveText ?? jsonToPlainText(note?.content).trim(),
+    [liveText, note?.content],
+  );
+  const isEmpty = plainTextContent.length === 0;
+
+  const goToNotes = useCallback(() => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Notes', undefined);
+  }, [navigation]);
 
   const {
     threads: relatedThreads,
@@ -224,22 +206,17 @@ export function NoteScreen() {
     token,
     noteContent: plainTextContent,
     title: note?.title ?? '',
-    contentJson: note?.content ?? null,
+    contentJson: (liveText !== null ? latestJsonRef.current?.json : null) ?? note?.content ?? null,
     enabled: showAIInsights,
   });
 
-  // Derive display role label — prefer API-returned role, fall back to ownership check
-  const noteRoleLabel: string = (() => {
-    const r = note?.role?.toUpperCase();
-    if (r === 'OWNER' || isOwner) return 'Owner';
-    if (r === 'EDITOR' || canEdit) return 'Editor';
-    return 'Viewer';
-  })();
-
-  const noteRoleBg: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? tokens.primarySoft : tokens.surfaceElevated;
-  const noteRoleColor: string = (isOwner || note?.role?.toUpperCase() === 'OWNER')
-    ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
+  const noteRoleLabel =
+    room.role === 'OWNER' ? 'Owner'
+    : room.role === 'EDITOR' ? 'Editor'
+    : room.role === 'VIEWER' ? 'Viewer'
+    : '…';
+  const noteRoleBg = isOwner ? tokens.primarySoft : tokens.surfaceElevated;
+  const noteRoleColor = isOwner ? tokens.primary : canEdit ? tokens.primaryStrong : tokens.muted;
 
   useEffect(() => {
     if (!authReady) return;
@@ -247,19 +224,21 @@ export function NoteScreen() {
     else if (!canAccessNotes) navigation.replace('Notes', undefined);
   }, [authReady, token, canAccessNotes, navigation]);
 
-  const fetchNote = useCallback(async () => {
+  const fetchNote = useCallback(async (): Promise<NoteData | null> => {
     if (!authReady || !noteId || !token) {
       if (authReady) setLoadingNote(false);
-      return;
+      return null;
     }
     try {
       setFetchError(null);
-      const fetchedNote = await getNote(token, noteId);
-      setNote(fetchedNote);
-      setTitleDraft(fetchedNote.title);
-      lastSavedRef.current = JSON.stringify(fetchedNote.content ?? null);
+      const fetched = (await getNote(token, noteId)) as NoteData;
+      setNote(fetched);
+      setTitleDraft(fetched.title);
+      lastSavedRef.current = JSON.stringify(fetched.content ?? null);
+      return fetched;
     } catch {
       setFetchError('Failed to load note');
+      return null;
     } finally {
       setLoadingNote(false);
     }
@@ -267,96 +246,148 @@ export function NoteScreen() {
 
   useEffect(() => { fetchNote(); }, [fetchNote]);
 
+  // Track editor readiness
   useEffect(() => {
     const state = editor.getEditorState() as any;
     if (state && state.isReady) {
       setEditorReady(true);
       return;
     }
-
-    return editor._subscribeToEditorStateUpdate((updatedState: any) => {
-      if (updatedState && updatedState.isReady) {
-        setEditorReady(true);
-      }
+    return editor._subscribeToEditorStateUpdate((updated: any) => {
+      if (updated && updated.isReady) setEditorReady(true);
     });
   }, [editor]);
 
+  // Robust Editability & Cursor Focus Synchronization
   useEffect(() => {
-    if (!note || !editorReady || hasSetInitialContentRef.current) return;
-
-    const htmlSeed = tiptapJsonToHtml(note.content);
-
-    const isContentEmpty = !note.content ||
-      (typeof note.content === 'object' &&
-        Array.isArray(note.content?.content) &&
-        note.content.content.length === 0) ||
-      (typeof note.content === 'string' && note.content.trim() === '');
-
-    editor.setContent(htmlSeed);
-    hasSetInitialContentRef.current = true;
-    setIsEmpty(isContentEmpty);
-    editor.setEditable(canEdit);
-    if (canEdit) autosaveArmedRef.current = true;
-  }, [note, editor, canEdit, editorReady]);
-
-  useEffect(() => {
-    if (!autosaveArmedRef.current) return;
-    if (!htmlContent) return;
-    if (isEmpty && htmlContent.replace(/<[^>]*>/g, '').trim().length > 0) {
-      setIsEmpty(false);
+    if (!collabReady) return;
+    try {
+      editor.setEditable(canEdit);
+      if (canEdit) {
+        const timer = setTimeout(() => {
+          try {
+            (editor as any).focus?.();
+          } catch (e) {
+            console.warn('[WebView Focus Error]', e);
+          }
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.warn('[setEditable Error]', e);
     }
-    void persistContent(htmlContent);
-  }, [htmlContent, isEmpty]);
+  }, [collabReady, canEdit, editor]);
 
-  const persistContent = useCallback(async (content: string) => {
-    if (!canEdit || !token || !noteId) return;
-    if (!autosaveArmedRef.current) return;
-    if (content === lastSavedRef.current) return;
+  useEffect(() => {
+    if (initSentRef.current || !note) return;
+    let done = false;
+    const onAck = (type: string, msg: any) => {
+      if (type !== 'inited' || msg?.noteId !== noteId || done) return;
+      done = true;
+      initSentRef.current = true;
+      setCollabReady(true);
+    };
+    collabListeners.add(onAck);
+    const send = () => {
+      if (!done) collab.collabInit({ noteId, initialContent: note.content });
+    };
+    send();
+    const timer = setInterval(send, 500);
+    return () => {
+      clearInterval(timer);
+      collabListeners.delete(onAck);
+    };
+  }, [note, noteId]);
+
+  useEffect(() => {
+    if (!collabReady) return;
+    const first = (room.currentUser?.displayName ?? '').trim().split(/\s+/)[0] || 'User';
+    collab.collabRoom({
+      status: room.status,
+      canEdit,
+      peerCount: room.peerCount,
+      user: { name: first, color: userColor },
+    });
+  }, [collabReady, room.status, canEdit, room.peerCount, room.currentUser?.displayName]);
+
+  useEffect(() => {
+    if (room.status === 'joined') setEverJoined(true);
+  }, [room.status]);
+
+  const persistContent = useCallback(async (json: any, cleared = false) => {
+    if (!canEditRef.current || !armedRef.current || !noteId) return;
+
+    if (!hasContent(json)) {
+      let prevHadContent = false;
+      try { prevHadContent = hasContent(JSON.parse(lastSavedRef.current)); } catch {}
+      if (prevHadContent && !cleared) return;
+    }
+
+    const serialized = JSON.stringify(json ?? null);
+    if (serialized === lastSavedRef.current) return;
     if (inFlightRef.current) {
-      hasPendingRef.current = true;
-      pendingContentRef.current = content;
+      pendingRef.current = { json, cleared };
       return;
     }
     inFlightRef.current = true;
     setSaveStatus('saving');
     try {
-      await updateNote(token, noteId, { content });
-      lastSavedRef.current = content;
+      const t = await getValidAccessToken();
+      if (!t) throw new Error('no token');
+      await updateNote(t, noteId, { content: json });
+      lastSavedRef.current = serialized;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1200);
     } catch {
       setSaveStatus('error');
     } finally {
       inFlightRef.current = false;
-      if (hasPendingRef.current) {
-        hasPendingRef.current = false;
-        const pending = pendingContentRef.current;
-        pendingContentRef.current = '';
-        await persistContent(pending);
+      if (pendingRef.current) {
+        const next = pendingRef.current;
+        pendingRef.current = null;
+        void persistContent(next.json, next.cleared);
       }
     }
-  }, [canEdit, token, noteId]);
-
-  const flushPendingSave = useCallback(async () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    if (autosaveArmedRef.current && token && noteId && canEdit) {
-      try {
-        const latestHtml = await editor.getHTML();
-        await persistContent(latestHtml);
-      } catch {
-        // ignore
-      }
-    }
-  }, [editor, token, noteId, canEdit, persistContent]);
+  }, [noteId]);
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        void flushPendingSave();
+    const listener = (type: string, msg: any) => {
+      if (msg?.noteId !== noteId) return;
+      const payload = msg.data;
+      if (type === 'armed') armedRef.current = true;
+      else if (type === 'load-failed') { armedRef.current = false; setLoadFailed(true); }
+      else if (type === 'history') setHistory((prev) =>
+        prev.canUndo === !!payload?.canUndo && prev.canRedo === !!payload?.canRedo
+          ? prev
+          : { canUndo: !!payload?.canUndo, canRedo: !!payload?.canRedo });
+      else if (type === 'content') {
+        const contentData = payload as { json: any; cleared?: boolean };
+        latestJsonRef.current = contentData;
+        setLiveText(jsonToPlainText(contentData.json).trim());
+        void persistContent(contentData.json, contentData.cleared ?? false);
       }
+      else if (type === 'info') setWebInfo(payload);
+      else if (type === 'error') console.warn('[WEBVIEW ERROR]', payload);
+    };
+    collabListeners.add(listener);
+    return () => { collabListeners.delete(listener); };
+  }, [persistContent, noteId]);
+
+  const flushPendingSave = useCallback(async () => {
+    if (!armedRef.current) return;
+    collab.collabFlush();
+    await new Promise((r) => setTimeout(r, 150));
+    const latest = latestJsonRef.current;
+    if (latest) await persistContent(latest.json, latest.cleared);
+    for (let i = 0; i < 100 && (inFlightRef.current || pendingRef.current); i++) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  }, [editor, persistContent]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s: AppStateStatus) => {
+      if (s === 'background' || s === 'inactive') void flushPendingSave();
+      if (s === 'active' && !socket.connected) socket.connect();
     });
     return () => sub.remove();
   }, [flushPendingSave]);
@@ -377,7 +408,7 @@ export function NoteScreen() {
     if (trimmed === note?.title || !token) return;
     try {
       await updateNote(token, noteId, { title: trimmed });
-      setNote((prev) => prev ? { ...prev, title: trimmed } : prev);
+      setNote((prev) => (prev ? { ...prev, title: trimmed } : prev));
     } catch {
       setTitleDraft(note?.title ?? '');
     }
@@ -389,7 +420,7 @@ export function NoteScreen() {
     try {
       setArchiving(true);
       await updateNote(token, noteId, { status: nextStatus });
-      setNote((prev) => prev ? { ...prev, status: nextStatus } : prev);
+      setNote((prev) => (prev ? { ...prev, status: nextStatus } : prev));
     } catch {
       // silently fail
     } finally {
@@ -409,11 +440,15 @@ export function NoteScreen() {
   };
 
   const handleRestored = useCallback(async () => {
-    hasSetInitialContentRef.current = false;
-    autosaveArmedRef.current = false;
     setShowVersionHistory(false);
-    await fetchNote();
-  }, [fetchNote]);
+    const fresh = await fetchNote();
+    if (fresh) {
+      setLiveText(null);
+      latestJsonRef.current = null;
+      lastSavedRef.current = JSON.stringify(fresh.content ?? null);
+      collab.collabReplace(fresh.content);
+    }
+  }, [fetchNote, editor]);
 
   const isMidnight = tokens.name === 'midnight';
 
@@ -431,12 +466,25 @@ export function NoteScreen() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
         <FileText size={40} color={tokens.muted} strokeWidth={1.3} />
         <Text style={{ fontSize: 15, color: tokens.muted }}>{fetchError ?? 'Note not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Notes', undefined)}>
+        <TouchableOpacity onPress={goToNotes}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>← Back to notes</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  if (room.status === 'denied') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: tokens.background, paddingTop: insets.top }}>
+        <FileText size={40} color={tokens.muted} strokeWidth={1.3} />
+        <Text style={{ fontSize: 15, color: tokens.muted }}>You don't have access to this note.</Text>
+        <TouchableOpacity onPress={goToNotes}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: tokens.primary }}>← Back to notes</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
 
   return (
     <KeyboardAvoidingView
@@ -447,124 +495,120 @@ export function NoteScreen() {
     >
       <StatusBar style={isMidnight ? 'light' : 'dark'} />
 
-      {/* Header wrapper */}
       <View style={{ paddingTop: insets.top, backgroundColor: tokens.surface }}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.border, gap: 8, backgroundColor: tokens.surface }}>
-          {/* Back */}
-          <TouchableOpacity
-            style={{ padding: 4 }}
-            onPress={async () => {
-              await flushPendingSave();
-              navigation.navigate('Notes', undefined);
-            }}
-            hitSlop={8}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={20} color={tokens.text} />
-          </TouchableOpacity>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: tokens.border, backgroundColor: tokens.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, gap: 6 }}>
+          {/* Row 1: back, title, avatars, save status */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              style={{ padding: 4 }}
+              onPress={async () => {
+                await flushPendingSave();
+                goToNotes();
+              }}
+              hitSlop={8}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={20} color={tokens.text} />
+            </TouchableOpacity>
 
-          {/* Title + role */}
-          <View style={{ flex: 1, overflow: 'hidden' }}>
-            {editingTitle ? (
-              <TextInput
-                ref={titleInputRef}
-                style={{ fontSize: 16, fontWeight: '700', color: tokens.text, padding: 0, borderBottomWidth: 2, borderBottomColor: tokens.primary }}
-                value={titleDraft}
-                onChangeText={setTitleDraft}
-                onBlur={commitTitle}
-                onSubmitEditing={commitTitle}
-                maxLength={120}
-                returnKeyType="done"
-              />
-            ) : (
-              <Pressable onPress={startEditTitle}>
-                <Text
-                  style={{ fontSize: 16, fontWeight: '700', color: tokens.text }}
-                  numberOfLines={1}
-                >
-                  {note.title || 'Untitled document'}
-                </Text>
-              </Pressable>
-            )}
-            <View style={{ alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: noteRoleBg }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: noteRoleColor }}>
-                {noteRoleLabel}
-              </Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {editingTitle ? (
+                <TextInput
+                  ref={titleInputRef}
+                  style={{ fontSize: 16, fontWeight: '700', color: tokens.text, padding: 0, borderBottomWidth: 2, borderBottomColor: tokens.primary }}
+                  value={titleDraft}
+                  onChangeText={setTitleDraft}
+                  onBlur={commitTitle}
+                  onSubmitEditing={commitTitle}
+                  maxLength={120}
+                  returnKeyType="done"
+                />
+              ) : (
+                <Pressable onPress={startEditTitle}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: tokens.text }} numberOfLines={1}>
+                    {note.title || 'Untitled document'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
+
+            <PresenceAvatars others={room.others} connected={room.status === 'joined'} tokens={tokens} />
+            <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
           </View>
 
-          {/* Actions */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <PresenceIndicator onlineCount={onlineCount} othersOnline={othersOnline} tokens={tokens} />
-            <SaveIndicator status={saveStatus} tokens={tokens} isMidnight={isMidnight} />
+          {/* Row 2: role badge on the left, actions on the right */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexShrink: 0, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: noteRoleBg }}>
+              <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: noteRoleColor }}>{noteRoleLabel}</Text>
+            </View>
 
-            {canEdit && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {canEdit && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8 }}
+                  onPress={handleSaveCheckpoint}
+                  disabled={savingCheckpoint}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  {savingCheckpoint ? (
+                    <ActivityIndicator size="small" color={tokens.primary} />
+                  ) : (
+                    <BookmarkPlus size={20} color={tokens.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {isOwner && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8, backgroundColor: isArchived ? tokens.accentSoft : 'transparent' }}
+                  onPress={handleToggleArchive}
+                  disabled={archiving}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  {archiving ? (
+                    <ActivityIndicator size="small" color={tokens.accent} />
+                  ) : isArchived ? (
+                    <ArchiveRestore size={20} color={tokens.accent} />
+                  ) : (
+                    <Archive size={20} color={tokens.muted} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {isOwner && (
+                <TouchableOpacity
+                  style={{ padding: 6, borderRadius: 8, backgroundColor: showShare ? tokens.primary : 'transparent' }}
+                  onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false); }}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                >
+                  <Share2 size={20} color={showShare ? '#fff' : tokens.primary} />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8 }}
-                onPress={handleSaveCheckpoint}
-                disabled={savingCheckpoint}
+                style={{ padding: 6, borderRadius: 8, backgroundColor: showVersionHistory ? tokens.primary : 'transparent' }}
+                onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false); }}
                 hitSlop={6}
                 activeOpacity={0.7}
               >
-                {savingCheckpoint ? (
-                  <ActivityIndicator size="small" color={tokens.primary} />
-                ) : (
-                  <BookmarkPlus size={20} color={tokens.primary} />
-                )}
+                <History size={20} color={showVersionHistory ? '#fff' : tokens.primary} />
               </TouchableOpacity>
-            )}
 
-            {isOwner && (
               <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8, backgroundColor: isArchived ? tokens.accentSoft : 'transparent' }}
-                onPress={handleToggleArchive}
-                disabled={archiving}
+                style={{ padding: 6, borderRadius: 8, backgroundColor: showAIInsights ? tokens.accent : 'transparent' }}
+                onPress={() => { setShowAIInsights(true); setShowVersionHistory(false); setShowShare(false); }}
                 hitSlop={6}
                 activeOpacity={0.7}
               >
-                {archiving ? (
-                  <ActivityIndicator size="small" color={tokens.accent} />
-                ) : isArchived ? (
-                  <ArchiveRestore size={20} color={tokens.accent} />
-                ) : (
-                  <Archive size={20} color={tokens.muted} />
-                )}
+                <Sparkles size={20} color={showAIInsights ? '#fff' : tokens.accent} />
               </TouchableOpacity>
-            )}
-
-            {isOwner && (
-              <TouchableOpacity
-                style={{ padding: 6, borderRadius: 8, backgroundColor: showShare ? tokens.primary : 'transparent' }}
-                onPress={() => { setShowShare(true); setShowVersionHistory(false); setShowAIInsights(false); }}
-                hitSlop={6}
-                activeOpacity={0.7}
-              >
-                <Share2 size={20} color={showShare ? '#fff' : tokens.primary} />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={{ padding: 6, borderRadius: 8, backgroundColor: showVersionHistory ? tokens.primary : 'transparent' }}
-              onPress={() => { setShowVersionHistory(true); setShowShare(false); setShowAIInsights(false); }}
-              hitSlop={6}
-              activeOpacity={0.7}
-            >
-              <History size={20} color={showVersionHistory ? '#fff' : tokens.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ padding: 6, borderRadius: 8, backgroundColor: showAIInsights ? tokens.accent : 'transparent' }}
-              onPress={() => { setShowAIInsights(true); setShowVersionHistory(false); setShowShare(false); }}
-              hitSlop={6}
-              activeOpacity={0.7}
-            >
-              <Sparkles size={20} color={showAIInsights ? '#fff' : tokens.accent} />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* Archive Banner */}
         {isArchived && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
             <Archive size={13} color={tokens.accent} />
@@ -578,21 +622,28 @@ export function NoteScreen() {
             )}
           </View>
         )}
-      </View>
 
-      {/* Editor Area */}
-      <View style={{ flex: 1 }}>
-        <RichText editor={editor} style={{ flex: 1 }} />
-        {isEmpty && canEdit && !isArchived && (
-          <View
-            style={{ position: 'absolute', left: 0, right: 0, top: 0, paddingTop: 16, paddingHorizontal: 24 }}
-            pointerEvents="none"
-          >
-            <Text style={{ fontSize: 15, color: tokens.muted }}>
-              Start writing your note…
+        {collabReady && room.status !== 'joined' && (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 6, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.accent }}>
+              {everJoined
+                ? "Connection lost, reconnecting… your edits will sync when you're back."
+                : 'Joining note…'}
             </Text>
           </View>
         )}
+
+        {loadFailed && (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: tokens.accentSoft, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.accent }}>
+              Couldn't load this note's content, so editing is disabled to protect it. Go back and reopen the note.
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={{ flex: 1, width: '100%', minHeight: 300, overflow: 'hidden' }}>
+        <RichText editor={editor} style={{ flex: 1, width: '100%', backgroundColor: tokens.surface }} />
       </View>
 
       {canEdit && token && (
@@ -601,10 +652,13 @@ export function NoteScreen() {
           bottomInset={insets.bottom}
           noteId={noteId}
           token={token}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          onUndo={() => collab.collabUndo()}
+          onRedo={() => collab.collabRedo()}
         />
       )}
 
-      {/* Modals and Side Panels */}
       <MobileVersionHistoryPanel
         noteId={noteId}
         token={token!}
@@ -641,34 +695,61 @@ export function NoteScreen() {
   );
 }
 
-// ─── Presence Indicator ──────────────────────────────────────────────────────
+const initialsOf = (name?: string | null) => {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
-interface PresenceIndicatorProps {
-  onlineCount: number;
-  othersOnline: number;
-  tokens: any;
-}
-
-function PresenceIndicator({ onlineCount, othersOnline, tokens }: PresenceIndicatorProps) {
-  if (onlineCount === 0) return null;
-
-  const isAlone = othersOnline === 0;
-  const dotColor = isAlone ? tokens.muted : '#22c55e';
-  const label = isAlone
-    ? 'Only you'
-    : `${othersOnline} other${othersOnline === 1 ? '' : 's'} online`;
+function PresenceAvatars({ others, connected, tokens }: { others: any[]; connected: boolean; tokens: any }) {
+  if (!connected || others.length === 0) return null;
+  const MAX = 3;
+  const visible = others.slice(0, MAX);
+  const overflow = others.length - MAX;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: tokens.surfaceElevated, borderWidth: 1, borderColor: tokens.border }}>
-      <View
-        style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: dotColor }}
-      />
-      <Text style={{ fontSize: 10, fontWeight: '600', color: tokens.muted }}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {visible.map((u, i) => (
+        <View
+          key={u.userId}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            marginLeft: i === 0 ? 0 : -8,
+            backgroundColor: stringToColor(u.userId),
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: tokens.surface,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+            {initialsOf(u.displayName ?? u.email)}
+          </Text>
+        </View>
+      ))}
+      {overflow > 0 && (
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            marginLeft: -8,
+            backgroundColor: tokens.surfaceElevated,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: tokens.surface,
+          }}
+        >
+          <Text style={{ color: tokens.muted, fontSize: 10, fontWeight: '700' }}>+{overflow}</Text>
+        </View>
+      )}
     </View>
   );
 }
-
-// ─── Save Indicator ──────────────────────────────────────────────────────────
 
 function SaveIndicator({ status, tokens, isMidnight }: { status: SaveStatus; tokens: any; isMidnight: boolean }) {
   if (status === 'idle') return null;
